@@ -1,0 +1,30 @@
+# Helm
+*.tgz
+charts/*/charts/*.tgz
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+dist/
+build/
+*.egg-info/
+
+# Secrets
+*.key
+*.pem
+.env
+!.env.example

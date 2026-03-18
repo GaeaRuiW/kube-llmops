@@ -1,0 +1,57 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  helm-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.0
+      - name: Helm lint
+        run: helm lint charts/kube-llmops-stack/
+      - name: Helm lint with minimal values
+        run: helm lint charts/kube-llmops-stack/ -f charts/kube-llmops-stack/values-minimal.yaml
+      - name: Helm lint with CI values
+        run: helm lint charts/kube-llmops-stack/ -f charts/kube-llmops-stack/values-ci.yaml
+
+  yaml-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install yamllint
+        run: pip install yamllint
+      - name: Lint YAML files
+        run: |
+          yamllint -c .yamllint.yml charts/kube-llmops-stack/values*.yaml
+          yamllint -c .yamllint.yml alerting/ || true
+          yamllint -c .yamllint.yml otel/ || true
+
+  shell-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint shell scripts
+        run: |
+          if ls scripts/*.sh 1>/dev/null 2>&1; then
+            shellcheck scripts/*.sh
+          else
+            echo "No shell scripts to lint yet"
+          fi
+
+  markdown-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DavidAnson/markdownlint-cli2-action@v19
+        with:
+          globs: |
+            *.md
+            docs/**/*.md
+          config: .markdownlint.json

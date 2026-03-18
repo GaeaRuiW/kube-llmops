@@ -1,0 +1,145 @@
+# kube-llmops-stack default values
+# See values-minimal.yaml, values-standard.yaml, values-production.yaml for presets
+
+global:
+  # Set to false for CPU-only environments (CI, dev without GPU)
+  gpu: true
+  # Image pull policy
+  imagePullPolicy: IfNotPresent
+  # Image pull secrets (list of secret names)
+  imagePullSecrets: []
+
+# ============================================================
+# Model Serving
+# ============================================================
+models: []
+# Example:
+# - name: qwen2.5-7b
+#   source: Qwen/Qwen2.5-7B-Instruct
+#   engine: auto          # auto | vllm | llamacpp | tei | sglang
+#   replicas: 1
+#   resources:
+#     gpu: 1
+#     memory: 16Gi
+#   engineArgs: {}        # Extra engine arguments
+#   modelCache:
+#     enabled: true
+#     storageClass: ""
+#     size: 50Gi
+
+# ============================================================
+# AI Gateway (LiteLLM)
+# ============================================================
+gateway:
+  enabled: true
+  image:
+    repository: ghcr.io/berriai/litellm
+    tag: main-stable
+  replicas: 1
+  masterKey: ""             # Required. Auto-generated if empty.
+  # PostgreSQL for LiteLLM
+  postgresql:
+    enabled: true
+    auth:
+      username: litellm
+      password: ""          # Auto-generated if empty
+      database: litellm
+    primary:
+      persistence:
+        size: 10Gi
+
+# ============================================================
+# Observability
+# ============================================================
+observability:
+  enabled: true
+  # OpenTelemetry Collector
+  otelCollector:
+    enabled: true
+    image:
+      repository: otel/opentelemetry-collector-contrib
+      tag: 0.115.0
+  # Prometheus
+  prometheus:
+    enabled: true
+  # DCGM Exporter (GPU metrics)
+  dcgmExporter:
+    enabled: true           # Set to false if no GPU
+  # Grafana
+  grafana:
+    enabled: true
+    adminPassword: ""       # Auto-generated if empty
+
+# ============================================================
+# Tracing (Langfuse)
+# ============================================================
+tracing:
+  enabled: true
+  langfuse:
+    image:
+      repository: langfuse/langfuse
+      tag: latest
+      # Reuses gateway.postgresql by default (separate database)
+
+# ============================================================
+# Logging
+# ============================================================
+logging:
+  enabled: false            # Phase 2
+  fluentbit:
+    enabled: false
+  loki:
+    enabled: false
+
+# ============================================================
+# Autoscaling (KEDA)
+# ============================================================
+autoscaling:
+  enabled: false            # Phase 2
+  keda:
+    enabled: false
+
+# ============================================================
+# Model Cache (Fluid)
+# ============================================================
+modelCache:
+  enabled: false            # Phase 2
+  fluid:
+    enabled: false
+
+# ============================================================
+# Model Registry (Harbor)
+# ============================================================
+modelRegistry:
+  enabled: false            # Phase 2
+
+# ============================================================
+# Object Storage (MinIO)
+# ============================================================
+objectStorage:
+  enabled: false            # Phase 2
+
+# ============================================================
+# Vector Database
+# ============================================================
+vectorDB:
+  enabled: false            # Phase 3
+  engine: pgvector          # pgvector | milvus
+
+# ============================================================
+# Security
+# ============================================================
+security:
+  keycloak:
+    enabled: false          # Phase 2
+  networkPolicies:
+    enabled: false          # Phase 2
+
+# ============================================================
+# Ingress
+# ============================================================
+ingress:
+  enabled: false
+  className: ""
+  host: ""
+  tls: false

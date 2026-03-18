@@ -1,0 +1,31 @@
+===============================================================
+  kube-llmops has been installed!
+===============================================================
+
+{{- if .Values.gateway.enabled }}
+
+1. Access the AI Gateway (LiteLLM):
+   kubectl port-forward svc/{{ include "kube-llmops.fullname" . }}-litellm 4000:4000
+
+   Then try:
+   curl http://localhost:4000/v1/models -H "Authorization: Bearer {{ .Values.gateway.masterKey }}"
+
+{{- end }}
+
+{{- if .Values.observability.grafana.enabled }}
+
+2. Access Grafana:
+   kubectl port-forward svc/{{ include "kube-llmops.fullname" . }}-grafana 3000:3000
+   Open http://localhost:3000 (admin / {{ .Values.observability.grafana.adminPassword | default "admin" }})
+
+{{- end }}
+
+{{- if .Values.tracing.enabled }}
+
+3. Access Langfuse:
+   kubectl port-forward svc/{{ include "kube-llmops.fullname" . }}-langfuse 3001:3000
+   Open http://localhost:3001
+
+{{- end }}
+
+Documentation: https://github.com/your-org/kube-llmops/docs

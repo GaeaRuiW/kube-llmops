@@ -1,0 +1,36 @@
+# CI profile: CPU-only, tiny model, for E2E testing on kind
+# Usage: helm install kube-llmops charts/kube-llmops-stack -f charts/kube-llmops-stack/values-ci.yaml
+
+global:
+  gpu: false
+
+models:
+  - name: tiny-model
+    source: hf-internal-testing/tiny-random-LlamaForCausalLM
+    engine: vllm
+    replicas: 1
+    resources:
+      gpu: 0
+      cpu: 2
+      memory: 4Gi
+    engineArgs:
+      --device: cpu
+      --dtype: float32
+
+gateway:
+  enabled: true
+  masterKey: sk-ci-test-key
+
+observability:
+  enabled: true
+  dcgmExporter:
+    enabled: false
+
+tracing:
+  enabled: false
+
+logging:
+  enabled: false
+
+autoscaling:
+  enabled: false

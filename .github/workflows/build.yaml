@@ -1,0 +1,61 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  helm-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.0
+      - name: Package Helm chart
+        run: helm package charts/kube-llmops-stack/
+      - name: Upload chart artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: helm-chart
+          path: "*.tgz"
+
+  docker-build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image:
+          - name: model-loader
+            context: images/model-loader
+          - name: model-resolver
+            context: images/model-resolver
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check if Dockerfile exists
+        id: check
+        run: |
+          if [ -f "${{ matrix.image.context }}/Dockerfile" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Set up Docker Buildx
+        if: steps.check.outputs.exists == 'true'
+        uses: docker/setup-buildx-action@v3
+      - name: Build image
+        if: steps.check.outputs.exists == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.image.context }}
+          push: false
+          tags: kube-llmops/${{ matrix.image.name }}:dev
+      - name: Trivy scan
+        if: steps.check.outputs.exists == 'true'
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: kube-llmops/${{ matrix.image.name }}:dev
+          format: table
+          exit-code: 0
+          severity: CRITICAL,HIGH

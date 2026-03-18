@@ -1,0 +1,42 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  helm-template:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.0
+      - name: Template with default values
+        run: helm template kube-llmops charts/kube-llmops-stack/ > /dev/null
+      - name: Template with minimal values
+        run: helm template kube-llmops charts/kube-llmops-stack/ -f charts/kube-llmops-stack/values-minimal.yaml > /dev/null
+      - name: Template with CI values
+        run: helm template kube-llmops charts/kube-llmops-stack/ -f charts/kube-llmops-stack/values-ci.yaml > /dev/null
+
+  python-test:
+    runs-on: ubuntu-latest
+    if: hashFiles('images/model-resolver/tests/') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependencies
+        run: |
+          cd images/model-resolver
+          pip install -e ".[test]" 2>/dev/null || pip install pytest pyyaml requests 2>/dev/null || true
+      - name: Run tests
+        run: |
+          if [ -d "images/model-resolver/tests" ]; then
+            cd images/model-resolver && python -m pytest tests/ -v
+          else
+            echo "No tests yet"
+          fi
