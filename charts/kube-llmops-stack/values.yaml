@@ -124,15 +124,54 @@ tei:
 # -- AI Gateway (LiteLLM)
 litellm:
   enabled: true
+  models: []                  # Populated from top-level models[] for config generation
   replicas: 1
   masterKey: ""               # Set via --set or secret. REQUIRED.
+  image:
+    repository: ghcr.io/berriai/litellm
+    tag: main-stable
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 4000
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 1Gi
+  readinessProbe:
+    httpGet:
+      path: /health/liveliness
+      port: 4000
+    initialDelaySeconds: 15
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 10
+  livenessProbe:
+    httpGet:
+      path: /health/liveliness
+      port: 4000
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 3
   # PostgreSQL for LiteLLM
   postgresql:
     enabled: true
+    image:
+      repository: postgres
+      tag: "16-alpine"
     auth:
       database: litellm
       username: litellm
       password: ""            # Set via --set or secret
+    storage:
+      size: 5Gi
+      storageClass: ""
+    service:
+      port: 5432
 
 # -- Observability
 observability:

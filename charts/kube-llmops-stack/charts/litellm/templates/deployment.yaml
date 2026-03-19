@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $.Release.Name }}-litellm
+  labels:
+    app.kubernetes.io/name: litellm
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/component: ai-gateway
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: litellm
+      app.kubernetes.io/instance: {{ $.Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: litellm
+        app.kubernetes.io/instance: {{ $.Release.Name }}
+        app.kubernetes.io/component: ai-gateway
+        app.kubernetes.io/part-of: kube-llmops
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      containers:
+        - name: litellm
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 4000
+              protocol: TCP
+          args:
+            - "--config"
+            - "/app/config.yaml"
+            - "--port"
+            - "4000"
+            - "--host"
+            - "0.0.0.0"
+          env:
+            - name: LITELLM_MASTER_KEY
+              value: {{ .Values.masterKey | default "sk-kube-llmops-default" | quote }}
+            {{- if .Values.postgresql.enabled }}
+            - name: DATABASE_URL
+              value: "postgresql://{{ .Values.postgresql.auth.username }}:{{ .Values.postgresql.auth.password }}@{{ $.Release.Name }}-litellm-pg:{{ .Values.postgresql.service.port }}/{{ .Values.postgresql.auth.database }}"
+            {{- end }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.readinessProbe.httpGet.path }}
+              port: 4000
+            initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.livenessProbe.httpGet.path }}
+              port: 4000
+            initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
+          resources:
+            requests:
+              cpu: {{ .Values.resources.requests.cpu }}
+              memory: {{ .Values.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.resources.limits.cpu | quote }}
+              memory: {{ .Values.resources.limits.memory }}
+          volumeMounts:
+            - name: config
+              mountPath: /app/config.yaml
+              subPath: config.yaml
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: {{ $.Release.Name }}-litellm-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $.Release.Name }}-litellm
+  labels:
+    app.kubernetes.io/name: litellm
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/component: ai-gateway
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: litellm
+    app.kubernetes.io/instance: {{ $.Release.Name }}

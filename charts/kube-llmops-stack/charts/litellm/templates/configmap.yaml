@@ -1,0 +1,51 @@
+{{/*
+Generate LiteLLM config from models list.
+Maps each model to its internal vLLM/llamacpp/TEI service endpoint.
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $.Release.Name }}-litellm-config
+  labels:
+    app.kubernetes.io/name: litellm
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+data:
+  config.yaml: |
+    model_list:
+    {{- range $idx, $model := .Values.models }}
+      {{- $engine := default "vllm" $model.engine }}
+      {{- $port := "8000" }}
+      {{- $prefix := "vllm" }}
+      {{- if eq $engine "llamacpp" }}
+        {{- $port = "8080" }}
+        {{- $prefix = "llamacpp" }}
+      {{- else if eq $engine "tei" }}
+        {{- $port = "8080" }}
+        {{- $prefix = "tei" }}
+      {{- end }}
+      - model_name: {{ $model.name }}
+        litellm_params:
+          {{- if eq $engine "tei" }}
+          model: huggingface/{{ $model.source }}
+          {{- else }}
+          model: openai/{{ $model.name }}
+          {{- end }}
+          api_base: http://{{ $prefix }}-{{ $model.name }}.{{ $.Release.Namespace }}.svc.cluster.local:{{ $port }}
+          {{- if ne $engine "tei" }}
+          api_key: "no-key-needed"
+          {{- end }}
+    {{- end }}
+
+    {{- if .Values.models }}
+    router_settings:
+      routing_strategy: simple-shuffle
+      num_retries: 2
+      timeout: 120
+    {{- end }}
+
+    general_settings:
+      master_key: {{ .Values.masterKey | default "sk-kube-llmops-default" }}
+      {{- if .Values.postgresql.enabled }}
+      database_url: postgresql://{{ .Values.postgresql.auth.username }}:{{ .Values.postgresql.auth.password }}@{{ $.Release.Name }}-litellm-pg:{{ .Values.postgresql.service.port }}/{{ .Values.postgresql.auth.database }}
+      {{- end }}

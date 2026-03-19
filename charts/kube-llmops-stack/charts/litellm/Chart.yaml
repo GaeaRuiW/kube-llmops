@@ -1,0 +1,6 @@
+apiVersion: v2
+name: litellm
+description: LiteLLM AI Gateway sub-chart for kube-llmops
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

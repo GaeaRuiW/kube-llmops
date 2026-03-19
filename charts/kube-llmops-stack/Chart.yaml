@@ -37,3 +37,9 @@ dependencies:
     condition: tei.enabled
     tags:
       - model-serving
+  - name: litellm
+    version: 0.1.0
+    repository: "file://charts/litellm"
+    condition: litellm.enabled
+    tags:
+      - gateway

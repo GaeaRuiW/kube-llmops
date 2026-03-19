@@ -8,5 +8,8 @@ dependencies:
 - name: tei
   repository: file://charts/tei
   version: 0.1.0
-digest: sha256:a513a4b81cf707285fbd8e0b855478f6d901190ef5c53ec59d5b57f02e8f3ccc
-generated: "2026-03-19T10:36:59.679160543+08:00"
+- name: litellm
+  repository: file://charts/litellm
+  version: 0.1.0
+digest: sha256:f3ec74baed3292530f8d28cb9265d6500ccdb4287718c22a06833d7b92e6b044
+generated: "2026-03-19T10:41:40.631039968+08:00"

@@ -32,12 +32,28 @@ vllm:
         --device: cpu
         --dtype: float32
   modelLoader:
-    enabled: false            # Tiny model downloads fast, no need for init container
+    enabled: false
   modelCache:
-    enabled: false            # Use emptyDir for CI
+    enabled: false
+
+llamacpp:
+  enabled: true
+  models: []
+
+tei:
+  enabled: true
+  models: []
 
 litellm:
-  enabled: false
+  enabled: true
+  masterKey: sk-ci-test-key
+  models:
+    - name: tiny-model
+      source: hf-internal-testing/tiny-random-LlamaForCausalLM
+      engine: vllm
+  postgresql:
+    auth:
+      password: ci-pg-password
 
 observability:
   enabled: false
