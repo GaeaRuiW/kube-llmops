@@ -272,6 +272,10 @@ milvus:
 keycloak:
   enabled: false
 
+# -- Security (NetworkPolicy + OIDC)
+security:
+  enabled: false
+
 # -- Ingress
 ingress:
   enabled: false

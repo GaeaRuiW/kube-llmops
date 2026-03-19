@@ -1,0 +1,39 @@
+{{- if .Values.enabled }}
+{{- $promAddr := .Values.defaults.prometheusAddress | default (printf "http://%s-prometheus:9090" .Release.Name) }}
+{{- range $idx, $model := (index .Values "vllmModels" | default list) }}
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: vllm-{{ $model.name }}-scaler
+  labels:
+    app.kubernetes.io/name: keda-scaler
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+    kube-llmops/model: {{ $model.name }}
+spec:
+  scaleTargetRef:
+    name: vllm-{{ $model.name }}
+  minReplicaCount: {{ $.Values.defaults.minReplicas }}
+  maxReplicaCount: {{ $.Values.defaults.maxReplicas }}
+  cooldownPeriod: {{ $.Values.defaults.cooldownPeriod }}
+  pollingInterval: {{ $.Values.defaults.pollingInterval }}
+  triggers:
+    {{- if $.Values.defaults.triggers.requestsWaiting.enabled }}
+    - type: prometheus
+      metadata:
+        serverAddress: {{ $promAddr }}
+        query: sum({{ $.Values.defaults.triggers.requestsWaiting.metric }}{kube_llmops_model="{{ $model.name }}"})
+        threshold: {{ $.Values.defaults.triggers.requestsWaiting.threshold | quote }}
+        metricName: vllm_requests_waiting_{{ $model.name }}
+    {{- end }}
+    {{- if $.Values.defaults.triggers.ttftP95.enabled }}
+    - type: prometheus
+      metadata:
+        serverAddress: {{ $promAddr }}
+        query: histogram_quantile(0.95, sum(rate({{ $.Values.defaults.triggers.ttftP95.metric }}_bucket{kube_llmops_model="{{ $model.name }}"}[2m])) by (le))
+        threshold: {{ $.Values.defaults.triggers.ttftP95.threshold | quote }}
+        metricName: vllm_ttft_p95_{{ $model.name }}
+    {{- end }}
+{{- end }}
+{{- end }}

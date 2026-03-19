@@ -1,0 +1,29 @@
+{{- if .Values.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-harbor-config
+  labels:
+    app.kubernetes.io/name: harbor-config
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+    app.kubernetes.io/component: model-registry
+data:
+  registry-endpoint: {{ .Values.registry.endpoint | quote }}
+  registry-project: {{ .Values.registry.project | quote }}
+  registry-username: {{ .Values.registry.username | quote }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Release.Name }}-harbor-secret
+  labels:
+    app.kubernetes.io/name: harbor-secret
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+    app.kubernetes.io/component: model-registry
+type: Opaque
+data:
+  registry-password: {{ .Values.registry.password | b64enc | quote }}
+{{- end }}

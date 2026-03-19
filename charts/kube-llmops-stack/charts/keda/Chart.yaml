@@ -1,0 +1,5 @@
+apiVersion: v2
+name: keda
+description: KEDA autoscaling for vLLM model serving
+version: 0.1.0
+type: application

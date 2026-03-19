@@ -1,0 +1,48 @@
+{{- if .Values.enabled }}
+{{- range $idx, $model := (index .Values "vllmModels" | default list) }}
+---
+apiVersion: fluid.io/v1alpha1
+kind: Dataset
+metadata:
+  name: model-cache-{{ $model.name }}
+  labels:
+    app.kubernetes.io/name: fluid-dataset
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+    kube-llmops/model: {{ $model.name }}
+spec:
+  mounts:
+    - mountPoint: s3://models/{{ $model.name }}
+      name: {{ $model.name }}
+      options:
+        fs.s3a.endpoint: http://{{ $.Release.Name }}-minio:9000
+        fs.s3a.access.key: {{ $.Values.minio.accessKey }}
+        fs.s3a.secret.key: {{ $.Values.minio.secretKey }}
+---
+apiVersion: fluid.io/v1alpha1
+kind: AlluxioRuntime
+metadata:
+  name: model-cache-{{ $model.name }}
+  labels:
+    app.kubernetes.io/name: fluid-alluxio-runtime
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+    kube-llmops/model: {{ $model.name }}
+spec:
+  replicas: {{ $.Values.alluxio.replicas }}
+  tieredstore:
+    levels:
+      {{- range $tierIdx, $tier := $.Values.alluxio.tieredStore }}
+      - mediumtype: {{ $tier.mediumtype }}
+        path: {{ $tier.path }}
+        quota: {{ $tier.quota }}
+        level: {{ $tierIdx }}
+      {{- end }}
+  master:
+    jvmOptions:
+      {{- toYaml $.Values.alluxio.jvmOptions | nindent 6 }}
+  worker:
+    jvmOptions:
+      {{- toYaml $.Values.alluxio.jvmOptions | nindent 6 }}
+{{- end }}
+{{- end }}

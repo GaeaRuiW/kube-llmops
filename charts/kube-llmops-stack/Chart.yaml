@@ -55,3 +55,33 @@ dependencies:
     condition: langfuse.enabled
     tags:
       - tracing
+  - name: logging
+    version: 0.1.0
+    repository: "file://charts/logging"
+    condition: logging.enabled
+    tags:
+      - logging
+  - name: keda
+    version: 0.1.0
+    repository: "file://charts/keda"
+    condition: keda.enabled
+    tags:
+      - autoscaling
+  - name: fluid
+    version: 0.1.0
+    repository: "file://charts/fluid"
+    condition: fluid.enabled
+    tags:
+      - caching
+  - name: harbor
+    version: 0.1.0
+    repository: "file://charts/harbor"
+    condition: harbor.enabled
+    tags:
+      - registry
+  - name: security
+    version: 0.1.0
+    repository: "file://charts/security"
+    condition: security.enabled
+    tags:
+      - security

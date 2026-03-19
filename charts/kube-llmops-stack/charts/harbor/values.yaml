@@ -1,0 +1,19 @@
+enabled: false
+
+# Harbor is complex — we just provide a thin wrapper
+# Users should install Harbor separately or use the official Helm chart
+# This chart provides the configuration/integration layer
+
+# Harbor connection settings (for model-loader integration)
+registry:
+  endpoint: "https://harbor.example.com"
+  project: "models"
+  username: "admin"
+  password: ""
+
+# Model push script configuration
+modelPush:
+  image:
+    repository: ghcr.io/gaearuiw/kube-llmops/model-pusher
+    tag: latest
+    pullPolicy: IfNotPresent

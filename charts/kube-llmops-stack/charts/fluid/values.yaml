@@ -1,0 +1,39 @@
+enabled: false
+
+# MinIO for S3-compatible model storage backend
+minio:
+  enabled: true
+  image:
+    repository: minio/minio
+    tag: RELEASE.2024-11-07T00-52-20Z
+    pullPolicy: IfNotPresent
+  accessKey: minioadmin
+  secretKey: minioadmin
+  storage:
+    size: 50Gi
+  service:
+    port: 9000
+    consolePort: 9001
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+# Alluxio runtime settings for Fluid
+alluxio:
+  replicas: 1
+  tieredStore:
+    # Memory tier for hot data
+    - mediumtype: MEM
+      path: /dev/shm
+      quota: 4Gi
+    # SSD tier for warm data
+    - mediumtype: SSD
+      path: /alluxio-ssd
+      quota: 20Gi
+  jvmOptions:
+    - "-Xmx4g"
+    - "-Xms2g"

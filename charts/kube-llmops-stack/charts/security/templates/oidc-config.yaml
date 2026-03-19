@@ -1,0 +1,49 @@
+{{- if and .Values.enabled .Values.oidc.enabled }}
+---
+# OIDC configuration — shared across components
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-oidc-config
+  labels:
+    app.kubernetes.io/part-of: kube-llmops
+    app.kubernetes.io/component: security
+data:
+  issuer-url: {{ .Values.oidc.issuerUrl | quote }}
+  client-id: {{ .Values.oidc.clientId | quote }}
+---
+# OIDC client secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Release.Name }}-oidc-secret
+  labels:
+    app.kubernetes.io/part-of: kube-llmops
+    app.kubernetes.io/component: security
+type: Opaque
+data:
+  client-secret: {{ .Values.oidc.clientSecret | b64enc | quote }}
+{{- if .Values.oidc.grafana.enabled }}
+---
+# Grafana OIDC configuration (mount as grafana.ini additional section)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-grafana-oidc
+  labels:
+    app.kubernetes.io/part-of: kube-llmops
+    app.kubernetes.io/component: security
+data:
+  grafana-oidc.ini: |
+    [auth.generic_oauth]
+    enabled = true
+    name = SSO
+    client_id = {{ .Values.oidc.clientId }}
+    client_secret = {{ .Values.oidc.clientSecret }}
+    auth_url = {{ .Values.oidc.issuerUrl }}/protocol/openid-connect/auth
+    token_url = {{ .Values.oidc.issuerUrl }}/protocol/openid-connect/token
+    api_url = {{ .Values.oidc.issuerUrl }}/protocol/openid-connect/userinfo
+    role_attribute_path = {{ .Values.oidc.grafana.roleAttributePath }}
+    scopes = openid profile email
+{{- end }}
+{{- end }}

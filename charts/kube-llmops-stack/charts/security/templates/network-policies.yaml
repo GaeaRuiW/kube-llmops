@@ -1,0 +1,103 @@
+{{- if and .Values.enabled .Values.networkPolicy.enabled }}
+---
+# Default deny all ingress for kube-llmops pods
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-deny-default
+  labels:
+    app.kubernetes.io/part-of: kube-llmops
+    app.kubernetes.io/component: security
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: kube-llmops
+  policyTypes:
+    - Ingress
+---
+# vLLM: allow ingress only from LiteLLM and OTel Collector on port 8000
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-vllm-policy
+  labels:
+    app.kubernetes.io/part-of: kube-llmops
+    app.kubernetes.io/component: security
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: vllm
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: litellm
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: otel-collector
+      ports:
+        - port: 8000
+---
+# LiteLLM: allow ingress from anywhere on port 4000 (API gateway)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-litellm-policy
+  labels:
+    app.kubernetes.io/part-of: kube-llmops
+    app.kubernetes.io/component: security
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: litellm
+  policyTypes:
+    - Ingress
+  ingress:
+    - ports:
+        - port: 4000
+---
+# Prometheus: allow ingress only from Grafana and OTel Collector on port 9090
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-prometheus-policy
+  labels:
+    app.kubernetes.io/part-of: kube-llmops
+    app.kubernetes.io/component: security
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: grafana
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: otel-collector
+      ports:
+        - port: 9090
+---
+# Grafana: allow ingress from anywhere on port 3000 (dashboard UI)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-grafana-policy
+  labels:
+    app.kubernetes.io/part-of: kube-llmops
+    app.kubernetes.io/component: security
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: grafana
+  policyTypes:
+    - Ingress
+  ingress:
+    - ports:
+        - port: 3000
+{{- end }}

@@ -1,0 +1,28 @@
+enabled: false
+
+# NetworkPolicy: isolate components so only expected traffic flows
+networkPolicy:
+  enabled: true
+
+# OIDC/SSO configuration (works with Keycloak, Dex, or any OIDC provider)
+oidc:
+  enabled: false
+  issuerUrl: ""          # e.g. https://keycloak.example.com/realms/kube-llmops
+  clientId: ""
+  clientSecret: ""
+  # Grafana OIDC settings
+  grafana:
+    enabled: false
+    roleAttributePath: "contains(groups[*], 'admin') && 'Admin' || 'Viewer'"
+  # Langfuse OIDC settings (Langfuse v2 supports generic OIDC)
+  langfuse:
+    enabled: false
+
+# Multi-tenant namespace isolation
+multiTenant:
+  enabled: false
+  # teams:
+  #   - name: team-a
+  #     namespace: llm-team-a
+  #     gpuQuota: 2
+  #     memoryQuota: 32Gi

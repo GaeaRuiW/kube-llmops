@@ -1,0 +1,30 @@
+enabled: false
+
+# Default autoscaling settings for all models
+defaults:
+  minReplicas: 1
+  maxReplicas: 4
+  cooldownPeriod: 300       # 5 min before scale-down
+  pollingInterval: 15       # Check metrics every 15s
+
+  # Scale triggers — Prometheus-based
+  triggers:
+    # Scale up when requests are waiting in queue
+    requestsWaiting:
+      enabled: true
+      threshold: "2"        # Scale when > 2 requests waiting
+      metric: vllm_num_requests_waiting
+    # Scale up when TTFT is high (users waiting too long)
+    ttftP95:
+      enabled: false
+      threshold: "3"        # Scale when P95 TTFT > 3 seconds
+      metric: vllm_time_to_first_token_seconds
+
+  # Prometheus endpoint (auto-detected from observability chart)
+  prometheusAddress: ""     # Auto: http://<release>-prometheus:9090
+
+# Per-model overrides (optional)
+# models:
+#   qwen2-5-0-5b:
+#     minReplicas: 1
+#     maxReplicas: 8
