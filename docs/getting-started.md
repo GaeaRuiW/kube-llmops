@@ -1,5 +1,7 @@
 # Getting Started with kube-llmops
 
+**English** | [中文](getting-started.zh-CN.md)
+
 This guide walks you through installing kube-llmops, verifying the deployment, and making your first LLM API call.
 
 ## Table of Contents

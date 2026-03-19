@@ -1,5 +1,7 @@
 # Contributing to kube-llmops
 
+**English** | [中文](CONTRIBUTING.zh-CN.md)
+
 Thanks for your interest in contributing! This guide will help you get started.
 
 ## Development Setup
