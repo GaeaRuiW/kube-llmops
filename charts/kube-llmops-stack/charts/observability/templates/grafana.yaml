@@ -36,6 +36,11 @@ data:
         url: http://{{ $.Release.Name }}-prometheus:9090
         isDefault: true
         editable: false
+      - name: Loki
+        type: loki
+        access: proxy
+        url: http://{{ $.Release.Name }}-loki:3100
+        editable: false
 ---
 apiVersion: apps/v1
 kind: Deployment

@@ -1,0 +1,5 @@
+apiVersion: v2
+name: logging
+description: Logging stack (Fluent Bit + Loki) for kube-llmops
+version: 0.1.0
+type: application

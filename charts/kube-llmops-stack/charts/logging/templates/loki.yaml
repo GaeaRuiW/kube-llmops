@@ -1,0 +1,165 @@
+{{- if .Values.enabled }}
+---
+# Loki ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-loki-config
+  labels:
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+data:
+  loki.yaml: |
+    auth_enabled: false
+
+    server:
+      http_listen_port: {{ .Values.loki.port }}
+      grpc_listen_port: 9096
+      log_level: info
+
+    common:
+      path_prefix: /loki
+      replication_factor: 1
+      ring:
+        kvstore:
+          store: inmemory
+      storage:
+        filesystem:
+          chunks_directory: /loki/chunks
+          rules_directory: /loki/rules
+
+    schema_config:
+      configs:
+        - from: "2024-01-01"
+          store: tsdb
+          object_store: filesystem
+          schema: v13
+          index:
+            prefix: loki_index_
+            period: 24h
+
+    limits_config:
+      ingestion_rate_mb: 10
+      ingestion_burst_size_mb: 20
+      reject_old_samples: true
+      reject_old_samples_max_age: 168h
+
+    compactor:
+      working_directory: /loki/compactor
+      compaction_interval: 10m
+      retention_enabled: true
+      retention_delete_delay: 2h
+      delete_request_store: filesystem
+
+    table_manager:
+      retention_deletes_enabled: true
+      retention_period: {{ .Values.loki.retention }}
+
+    analytics:
+      reporting_enabled: false
+---
+# Loki PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-loki-data
+  labels:
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- if .Values.loki.storage.storageClassName }}
+  storageClassName: {{ .Values.loki.storage.storageClassName }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.loki.storage.size }}
+---
+# Loki Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-loki
+  labels:
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: loki
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: loki
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/part-of: kube-llmops
+    spec:
+      containers:
+        - name: loki
+          image: "{{ .Values.loki.image.repository }}:{{ .Values.loki.image.tag }}"
+          imagePullPolicy: {{ .Values.loki.image.pullPolicy }}
+          args:
+            - -config.file=/etc/loki/loki.yaml
+            - -target=all
+          ports:
+            - name: http
+              containerPort: {{ .Values.loki.port }}
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: {{ .Values.loki.port }}
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: {{ .Values.loki.port }}
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: config
+              mountPath: /etc/loki/loki.yaml
+              subPath: loki.yaml
+            - name: data
+              mountPath: /loki
+          resources:
+            {{- toYaml .Values.loki.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-loki-config
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-loki-data
+---
+# Loki Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-loki
+  labels:
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: {{ .Values.loki.port }}
+      targetPort: http
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}

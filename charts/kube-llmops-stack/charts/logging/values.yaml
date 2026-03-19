@@ -1,0 +1,33 @@
+# Logging sub-chart default values
+enabled: false
+
+loki:
+  image:
+    repository: grafana/loki
+    tag: "3.3.2"
+    pullPolicy: IfNotPresent
+  port: 3100
+  storage:
+    size: 5Gi
+    storageClassName: ""
+  retention: 168h
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+fluentbit:
+  image:
+    repository: fluent/fluent-bit
+    tag: "3.2.4"
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
