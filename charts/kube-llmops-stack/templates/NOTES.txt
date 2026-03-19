@@ -28,4 +28,4 @@
 
 {{- end }}
 
-Documentation: https://github.com/wangr30/kube-llmops
+Documentation: https://github.com/GaeaRuiW/kube-llmops

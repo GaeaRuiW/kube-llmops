@@ -51,7 +51,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full technical design.
 
 ```bash
 # Add Helm repo (available after v0.1.0 release)
-helm repo add kube-llmops https://wangr30.github.io/kube-llmops
+helm repo add kube-llmops https://GaeaRuiW.github.io/kube-llmops
 helm repo update
 
 # Install with minimal profile (1 GPU, 1 model, basic monitoring)

@@ -16,7 +16,7 @@ Thanks for your interest in contributing! This guide will help you get started.
 ### Quick Start
 
 ```bash
-git clone https://github.com/wangr30/kube-llmops.git
+git clone https://github.com/GaeaRuiW/kube-llmops.git
 cd kube-llmops
 
 # Verify setup
@@ -118,5 +118,5 @@ examples/                   # Usage examples
 
 ## Questions?
 
-- Open a [GitHub Discussion](https://github.com/wangr30/kube-llmops/discussions) for questions
-- Open an [Issue](https://github.com/wangr30/kube-llmops/issues) for bugs or feature requests
+- Open a [GitHub Discussion](https://github.com/GaeaRuiW/kube-llmops/discussions) for questions
+- Open an [Issue](https://github.com/GaeaRuiW/kube-llmops/issues) for bugs or feature requests

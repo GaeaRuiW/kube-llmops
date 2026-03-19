@@ -4,9 +4,9 @@ description: Kubernetes-native LLMOps Platform - deploy, manage, monitor, and op
 type: application
 version: 0.1.0
 appVersion: "0.1.0"
-home: https://github.com/wangr30/kube-llmops
+home: https://github.com/GaeaRuiW/kube-llmops
 sources:
-  - https://github.com/wangr30/kube-llmops
+  - https://github.com/GaeaRuiW/kube-llmops
 keywords:
   - llm
   - llmops
@@ -17,4 +17,4 @@ keywords:
   - monitoring
   - observability
 maintainers:
-  - name: wangr30
+  - name: GaeaRuiW
