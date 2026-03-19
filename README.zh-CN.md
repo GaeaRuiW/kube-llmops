@@ -81,10 +81,14 @@ kubectl port-forward svc/kube-llmops-minio 9001:9001 &      # 对象存储（可
 | 服务 | URL | 默认凭据 |
 |---|---|---|
 | **LiteLLM**（AI 网关 + 管理界面） | `http://localhost:4000/ui` | 任意用户名 / `sk-kube-llmops-dev` |
-| **Grafana**（监控仪表盘） | `http://localhost:3000` | `admin` / `admin` |
+| **Grafana**（监控仪表盘） | `http://localhost:3000` | `admin` / `admin123!` |
 | **Langfuse**（LLM 调用追踪） | `http://localhost:3001` | `admin@kube-llmops.local` / `admin123!` |
 | **Keycloak**（SSO 管理） | `http://localhost:8080` | `admin` / `admin123!` |
 | **MinIO**（对象存储） | `http://localhost:9001` | `minioadmin` / `minioadmin` |
+
+> [!TIP]
+> 启用 SSO 后，使用 **Keycloak** 凭据（`admin` / `admin123!`）登录 Grafana、Langfuse、MinIO。
+> Keycloak 用户邮箱（`admin@kube-llmops.local`）与 Langfuse 初始用户一致，SSO 登录后自动关联已有的项目和追踪数据。
 
 > [!WARNING]
 > 以上为开发环境默认配置。生产环境请通过 `--set` 参数进行覆盖：

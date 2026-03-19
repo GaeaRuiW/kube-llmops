@@ -81,10 +81,14 @@ kubectl port-forward svc/kube-llmops-minio 9001:9001 &      # Object Storage (op
 | Service | URL | Default Credentials |
 |---|---|---|
 | **LiteLLM** (AI Gateway + Admin UI) | `http://localhost:4000/ui` | any username / `sk-kube-llmops-dev` |
-| **Grafana** (Dashboards) | `http://localhost:3000` | `admin` / `admin` |
+| **Grafana** (Dashboards) | `http://localhost:3000` | `admin` / `admin123!` |
 | **Langfuse** (LLM Tracing) | `http://localhost:3001` | `admin@kube-llmops.local` / `admin123!` |
 | **Keycloak** (SSO Admin) | `http://localhost:8080` | `admin` / `admin123!` |
 | **MinIO** (Object Storage) | `http://localhost:9001` | `minioadmin` / `minioadmin` |
+
+> [!TIP]
+> When SSO is enabled, use **Keycloak** credentials (`admin` / `admin123!`) to log in to Grafana, Langfuse, and MinIO.
+> The Keycloak user email (`admin@kube-llmops.local`) matches the Langfuse init user, so SSO login automatically sees existing projects and traces.
 
 > [!WARNING]
 > These are development defaults. For production, override via `--set`:

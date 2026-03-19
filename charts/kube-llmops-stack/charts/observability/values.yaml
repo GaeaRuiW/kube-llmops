@@ -45,7 +45,7 @@ grafana:
     repository: grafana/grafana
     tag: 11.3.0
     pullPolicy: IfNotPresent
-  adminPassword: admin
+  adminPassword: admin123!
   service:
     type: ClusterIP
     port: 3000

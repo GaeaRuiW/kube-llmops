@@ -56,7 +56,7 @@ observability:
   dcgmExporter:
     enabled: true
   grafana:
-    adminPassword: admin
+    adminPassword: admin123!
 
 # Langfuse: LLM tracing (prompt, tokens, latency per request)
 # Adds ~205MB memory. Disable with: --set langfuse.enabled=false
