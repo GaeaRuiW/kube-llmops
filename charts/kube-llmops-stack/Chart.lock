@@ -17,5 +17,20 @@ dependencies:
 - name: langfuse
   repository: file://charts/langfuse
   version: 0.1.0
-digest: sha256:23e3b7973354d836b8d63ad331f43280eb1b188e43b6fda99869c9d1a8fbaf5a
-generated: "2026-03-19T10:47:48.689379016+08:00"
+- name: logging
+  repository: file://charts/logging
+  version: 0.1.0
+- name: keda
+  repository: file://charts/keda
+  version: 0.1.0
+- name: fluid
+  repository: file://charts/fluid
+  version: 0.1.0
+- name: harbor
+  repository: file://charts/harbor
+  version: 0.1.0
+- name: security
+  repository: file://charts/security
+  version: 0.1.0
+digest: sha256:0289499039949c2689487a693aa044dd8d6361b22e256348328402ff42705047
+generated: "2026-03-19T15:59:03.638402285+08:00"

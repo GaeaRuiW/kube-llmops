@@ -32,7 +32,7 @@ echo ""
 
 # Clone and install
 TMPDIR=$(mktemp -d)
-trap "rm -rf ${TMPDIR}" EXIT
+trap 'rm -rf "${TMPDIR}"' EXIT
 
 echo "Downloading kube-llmops..."
 git clone --depth 1 -b "${BRANCH}" "https://github.com/${REPO}.git" "${TMPDIR}/kube-llmops" 2>&1 | tail -1
