@@ -1,70 +1,60 @@
-# CI profile: CPU-only, tiny model, for E2E testing on kind (no GPU required)
+# CI / CPU-only demo profile
 # Usage: helm install kube-llmops charts/kube-llmops-stack -f charts/kube-llmops-stack/values-ci.yaml
+# No GPU required — uses mock/tiny model for testing
 
-global:
-  gpu: false
-
-models:
-  - name: tiny-model
-    source: hf-internal-testing/tiny-random-LlamaForCausalLM
-    engine: vllm
-    replicas: 1
-    resources:
-      gpu: 0
-      cpu: 2
-      memory: 4Gi
-    engineArgs:
-      --device: cpu
-      --dtype: float32
+models: []
 
 vllm:
-  enabled: true
-  models:
-    - name: tiny-model
-      source: hf-internal-testing/tiny-random-LlamaForCausalLM
-      engine: vllm
-      replicas: 1
-      resources:
-        gpu: 0
-        cpu: 2
-        memory: 4Gi
-      engineArgs:
-        --device: cpu
-        --dtype: float32
-  modelLoader:
-    enabled: false
-  modelCache:
-    enabled: false
+  enabled: false    # No GPU available in CI
+  models: []
 
 llamacpp:
-  enabled: true
+  enabled: false
   models: []
 
 tei:
-  enabled: true
+  enabled: false
   models: []
 
 litellm:
   enabled: true
   masterKey: sk-ci-test-key
-  models:
-    - name: tiny-model
-      source: hf-internal-testing/tiny-random-LlamaForCausalLM
-      engine: vllm
+  models: []          # No backend models in CI
   postgresql:
+    enabled: true
     auth:
-      password: ci-pg-password
+      password: ci-test-pw
+    image:
+      tag: "16-alpine"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
 
 observability:
-  enabled: false
+  enabled: true
+  otelCollector:
+    enabled: true
+  prometheus:
+    enabled: true
+    storage:
+      size: 1Gi
+  grafana:
+    enabled: true
+    adminPassword: admin
+    storage:
+      size: 1Gi
   dcgmExporter:
-    enabled: false
+    enabled: false    # No GPU
 
 langfuse:
-  enabled: false
+  enabled: false      # Keep CI lightweight
 
 logging:
-  enabled: false
+  enabled: false      # Keep CI lightweight
 
 keda:
   enabled: false
@@ -75,11 +65,5 @@ fluid:
 harbor:
   enabled: false
 
-keycloak:
-  enabled: false
-
-milvus:
-  enabled: false
-
-minio:
+security:
   enabled: false

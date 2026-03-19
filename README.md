@@ -27,15 +27,9 @@ helm install kube-llmops kube-llmops/kube-llmops-stack -f values-minimal.yaml
 
 ## Architecture
 
-<!-- TODO: Replace with polished SVG diagram -->
-
-```
-Client -> LiteLLM (AI Gateway) -> Model Resolver -> vLLM / llama.cpp / TEI
-                                                         |
-          Langfuse (Traces) <- OTel Collector <- Prometheus + DCGM (Metrics)
-                                                         |
-                                                    Grafana (6 Dashboards)
-```
+<p align="center">
+  <img src="docs/images/architecture.svg" alt="kube-llmops Architecture" width="800">
+</p>
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the full technical design.
 
@@ -119,8 +113,10 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &    # LLM Tracing
 
 ## Documentation
 
+- [Getting Started](docs/getting-started.md) -- Installation, configuration, troubleshooting
 - [Architecture](ARCHITECTURE.md) -- Full technical design and technology choices
 - [Implementation Plan](PLAN.md) -- Milestones, CI/CD strategy, and backlog
+- [Changelog](CHANGELOG.md) -- Release notes
 - [Contributing](CONTRIBUTING.md) -- How to contribute
 
 ## Roadmap

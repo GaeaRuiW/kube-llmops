@@ -1,0 +1,270 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 420" width="800" height="420"
+     font-family="Arial, system-ui, sans-serif">
+
+  <defs>
+    <!-- Arrow markers -->
+    <marker id="arr" viewBox="0 0 10 7" refX="9" refY="3.5"
+            markerWidth="8" markerHeight="6" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#4A5568"/>
+    </marker>
+    <marker id="arr-o" viewBox="0 0 10 7" refX="9" refY="3.5"
+            markerWidth="8" markerHeight="6" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#ED8936"/>
+    </marker>
+    <marker id="arr-p" viewBox="0 0 10 7" refX="9" refY="3.5"
+            markerWidth="8" markerHeight="6" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#9F7AEA"/>
+    </marker>
+    <marker id="arr-g" viewBox="0 0 10 7" refX="9" refY="3.5"
+            markerWidth="8" markerHeight="6" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#718096"/>
+    </marker>
+  </defs>
+
+  <!-- ============================================================ -->
+  <!-- Background                                                    -->
+  <!-- ============================================================ -->
+  <rect width="800" height="420" fill="#FFFFFF"/>
+
+  <!-- Title -->
+  <text x="270" y="18" text-anchor="middle"
+        font-size="15" font-weight="bold" fill="#1A202C">kube-llmops Architecture</text>
+
+  <!-- ============================================================ -->
+  <!-- OBSERVABILITY PANEL (right side)                              -->
+  <!-- ============================================================ -->
+  <rect x="545" y="30" width="245" height="370" rx="10"
+        fill="#FFFAF0" stroke="#ED8936" stroke-width="1.2"
+        stroke-dasharray="6 3" opacity="0.9"/>
+  <text x="667" y="50" text-anchor="middle"
+        font-size="10" font-weight="bold" fill="#C05621"
+        letter-spacing="1.5">OBSERVABILITY</text>
+
+  <!-- Langfuse (purple — tracing) -->
+  <rect x="558" y="60" width="218" height="32" rx="6"
+        fill="#E9D8FD" stroke="#9F7AEA" stroke-width="1.5"/>
+  <text x="667" y="74" text-anchor="middle"
+        font-size="11" font-weight="bold" fill="#553C9A">Langfuse</text>
+  <text x="667" y="86" text-anchor="middle"
+        font-size="7.5" fill="#6B46C1">LLM Tracing &amp; Evaluation</text>
+
+  <!-- OTel Collector -->
+  <rect x="558" y="108" width="218" height="32" rx="6"
+        fill="#FEEBC8" stroke="#ED8936" stroke-width="1.5"/>
+  <text x="667" y="122" text-anchor="middle"
+        font-size="11" font-weight="bold" fill="#9C4221">OTel Collector</text>
+  <text x="667" y="134" text-anchor="middle"
+        font-size="7.5" fill="#C05621">Metrics Pipeline</text>
+
+  <!-- Prometheus -->
+  <rect x="558" y="156" width="218" height="32" rx="6"
+        fill="#FEEBC8" stroke="#ED8936" stroke-width="1.5"/>
+  <text x="667" y="170" text-anchor="middle"
+        font-size="11" font-weight="bold" fill="#9C4221">Prometheus</text>
+  <text x="667" y="182" text-anchor="middle"
+        font-size="7.5" fill="#C05621">Time-series Storage</text>
+
+  <!-- Grafana -->
+  <rect x="558" y="204" width="218" height="36" rx="6"
+        fill="#FEEBC8" stroke="#ED8936" stroke-width="1.5"/>
+  <text x="667" y="219" text-anchor="middle"
+        font-size="12" font-weight="bold" fill="#9C4221">Grafana</text>
+  <text x="667" y="233" text-anchor="middle"
+        font-size="7.5" fill="#C05621">Dashboards &amp; Alerts</text>
+
+  <!-- Fluent Bit -->
+  <rect x="558" y="260" width="104" height="32" rx="6"
+        fill="#FEEBC8" stroke="#ED8936" stroke-width="1.5"/>
+  <text x="610" y="277" text-anchor="middle"
+        font-size="10" font-weight="bold" fill="#9C4221">Fluent Bit</text>
+  <text x="610" y="289" text-anchor="middle"
+        font-size="7" fill="#C05621">Log Collector</text>
+
+  <!-- Loki -->
+  <rect x="672" y="260" width="104" height="32" rx="6"
+        fill="#FEEBC8" stroke="#ED8936" stroke-width="1.5"/>
+  <text x="724" y="277" text-anchor="middle"
+        font-size="10" font-weight="bold" fill="#9C4221">Loki</text>
+  <text x="724" y="289" text-anchor="middle"
+        font-size="7" fill="#C05621">Log Storage</text>
+
+  <!-- Observability internal arrows -->
+  <!-- OTel Collector → Prometheus -->
+  <line x1="667" y1="140" x2="667" y2="156"
+        stroke="#ED8936" stroke-width="1.3" marker-end="url(#arr-o)"/>
+  <!-- Prometheus → Grafana -->
+  <line x1="667" y1="188" x2="667" y2="204"
+        stroke="#ED8936" stroke-width="1.3" marker-end="url(#arr-o)"/>
+  <!-- Fluent Bit → Loki -->
+  <line x1="662" y1="276" x2="672" y2="276"
+        stroke="#ED8936" stroke-width="1.3" marker-end="url(#arr-o)"/>
+  <!-- Loki → Grafana (upward) -->
+  <line x1="724" y1="260" x2="724" y2="240"
+        stroke="#ED8936" stroke-width="1.3" marker-end="url(#arr-o)"/>
+
+  <!-- ============================================================ -->
+  <!-- CLIENT LAYER                                                  -->
+  <!-- ============================================================ -->
+  <text x="20" y="54" font-size="9" font-weight="bold"
+        fill="#A0AEC0" letter-spacing="1">CLIENT</text>
+  <rect x="155" y="38" width="230" height="34" rx="8"
+        fill="#EDF2F7" stroke="#A0AEC0" stroke-width="1.5"/>
+  <text x="270" y="60" text-anchor="middle"
+        font-size="12" font-weight="bold" fill="#2D3748">Client / Application</text>
+
+  <!-- ============================================================ -->
+  <!-- AI GATEWAY LAYER                                              -->
+  <!-- ============================================================ -->
+  <text x="20" y="108" font-size="9" font-weight="bold"
+        fill="#276749" letter-spacing="1">GATEWAY</text>
+  <rect x="85" y="92" width="370" height="48" rx="8"
+        fill="#C6F6D5" stroke="#48BB78" stroke-width="2"/>
+  <text x="270" y="112" text-anchor="middle"
+        font-size="14" font-weight="bold" fill="#22543D">LiteLLM</text>
+  <text x="270" y="128" text-anchor="middle"
+        font-size="8.5" fill="#276749">Port 4000 · API Key Auth · Routing · Cost Tracking</text>
+
+  <!-- ============================================================ -->
+  <!-- MODEL SERVING LAYER                                           -->
+  <!-- ============================================================ -->
+  <text x="20" y="178" font-size="9" font-weight="bold"
+        fill="#2B6CB0" letter-spacing="1">MODELS</text>
+
+  <!-- vLLM -->
+  <rect x="28" y="184" width="155" height="56" rx="8"
+        fill="#BEE3F8" stroke="#4A90D9" stroke-width="1.5"/>
+  <text x="105" y="203" text-anchor="middle"
+        font-size="12" font-weight="bold" fill="#2A4365">vLLM</text>
+  <text x="105" y="217" text-anchor="middle"
+        font-size="8.5" fill="#2B6CB0">GPU</text>
+  <text x="105" y="232" text-anchor="middle"
+        font-size="7.5" fill="#4A5568">FP16/BF16 · GPTQ · AWQ</text>
+
+  <!-- llama.cpp -->
+  <rect x="194" y="184" width="155" height="56" rx="8"
+        fill="#BEE3F8" stroke="#4A90D9" stroke-width="1.5"/>
+  <text x="271" y="203" text-anchor="middle"
+        font-size="12" font-weight="bold" fill="#2A4365">llama.cpp</text>
+  <text x="271" y="217" text-anchor="middle"
+        font-size="8.5" fill="#2B6CB0">CPU / GPU</text>
+  <text x="271" y="232" text-anchor="middle"
+        font-size="7.5" fill="#4A5568">GGUF Models</text>
+
+  <!-- TEI -->
+  <rect x="360" y="184" width="155" height="56" rx="8"
+        fill="#BEE3F8" stroke="#4A90D9" stroke-width="1.5"/>
+  <text x="437" y="203" text-anchor="middle"
+        font-size="12" font-weight="bold" fill="#2A4365">TEI</text>
+  <text x="437" y="217" text-anchor="middle"
+        font-size="8.5" fill="#2B6CB0">CPU / GPU</text>
+  <text x="437" y="232" text-anchor="middle"
+        font-size="7.5" fill="#4A5568">Embeddings &amp; Reranking</text>
+
+  <!-- ============================================================ -->
+  <!-- DATA LAYER                                                    -->
+  <!-- ============================================================ -->
+  <text x="20" y="312" font-size="9" font-weight="bold"
+        fill="#4A5568" letter-spacing="1">DATA</text>
+
+  <!-- PostgreSQL -->
+  <rect x="28" y="318" width="155" height="40" rx="8"
+        fill="#E2E8F0" stroke="#718096" stroke-width="1.5"/>
+  <text x="105" y="342" text-anchor="middle"
+        font-size="11" font-weight="bold" fill="#2D3748">PostgreSQL</text>
+
+  <!-- MinIO -->
+  <rect x="194" y="318" width="155" height="40" rx="8"
+        fill="#E2E8F0" stroke="#718096" stroke-width="1.5"/>
+  <text x="271" y="342" text-anchor="middle"
+        font-size="11" font-weight="bold" fill="#2D3748">MinIO</text>
+
+  <!-- Model Cache (PVC) -->
+  <rect x="360" y="318" width="155" height="40" rx="8"
+        fill="#E2E8F0" stroke="#718096" stroke-width="1.5"/>
+  <text x="437" y="336" text-anchor="middle"
+        font-size="11" font-weight="bold" fill="#2D3748">Model Cache</text>
+  <text x="437" y="350" text-anchor="middle"
+        font-size="8" fill="#718096">PVC</text>
+
+  <!-- ============================================================ -->
+  <!-- MAIN FLOW ARROWS                                              -->
+  <!-- ============================================================ -->
+
+  <!-- Client → LiteLLM -->
+  <line x1="270" y1="72" x2="270" y2="92"
+        stroke="#4A5568" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="288" y="86" font-size="7" fill="#718096">HTTP/REST</text>
+
+  <!-- LiteLLM → vLLM -->
+  <line x1="180" y1="140" x2="115" y2="184"
+        stroke="#4A5568" stroke-width="1.3" marker-end="url(#arr)"/>
+
+  <!-- LiteLLM → llama.cpp -->
+  <line x1="270" y1="140" x2="271" y2="184"
+        stroke="#4A5568" stroke-width="1.3" marker-end="url(#arr)"/>
+
+  <!-- LiteLLM → TEI -->
+  <line x1="360" y1="140" x2="430" y2="184"
+        stroke="#4A5568" stroke-width="1.3" marker-end="url(#arr)"/>
+
+  <!-- ============================================================ -->
+  <!-- CROSS ARROWS (main ↔ observability)                          -->
+  <!-- ============================================================ -->
+
+  <!-- LiteLLM → Langfuse (traces callback) -->
+  <line x1="455" y1="108" x2="558" y2="76"
+        stroke="#9F7AEA" stroke-width="1.2"
+        stroke-dasharray="5 3" marker-end="url(#arr-p)"/>
+  <text x="496" y="84" font-size="7" fill="#9F7AEA"
+        font-style="italic">traces</text>
+
+  <!-- Model Serving → OTel Collector (metrics scrape) -->
+  <line x1="515" y1="210" x2="558" y2="128"
+        stroke="#ED8936" stroke-width="1.2"
+        stroke-dasharray="5 3" marker-end="url(#arr-o)"/>
+  <text x="530" y="162" font-size="7" fill="#ED8936"
+        font-style="italic">metrics</text>
+
+  <!-- ============================================================ -->
+  <!-- DATA CONNECTION ARROWS                                        -->
+  <!-- ============================================================ -->
+
+  <!-- LiteLLM → PostgreSQL (routed along left margin) -->
+  <path d="M 85 120 L 15 120 L 15 338 L 28 338"
+        fill="none" stroke="#718096" stroke-width="1"
+        stroke-dasharray="4 3" marker-end="url(#arr-g)"/>
+
+  <!-- Langfuse → PostgreSQL (routed below observability panel) -->
+  <path d="M 558 92 L 535 92 L 535 395 L 180 395 L 180 358"
+        fill="none" stroke="#9F7AEA" stroke-width="1"
+        stroke-dasharray="4 3" marker-end="url(#arr-p)"/>
+
+  <!-- ============================================================ -->
+  <!-- LEGEND (bottom-right)                                         -->
+  <!-- ============================================================ -->
+  <g transform="translate(560, 340)">
+    <text x="0" y="0" font-size="8" font-weight="bold" fill="#4A5568">Legend</text>
+    <!-- Solid arrow -->
+    <line x1="0" y1="10" x2="24" y2="10"
+          stroke="#4A5568" stroke-width="1.3" marker-end="url(#arr)"/>
+    <text x="30" y="14" font-size="7" fill="#4A5568">Data flow</text>
+    <!-- Dashed arrow -->
+    <line x1="0" y1="24" x2="24" y2="24"
+          stroke="#4A5568" stroke-width="1.3"
+          stroke-dasharray="4 3" marker-end="url(#arr)"/>
+    <text x="30" y="28" font-size="7" fill="#4A5568">Async / scrape</text>
+    <!-- Color key -->
+    <rect x="0" y="34" width="10" height="8" rx="2" fill="#C6F6D5" stroke="#48BB78"/>
+    <text x="15" y="42" font-size="7" fill="#4A5568">Gateway</text>
+    <rect x="70" y="34" width="10" height="8" rx="2" fill="#BEE3F8" stroke="#4A90D9"/>
+    <text x="85" y="42" font-size="7" fill="#4A5568">Models</text>
+    <rect x="0" y="48" width="10" height="8" rx="2" fill="#FEEBC8" stroke="#ED8936"/>
+    <text x="15" y="56" font-size="7" fill="#4A5568">Observability</text>
+    <rect x="70" y="48" width="10" height="8" rx="2" fill="#E9D8FD" stroke="#9F7AEA"/>
+    <text x="85" y="56" font-size="7" fill="#4A5568">Tracing</text>
+    <rect x="140" y="34" width="10" height="8" rx="2" fill="#E2E8F0" stroke="#718096"/>
+    <text x="155" y="42" font-size="7" fill="#4A5568">Data</text>
+  </g>
+
+</svg>
