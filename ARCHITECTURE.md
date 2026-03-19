@@ -39,8 +39,8 @@
                         /         |         \
               +---------+   +---------+   +----------+
               | vLLM    |   | vLLM    |   | TEI      |     Engine auto-selected
-              | Qwen3.5 |   | DS-V3   |   | bge-m3   |     by Model Resolver
-              | (GPTQ)  |   | (FP16)  |   |          |     based on model format
+              | DS-R1   |   | DS-V3   |   | bge-m3   |     by Model Resolver
+              | (BF16)  |   | (FP16)  |   |          |     based on model format
               +---------+   +---------+   +----------+
               | llama.cpp|
               | Llama-8B |
@@ -119,7 +119,7 @@ Users shouldn't need to know that AWQ models run best on vLLM and GGUF models ne
 
 ```
                    User provides model ID
-                   (e.g. "Qwen/Qwen3.5-122B-A10B-GPTQ-Int4")
+                   (e.g. "deepseek-ai/DeepSeek-R1-0528")
                               |
                               v
                    ┌─────────────────────┐
@@ -217,9 +217,9 @@ def resolve_engine(model_meta, available_gpus):
 ```yaml
 # Helm values.yaml - User just specifies model, engine auto-detected
 models:
-  - name: qwen3.5-122b
-    source: Qwen/Qwen3.5-122B-A10B-GPTQ-Int4
-    # engine: auto                # default, auto-detect (resolves to vLLM + GPTQ)
+  - name: deepseek-r1-0528
+    source: deepseek-ai/DeepSeek-R1-0528
+    # engine: auto                # default, auto-detect (resolves to vLLM)
     replicas: 2
     resources:
       gpu: 4
@@ -253,7 +253,7 @@ initContainers:
     image: kube-llmops/model-resolver:latest
     env:
       - name: MODEL_SOURCE
-        value: "Qwen/Qwen3.5-122B-A10B-GPTQ-Int4"
+        value: "deepseek-ai/DeepSeek-R1-0528"
       - name: ENGINE_OVERRIDE
         value: ""                  # empty = auto-detect
     volumeMounts:
@@ -262,8 +262,8 @@ initContainers:
     # Outputs: /resolve/engine.env
     # ENGINE=vllm
     # ENGINE_IMAGE=vllm/vllm-openai:latest
-    # ENGINE_ARGS=--quantization gptq --enable-prefix-caching --gpu-memory-utilization 0.92
-    # MODEL_PATH=/models/Qwen3.5-122B-A10B-GPTQ-Int4
+    # ENGINE_ARGS=--enable-prefix-caching --gpu-memory-utilization 0.92
+    # MODEL_PATH=/models/DeepSeek-R1-0528
 ```
 
 ### Deliverables
@@ -322,11 +322,11 @@ ArgoCD Sync Waves:
 apiVersion: data.fluid.io/v1alpha1
 kind: Dataset
 metadata:
-  name: qwen3.5-122b-weights
+  name: deepseek-r1-0528-weights
 spec:
   mounts:
-    - mountPoint: s3://model-store/Qwen3.5-122B-A10B-GPTQ-Int4/
-      name: qwen3-5-122b
+    - mountPoint: s3://model-store/DeepSeek-R1-0528/
+      name: deepseek-r1-0528
       options:
         fs.s3a.endpoint: http://minio:9000
   placement: "Shared"     # cache shared across nodes
@@ -334,7 +334,7 @@ spec:
 apiVersion: data.fluid.io/v1alpha1
 kind: AlluxioRuntime
 metadata:
-  name: qwen3.5-122b-weights
+  name: deepseek-r1-0528-weights
 spec:
   replicas: 3             # 3 cache workers
   tieredstore:
@@ -433,9 +433,9 @@ spec:
 apiVersion: inference.networking.x-k8s.io/v1alpha2
 kind: InferenceModel
 metadata:
-  name: qwen3.5-122b
+  name: deepseek-r1-0528
 spec:
-  modelName: qwen3.5-122b
+  modelName: deepseek-r1-0528
   targetRef:
     name: vllm-pool
   criticality: Critical
@@ -631,7 +631,7 @@ Langfuse receives OTel traces and enriches them with LLM-specific context:
 ```
 [Trace in Langfuse]
 │
-├── Generation: qwen3.5-122b
+├── Generation: deepseek-r1-0528
 │   ├── Input:  "Explain Kubernetes to a 5-year-old" (1,024 tokens)
 │   ├── Output: "Imagine you have a bunch of toy boxes..." (512 tokens)
 │   ├── Latency: TTFT=320ms, Total=4.2s
@@ -706,16 +706,13 @@ service:
 
 This is why OTel matters even without Jaeger: it's the **extensibility layer**.
 
-### Pre-built Grafana Dashboards (6)
+### Pre-built Grafana Dashboards (3)
 
 | # | Dashboard | Data Source | Key Panels |
 |---|---|---|---|
-| 1 | LLM Cluster Overview | Prometheus | Active models, total requests, cluster GPU util, error rate, daily cost |
-| 2 | GPU Fleet | Prometheus (DCGM) | Per-node GPU util/temp/VRAM/power, XID errors, MIG |
-| 3 | Per-Model Deep Dive | Prometheus | TTFT/ITL/E2E latency, throughput, KV cache, batch size |
-| 4 | Traffic & Routing | Prometheus | Requests by model/user, fallback events, cache routing hits |
-| 5 | Token Economics | Prometheus + LiteLLM PG | Token usage by user/team, cost per model, budget burn |
-| 6 | Alerting & SLO | Prometheus | Active alerts, SLO compliance, error budget |
+| 1 | vLLM Model Serving Overview | Prometheus | Request rate, latency percentiles (TTFT/ITL/E2E), token throughput, KV cache utilization |
+| 2 | LiteLLM AI Gateway | Prometheus + LiteLLM PG | Traffic by model, active models, error rate, token usage, cost tracking |
+| 3 | GPU & Infrastructure Overview | Prometheus (DCGM) | GPU/VRAM resource usage, queue depth, TTFT, inter-token latency |
 
 ### Alert Rules (Prometheus, via OTel metrics)
 
@@ -754,7 +751,7 @@ groups:
 ### Deliverables
 - Helm sub-chart: `charts/observability/` (OTel Collector + Prometheus + Fluentbit + Loki + DCGM Exporter)
 - Helm sub-chart: `charts/langfuse/`
-- Helm sub-chart: `charts/grafana/` (with 6 pre-built dashboard JSON)
+- Helm sub-chart: `charts/grafana/` (with 3 pre-built dashboard JSON)
 - OTel Collector config for LLM workloads
 - Prometheus recording rules + alert rules
 - Fluentbit DaemonSet config
@@ -777,14 +774,14 @@ Instead of a custom model registry, use Harbor to store model artifacts as OCI i
 
 ```bash
 # Push model weights as OCI artifact
-oras push harbor.example.com/models/qwen3.5-122b:gptq-v1 \
+oras push harbor.example.com/models/deepseek-r1-0528:v1 \
   --artifact-type application/vnd.llmops.model.v1 \
   ./model-weights/
 
 # Reference in Helm values
 models:
-  - name: qwen3.5-122b
-    source: oci://harbor.example.com/models/qwen3.5-122b:gptq-v1
+  - name: deepseek-r1-0528
+    source: oci://harbor.example.com/models/deepseek-r1-0528:v1
 ```
 
 Benefits: versioning, access control, vulnerability scanning, replication across registries -- all built into Harbor.
@@ -828,7 +825,7 @@ KEDA triggers for LLM workloads:
 triggers:
   - type: prometheus
     metadata:
-      query: sum(vllm_num_requests_waiting{model_name="qwen3.5-122b"})
+      query: sum(vllm_num_requests_waiting{model_name="deepseek-r1-0528"})
       threshold: "50"
   - type: prometheus
     metadata:
@@ -909,12 +906,9 @@ kube-llmops/
 │       └── ingest.py
 │
 ├── dashboards/                         # Grafana dashboard JSON
-│   ├── llm-cluster-overview.json
-│   ├── gpu-fleet.json
-│   ├── per-model-deep-dive.json
-│   ├── traffic-routing.json
-│   ├── token-economics.json
-│   └── alerting-slo.json
+│   ├── vllm-model-serving-overview.json
+│   ├── litellm-ai-gateway.json
+│   └── gpu-infrastructure-overview.json
 │
 ├── alerting/
 │   ├── llm-serving.yaml
@@ -1004,7 +998,7 @@ kube-llmops/
 - [ ] LiteLLM advanced (load balancing, fallback, budget, rate limiting)
 - [x] **Langfuse** integration (LiteLLM callback + OTel OTLP)
 - [x] **Fluentbit** + Loki logging pipeline
-- [ ] Full 6 Grafana dashboards + alert rules
+- [ ] Full 3 Grafana dashboards + alert rules
 - [x] **KEDA** autoscaling (pending requests, TTFT)
 - [x] **Fluid** distributed model caching
 - [x] MinIO + **Harbor** (model registry)
@@ -1071,7 +1065,7 @@ kube-llmops/
 | AI Gateway (key/cost) | No | No | Partial | No | **Yes (LiteLLM)** |
 | KV-cache-aware routing | No | **Yes (IGW)** | **Yes (IGW)** | No | **Yes (Phase 3)** |
 | OTel observability | No | Partial | No | No | **Yes (full stack)** |
-| Pre-built dashboards | No | No | No | No | **Yes (6)** |
+| Pre-built dashboards | No | No | No | No | **Yes (3)** |
 | LLM tracing (prompt) | No | No | No | No | **Yes (Langfuse)** |
 | Vector DB | faiss only | No | No | No | **Yes (Milvus/pgvector)** |
 | Fine-tuning workflow | Yes | No | No | No | **Yes** |

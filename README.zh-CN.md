@@ -22,7 +22,7 @@ helm install kube-llmops kube-llmops/kube-llmops-stack -f values-minimal.yaml
 
 ## 使用场景
 
-- **"我想部署 Qwen3.5-122B 并让 5 个团队共享，同时设置 Token 预算限制"**
+- **"我想部署 DeepSeek-R1-0528 并让 5 个团队共享，同时设置 Token 预算限制"**
 - **"我想查看本月哪个团队消耗了最多的 GPU 时长"**
 - **"我想让一个 GGUF 模型跑在 llama.cpp 上，同时让一个全精度模型跑在 vLLM 上，并统一到同一个 API 后面"**
 - **"我想对每一次 LLM 请求进行全链路追踪，记录完整的 Prompt（提示词）、Token 用量、费用和延迟"**
@@ -99,7 +99,7 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &    # LLM Tracing
 | 推理引擎自动选择（GPTQ→vLLM、GGUF→llama.cpp） | 支持 | 不适用 | 不支持 | 不支持 |
 | AI 网关（Key 管理、成本追踪、速率限制） | 支持 | 不支持 | 不支持 | 不支持 |
 | LLM 调用追踪（Prompt、Token、每次请求费用） | 支持 | 不支持 | 不支持 | 不支持 |
-| 预置 Grafana 仪表盘（6 个） | 支持 | 不支持 | 不支持 | 不支持 |
+| 预置 Grafana 仪表盘（3 个） | 支持 | 不支持 | 不支持 | 不支持 |
 | GPU 监控（DCGM） | 支持 | 需自行搭建 | 不支持 | 不支持 |
 | 一键部署完整栈 | 支持 | 不适用 | 不支持 | 不支持 |
 | 云平台无关 | 支持 | 支持 | 仅 Azure | 支持 |

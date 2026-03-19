@@ -39,8 +39,8 @@
                         /         |         \
               +---------+   +---------+   +----------+
               | vLLM    |   | vLLM    |   | TEI      |     Engine auto-selected
-              | Qwen3.5 |   | DS-V3   |   | bge-m3   |     by Model Resolver
-              | (GPTQ)  |   | (FP16)  |   |          |     based on model format
+              | DS-R1   |   | DS-V3   |   | bge-m3   |     by Model Resolver
+              | (BF16)  |   | (FP16)  |   |          |     based on model format
               +---------+   +---------+   +----------+
               | llama.cpp|
               | Llama-8B |
@@ -119,7 +119,7 @@
 
 ```
                    User provides model ID
-                   (e.g. "Qwen/Qwen3.5-122B-A10B-GPTQ-Int4")
+                   (e.g. "deepseek-ai/DeepSeek-R1-0528")
                               |
                               v
                    ┌─────────────────────┐
@@ -217,9 +217,9 @@ def resolve_engine(model_meta, available_gpus):
 ```yaml
 # Helm values.yaml - User just specifies model, engine auto-detected
 models:
-  - name: qwen3.5-122b
-    source: Qwen/Qwen3.5-122B-A10B-GPTQ-Int4
-    # engine: auto                # default, auto-detect (resolves to vLLM + GPTQ)
+  - name: deepseek-r1-0528
+    source: deepseek-ai/DeepSeek-R1-0528
+    # engine: auto                # default, auto-detect (resolves to vLLM)
     replicas: 2
     resources:
       gpu: 4
@@ -253,7 +253,7 @@ initContainers:
     image: kube-llmops/model-resolver:latest
     env:
       - name: MODEL_SOURCE
-        value: "Qwen/Qwen3.5-122B-A10B-GPTQ-Int4"
+        value: "deepseek-ai/DeepSeek-R1-0528"
       - name: ENGINE_OVERRIDE
         value: ""                  # empty = auto-detect
     volumeMounts:
@@ -262,8 +262,8 @@ initContainers:
     # Outputs: /resolve/engine.env
     # ENGINE=vllm
     # ENGINE_IMAGE=vllm/vllm-openai:latest
-    # ENGINE_ARGS=--quantization gptq --enable-prefix-caching --gpu-memory-utilization 0.92
-    # MODEL_PATH=/models/Qwen3.5-122B-A10B-GPTQ-Int4
+    # ENGINE_ARGS=--enable-prefix-caching --gpu-memory-utilization 0.92
+    # MODEL_PATH=/models/DeepSeek-R1-0528
 ```
 
 ### 交付件
@@ -322,11 +322,11 @@ ArgoCD Sync Waves:
 apiVersion: data.fluid.io/v1alpha1
 kind: Dataset
 metadata:
-  name: qwen3.5-122b-weights
+  name: deepseek-r1-0528-weights
 spec:
   mounts:
-    - mountPoint: s3://model-store/Qwen3.5-122B-A10B-GPTQ-Int4/
-      name: qwen3-5-122b
+    - mountPoint: s3://model-store/DeepSeek-R1-0528/
+      name: deepseek-r1-0528
       options:
         fs.s3a.endpoint: http://minio:9000
   placement: "Shared"     # cache shared across nodes
@@ -334,7 +334,7 @@ spec:
 apiVersion: data.fluid.io/v1alpha1
 kind: AlluxioRuntime
 metadata:
-  name: qwen3.5-122b-weights
+  name: deepseek-r1-0528-weights
 spec:
   replicas: 3             # 3 cache workers
   tieredstore:
@@ -433,9 +433,9 @@ spec:
 apiVersion: inference.networking.x-k8s.io/v1alpha2
 kind: InferenceModel
 metadata:
-  name: qwen3.5-122b
+  name: deepseek-r1-0528
 spec:
-  modelName: qwen3.5-122b
+  modelName: deepseek-r1-0528
   targetRef:
     name: vllm-pool
   criticality: Critical
@@ -631,7 +631,7 @@ Langfuse 接收 OTel 追踪数据并添加 LLM 专属上下文：
 ```
 [Trace in Langfuse]
 │
-├── Generation: qwen3.5-122b
+├── Generation: deepseek-r1-0528
 │   ├── Input:  "Explain Kubernetes to a 5-year-old" (1,024 tokens)
 │   ├── Output: "Imagine you have a bunch of toy boxes..." (512 tokens)
 │   ├── Latency: TTFT=320ms, Total=4.2s
@@ -706,16 +706,13 @@ service:
 
 这就是即使没有 Jaeger，OTel 仍然重要的原因：它是**可扩展层**。
 
-### 预置 Grafana 仪表盘（6 个）
+### 预置 Grafana 仪表盘（3 个）
 
 | # | 仪表盘 | 数据源 | 核心面板 |
 |---|---|---|---|
-| 1 | LLM 集群总览 | Prometheus | 活跃模型、总请求数、集群 GPU 利用率、错误率、日成本 |
-| 2 | GPU 集群 | Prometheus (DCGM) | 每节点 GPU 利用率/温度/VRAM/功耗、XID 错误、MIG |
-| 3 | 单模型深度分析 | Prometheus | TTFT/ITL/端到端延迟、吞吐量、KV cache、批大小 |
-| 4 | 流量与路由 | Prometheus | 按模型/用户分组的请求、故障回退事件、缓存路由命中 |
-| 5 | Token 经济学 | Prometheus + LiteLLM PG | 按用户/团队的 Token 用量、每模型成本、预算消耗 |
-| 6 | 告警与 SLO | Prometheus | 活跃告警、SLO 达标率、错误预算 |
+| 1 | vLLM 模型服务总览 | Prometheus | 请求速率、延迟百分位（TTFT/ITL/E2E）、Token 吞吐量、KV cache 利用率 |
+| 2 | LiteLLM AI Gateway | Prometheus + LiteLLM PG | 按模型分组的流量、活跃模型数、错误率、Token 用量、成本追踪 |
+| 3 | GPU 与基础设施总览 | Prometheus (DCGM) | GPU/VRAM 资源使用、队列深度、TTFT、Inter-Token 延迟 |
 
 ### 告警规则（Prometheus，通过 OTel 指标）
 
@@ -754,7 +751,7 @@ groups:
 ### 交付件
 - Helm 子 Chart：`charts/observability/`（OTel Collector + Prometheus + Fluentbit + Loki + DCGM Exporter）
 - Helm 子 Chart：`charts/langfuse/`
-- Helm 子 Chart：`charts/grafana/`（含 6 个预置仪表盘 JSON）
+- Helm 子 Chart：`charts/grafana/`（含 3 个预置仪表盘 JSON）
 - 面向 LLM 工作负载的 OTel Collector 配置
 - Prometheus 记录规则 + 告警规则
 - Fluentbit DaemonSet 配置
@@ -777,14 +774,14 @@ groups:
 
 ```bash
 # Push model weights as OCI artifact
-oras push harbor.example.com/models/qwen3.5-122b:gptq-v1 \
+oras push harbor.example.com/models/deepseek-r1-0528:v1 \
   --artifact-type application/vnd.llmops.model.v1 \
   ./model-weights/
 
 # Reference in Helm values
 models:
-  - name: qwen3.5-122b
-    source: oci://harbor.example.com/models/qwen3.5-122b:gptq-v1
+  - name: deepseek-r1-0528
+    source: oci://harbor.example.com/models/deepseek-r1-0528:v1
 ```
 
 优势：版本管理、访问控制、漏洞扫描、跨镜像仓库复制 —— 所有功能 Harbor 原生内置。
@@ -828,7 +825,7 @@ models:
 triggers:
   - type: prometheus
     metadata:
-      query: sum(vllm_num_requests_waiting{model_name="qwen3.5-122b"})
+      query: sum(vllm_num_requests_waiting{model_name="deepseek-r1-0528"})
       threshold: "50"
   - type: prometheus
     metadata:
@@ -909,12 +906,9 @@ kube-llmops/
 │       └── ingest.py
 │
 ├── dashboards/                         # Grafana dashboard JSON
-│   ├── llm-cluster-overview.json
-│   ├── gpu-fleet.json
-│   ├── per-model-deep-dive.json
-│   ├── traffic-routing.json
-│   ├── token-economics.json
-│   └── alerting-slo.json
+│   ├── vllm-model-serving-overview.json
+│   ├── litellm-ai-gateway.json
+│   └── gpu-infrastructure-overview.json
 │
 ├── alerting/
 │   ├── llm-serving.yaml
@@ -1004,7 +998,7 @@ kube-llmops/
 - [ ] LiteLLM 高级功能（负载均衡、故障回退、预算、速率限制）
 - [x] **Langfuse** 集成（LiteLLM 回调 + OTel OTLP）
 - [x] **Fluentbit** + Loki 日志管线
-- [ ] 完整的 6 个 Grafana 仪表盘 + 告警规则
+- [ ] 完整的 3 个 Grafana 仪表盘 + 告警规则
 - [x] **KEDA** 自动扩缩（等待请求数、TTFT）
 - [x] **Fluid** 分布式模型缓存
 - [x] MinIO + **Harbor**（模型仓库）
@@ -1071,7 +1065,7 @@ kube-llmops/
 | AI Gateway（密钥/成本） | 否 | 否 | 部分 | 否 | **是（LiteLLM）** |
 | KV cache 感知路由 | 否 | **是（IGW）** | **是（IGW）** | 否 | **是（第三阶段）** |
 | OTel 可观测性 | 否 | 部分 | 否 | 否 | **是（全栈）** |
-| 预置仪表盘 | 否 | 否 | 否 | 否 | **是（6 个）** |
+| 预置仪表盘 | 否 | 否 | 否 | 否 | **是（3 个）** |
 | LLM 追踪（Prompt） | 否 | 否 | 否 | 否 | **是（Langfuse）** |
 | 向量数据库 | 仅 faiss | 否 | 否 | 否 | **是（Milvus/pgvector）** |
 | 微调工作流 | 是 | 否 | 否 | 否 | **是** |

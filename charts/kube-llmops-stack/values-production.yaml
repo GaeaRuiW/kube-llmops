@@ -1,0 +1,300 @@
+# =============================================================================
+# Production profile: full stack, HA-ready, security hardened
+# =============================================================================
+#
+# Usage:
+#   helm install kube-llmops charts/kube-llmops-stack \
+#     -f charts/kube-llmops-stack/values-production.yaml \
+#     --set litellm.masterKey=<your-key> \
+#     --set litellm.postgresql.auth.password=<your-db-password> \
+#     --set observability.grafana.adminPassword=<your-grafana-password> \
+#     --set langfuse.init.userPassword=<your-langfuse-password>
+#
+# Prerequisites:
+#   - Kubernetes 1.28+ with GPU-capable nodes (8+ NVIDIA GPUs recommended)
+#   - KEDA operator installed (kubectl apply -f https://github.com/kedacore/keda/releases/latest/download/keda-2.x.yaml)
+#   - StorageClass available for persistent volumes
+#   - IMPORTANT: Override ALL default/empty secrets before deploying!
+#     Never commit real credentials to this file.
+#
+# What this profile enables vs. standard:
+#   - All model engines (vLLM, llama.cpp, TEI)
+#   - HA LiteLLM gateway (2 replicas)
+#   - Full observability: OTEL Collector, Prometheus (50Gi, 30d), Grafana, DCGM
+#   - LLM tracing via Langfuse (HA: 2 replicas)
+#   - Centralized logging: Fluent Bit + Loki (20Gi)
+#   - GPU-aware autoscaling via KEDA (scales on queue depth)
+#   - NetworkPolicy isolation between components
+#   - Increased resource limits across the board
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Global settings
+# -----------------------------------------------------------------------------
+global:
+  gpu: true
+  imagePullPolicy: IfNotPresent     # Use Always if pulling nightly/mutable tags
+
+# -----------------------------------------------------------------------------
+# Model definitions
+# -----------------------------------------------------------------------------
+# Production clusters typically serve multiple models. Define your models here;
+# they are automatically wired into vllm.models and litellm.models.
+#
+# Below is a placeholder entry. Replace with your actual models before deploying.
+# For multi-GPU tensor-parallel models, set gpu > 1 and add engineArgs.
+models:
+  - name: your-model                # Example: llama-3-70b
+    source: your-org/your-model     # Example: meta-llama/Meta-Llama-3-70B-Instruct
+    engine: vllm
+    replicas: 2                     # Run 2 replicas for high availability
+    resources:
+      gpu: 1                        # GPUs per replica (use 2-8 for tensor-parallel)
+      memory: 32Gi                  # Per-replica memory limit
+    # engineArgs:                   # Uncomment for model-specific tuning:
+    #   --tensor-parallel-size: "4" #   Shard across 4 GPUs per replica
+    #   --max-model-len: "8192"     #   Cap context length to save VRAM
+    #   --enforce-eager: ""         #   Required for Blackwell (SM 12.0) GPUs
+
+# Uncomment to add more models:
+#  - name: embedding-model
+#    source: BAAI/bge-large-en-v1.5
+#    engine: tei
+#    replicas: 2
+#    resources:
+#      gpu: 1
+#      memory: 8Gi
+
+# -----------------------------------------------------------------------------
+# vLLM engine (GPU-accelerated inference for transformer models)
+# -----------------------------------------------------------------------------
+vllm:
+  enabled: true
+  models:
+    - name: your-model
+      source: your-org/your-model
+      engine: vllm
+      replicas: 2
+      resources:
+        gpu: 1
+        memory: 32Gi
+        cpu: 8                      # Generous CPU for tokenization/preprocessing
+  modelLoader:
+    hfToken: ""                     # Set via --set vllm.modelLoader.hfToken=hf_xxx
+  modelCache:
+    enabled: true
+    size: 100Gi                     # Large cache for multiple/large models
+  # Production probes: longer initial delay for large models loading into VRAM
+  readinessProbe:
+    initialDelaySeconds: 60
+    periodSeconds: 10
+    timeoutSeconds: 10
+    failureThreshold: 60            # 10 min total to load large models
+  livenessProbe:
+    initialDelaySeconds: 120
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 5
+
+# -----------------------------------------------------------------------------
+# llama.cpp engine (GGUF quantised models, CPU or low-VRAM)
+# -----------------------------------------------------------------------------
+llamacpp:
+  enabled: true
+  models: []                        # Add GGUF models here if needed
+
+# -----------------------------------------------------------------------------
+# TEI engine (text-embeddings-inference for embedding & reranking)
+# -----------------------------------------------------------------------------
+tei:
+  enabled: true
+  models: []                        # Add embedding/reranking models here
+
+# -----------------------------------------------------------------------------
+# AI Gateway (LiteLLM) - unified OpenAI-compatible endpoint
+# -----------------------------------------------------------------------------
+# LiteLLM proxies all model traffic, provides rate limiting, key management,
+# and routes requests to the correct backend engine.
+litellm:
+  enabled: true
+  masterKey: ""                     # REQUIRED: --set litellm.masterKey=sk-xxx
+  replicas: 2                       # HA: 2 replicas behind the Service
+
+  # Langfuse integration: send every request/response trace to Langfuse
+  langfuseEnabled: true
+  langfusePublicKey: "pk-lf-kube-llmops"
+  langfuseSecretKey: "sk-lf-kube-llmops"
+
+  models:
+    - name: your-model
+      source: your-org/your-model
+      engine: vllm
+
+  # Higher limits for production traffic
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+
+  # PostgreSQL for LiteLLM (stores API keys, spend tracking, rate limits)
+  postgresql:
+    auth:
+      password: ""                  # REQUIRED: --set litellm.postgresql.auth.password=xxx
+    storage:
+      size: 10Gi                    # More headroom for production logs/metadata
+
+# -----------------------------------------------------------------------------
+# Observability: metrics pipeline (OTEL Collector -> Prometheus -> Grafana)
+# -----------------------------------------------------------------------------
+# Full metrics stack with GPU monitoring. Prometheus retention extended to 30d
+# with 50Gi storage to support capacity planning and incident investigation.
+observability:
+  enabled: true
+
+  otelCollector:
+    enabled: true                   # Collects and routes OTLP metrics/traces
+
+  prometheus:
+    enabled: true
+    retention: 30d                  # 30 days for trend analysis
+    storage:
+      size: 50Gi                    # Sized for ~8 GPU nodes, 30d retention
+
+  dcgmExporter:
+    enabled: true                   # GPU utilisation, memory, temperature, ECC
+
+  grafana:
+    enabled: true
+    adminPassword: ""               # REQUIRED: --set observability.grafana.adminPassword=xxx
+    storage:
+      size: 5Gi                     # Dashboard storage
+
+# -----------------------------------------------------------------------------
+# LLM Tracing (Langfuse) - prompt/completion logging, cost tracking
+# -----------------------------------------------------------------------------
+# Langfuse captures every LLM call with input/output, tokens, latency, and cost.
+# In production, run 2 replicas behind its Service for availability.
+langfuse:
+  enabled: true
+  replicas: 2                       # HA: 2 Langfuse replicas
+
+  postgresql:
+    enabled: false                  # Reuse LiteLLM's PostgreSQL instance
+    auth:
+      password: ""                  # REQUIRED if postgresql.enabled=true
+
+  init:
+    userPassword: ""                # REQUIRED: --set langfuse.init.userPassword=xxx
+
+  # Higher limits for production trace ingestion
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+
+# -----------------------------------------------------------------------------
+# Logging: container log aggregation (Fluent Bit -> Loki -> Grafana)
+# -----------------------------------------------------------------------------
+# Centralises logs from all pods. Loki storage sized for ~14d of production logs.
+logging:
+  enabled: true
+  loki:
+    storage:
+      size: 20Gi                    # Sized for multi-model production logs
+    retention: 336h                 # 14 days of log retention
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+  fluentbit:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+
+# -----------------------------------------------------------------------------
+# Autoscaling (KEDA) - GPU-aware horizontal pod autoscaling
+# -----------------------------------------------------------------------------
+# Requires the KEDA operator to be pre-installed in the cluster.
+# Scales model replicas based on Prometheus metrics (e.g., vLLM queue depth).
+keda:
+  enabled: true
+  defaults:
+    minReplicas: 1
+    maxReplicas: 8                  # Allow scaling up to 8 replicas per model
+    cooldownPeriod: 300             # 5 min cooldown before scale-down
+    pollingInterval: 15             # Check metrics every 15s
+    triggers:
+      requestsWaiting:
+        enabled: true
+        threshold: "2"              # Scale up when > 2 requests queued
+      ttftP95:
+        enabled: true               # Also scale on latency in production
+        threshold: "3"              # Scale when P95 TTFT > 3 seconds
+
+# -----------------------------------------------------------------------------
+# Security: NetworkPolicy + OIDC
+# -----------------------------------------------------------------------------
+# NetworkPolicy restricts pod-to-pod traffic so only expected communication
+# flows (e.g., LiteLLM -> vLLM, Grafana -> Prometheus) are allowed.
+security:
+  enabled: true
+  networkPolicy:
+    enabled: true                   # Deny-all baseline with explicit allow rules
+
+  # Uncomment to enable SSO via OIDC (requires an IdP like Keycloak/Dex):
+  # oidc:
+  #   enabled: true
+  #   issuerUrl: https://keycloak.example.com/realms/kube-llmops
+  #   clientId: kube-llmops
+  #   clientSecret: ""              # --set security.oidc.clientSecret=xxx
+  #   grafana:
+  #     enabled: true
+  #   langfuse:
+  #     enabled: true
+
+# -----------------------------------------------------------------------------
+# Distributed Model Cache (Fluid + Alluxio)
+# -----------------------------------------------------------------------------
+# Enable if the Fluid operator is installed. Speeds up model loading by caching
+# weights in a distributed memory/SSD tier across nodes.
+fluid:
+  enabled: false                    # Set to true if Fluid operator is installed
+  # alluxio:
+  #   replicas: 2
+  #   tieredStore:
+  #     - mediumtype: MEM
+  #       path: /dev/shm
+  #       quota: 8Gi
+  #     - mediumtype: SSD
+  #       path: /alluxio-ssd
+  #       quota: 50Gi
+
+# -----------------------------------------------------------------------------
+# Model Registry (Harbor)
+# -----------------------------------------------------------------------------
+# Enable if Harbor is installed for private model image/artifact storage.
+harbor:
+  enabled: false                    # Set to true if Harbor is installed
+
+# -----------------------------------------------------------------------------
+# Ingress (optional, expose services outside the cluster)
+# -----------------------------------------------------------------------------
+# Uncomment and configure to expose the LiteLLM API and dashboards externally.
+# ingress:
+#   enabled: true
+#   className: nginx
+#   host: llm.example.com
+#   tls: true

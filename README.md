@@ -22,7 +22,7 @@ helm install kube-llmops kube-llmops/kube-llmops-stack -f values-minimal.yaml
 
 ## Use Cases
 
-- **"I want to deploy Qwen3.5-122B and let 5 teams share it with token budget limits"**
+- **"I want to deploy DeepSeek-R1-0528 and let 5 teams share it with token budget limits"**
 - **"I want to see which team burned the most GPU hours this month"**
 - **"I want a GGUF model on llama.cpp and a full-precision model on vLLM behind the same API"**
 - **"I want every LLM request traced with full prompt, tokens, cost, and latency"**
@@ -99,7 +99,7 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &    # LLM Tracing
 | Engine auto-selection (GPTQ->vLLM, GGUF->llama.cpp) | Yes | N/A | No | No |
 | AI Gateway (key mgmt, cost tracking, rate limit) | Yes | No | No | No |
 | LLM tracing (prompt, tokens, cost per request) | Yes | No | No | No |
-| Pre-built Grafana dashboards (6) | Yes | No | No | No |
+| Pre-built Grafana dashboards (3) | Yes | No | No | No |
 | GPU monitoring (DCGM) | Yes | DIY | No | No |
 | One-click full stack | Yes | N/A | No | No |
 | Cloud-agnostic | Yes | Yes | Azure only | Yes |
