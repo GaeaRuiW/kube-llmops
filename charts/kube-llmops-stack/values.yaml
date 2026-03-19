@@ -10,7 +10,7 @@ global:
 # Each model will be deployed with the auto-selected or explicitly specified engine.
 # Example:
 #   models:
-#     - name: qwen3.5-0.8b
+#     - name: qwen3-5-0-8b
 #       source: Qwen/Qwen3.5-0.8B
 #       engine: auto              # auto | vllm | llamacpp | sglang | tei
 #       replicas: 1
@@ -137,10 +137,10 @@ litellm:
   resources:
     requests:
       cpu: 500m
-      memory: 512Mi
+      memory: 1Gi
     limits:
       cpu: "2"
-      memory: 1Gi
+      memory: 2Gi
   readinessProbe:
     httpGet:
       path: /health/liveliness

@@ -2,7 +2,7 @@
 # Usage: helm install kube-llmops charts/kube-llmops-stack -f charts/kube-llmops-stack/values-minimal.yaml
 
 models:
-  - name: qwen3.5-0.8b
+  - name: qwen3-5-0-8b
     source: Qwen/Qwen3.5-0.8B
     engine: vllm
     replicas: 1
@@ -13,7 +13,7 @@ models:
 vllm:
   enabled: true
   models:
-    - name: qwen3.5-0.8b
+    - name: qwen3-5-0-8b
       source: Qwen/Qwen3.5-0.8B
       engine: vllm
       replicas: 1
@@ -33,7 +33,7 @@ litellm:
   enabled: true
   masterKey: sk-kube-llmops-dev
   models:
-    - name: qwen3.5-0.8b
+    - name: qwen3-5-0-8b
       source: Qwen/Qwen3.5-0.8B
       engine: vllm
   postgresql:

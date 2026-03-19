@@ -51,6 +51,8 @@ data:
         endpoint: http://{{ $.Release.Name }}-prometheus:9090/api/v1/write
         resource_to_telemetry_conversion:
           enabled: true
+      debug:
+        verbosity: basic
     service:
       pipelines:
         metrics:
@@ -60,7 +62,7 @@ data:
         traces:
           receivers: [otlp]
           processors: [batch]
-          exporters: []
+          exporters: [debug]
 ---
 apiVersion: apps/v1
 kind: Deployment
