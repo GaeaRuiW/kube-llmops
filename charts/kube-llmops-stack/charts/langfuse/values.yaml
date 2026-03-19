@@ -2,7 +2,8 @@ enabled: false
 
 image:
   repository: langfuse/langfuse
-  tag: latest
+  # Pin to v2 — v3 requires ClickHouse which we don't deploy
+  tag: "2.95.11"
   pullPolicy: IfNotPresent
 
 replicas: 1

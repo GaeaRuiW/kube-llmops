@@ -25,24 +25,25 @@ service:
   type: ClusterIP
   port: 8000
 
-# Probes — generous defaults for large model loading times
+# Probes — tuned for LLM model loading (typically 1-10 min)
+# For very large models (70B+), increase via --set vllm.livenessProbe.initialDelaySeconds=600
 readinessProbe:
   httpGet:
     path: /health
     port: 8000
-  initialDelaySeconds: 120
-  periodSeconds: 15
+  initialDelaySeconds: 30
+  periodSeconds: 10
   timeoutSeconds: 5
-  failureThreshold: 120
+  failureThreshold: 60     # ~10 min total (30s + 60*10s)
 
 livenessProbe:
   httpGet:
     path: /health
     port: 8000
-  initialDelaySeconds: 600
+  initialDelaySeconds: 240  # 4 min grace for model download + load
   periodSeconds: 30
   timeoutSeconds: 5
-  failureThreshold: 60
+  failureThreshold: 20     # ~14 min total (240s + 20*30s)
 
 # Model loader init container
 modelLoader:

@@ -1,5 +1,10 @@
 # Minimal profile: 1 small model + LiteLLM gateway + basic monitoring
 # Usage: helm install kube-llmops charts/kube-llmops-stack -f charts/kube-llmops-stack/values-minimal.yaml
+#
+# GPU-specific tuning (add to your own override file if needed):
+#   --enforce-eager: ""              # Required for Blackwell (SM 12.0) GPUs
+#   --attention-backend: TRITON_ATTN # If FlashAttention hangs on your GPU
+#   --gpu-memory-utilization: "0.8"  # Reduce if OOM on small-VRAM cards
 
 models:
   - name: qwen2-5-0-5b
@@ -20,10 +25,6 @@ vllm:
       resources:
         gpu: 1
         memory: 8Gi
-      engineArgs:
-        --gpu-memory-utilization: "0.8"
-        --max-model-len: "4096"
-        --enforce-eager: ""
 
 llamacpp:
   enabled: true
