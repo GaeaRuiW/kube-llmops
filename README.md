@@ -69,7 +69,7 @@ kubectl port-forward svc/litellm 4000:4000 &
 curl http://localhost:4000/v1/chat/completions \
   -H "Authorization: Bearer $MASTER_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"model":"qwen3.5-0.8b","messages":[{"role":"user","content":"Hello!"}]}'
+  -d '{"model":"qwen2-5-0-5b","messages":[{"role":"user","content":"Hello!"}]}'
 ```
 
 ## Features

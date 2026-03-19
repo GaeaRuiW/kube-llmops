@@ -23,6 +23,8 @@ metadata:
     kube-llmops/engine: vllm
 spec:
   replicas: {{ $replicas }}
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: vllm
@@ -38,8 +40,26 @@ spec:
         kube-llmops/model: {{ $model.name }}
         kube-llmops/engine: vllm
     spec:
-      {{- if $.Values.modelLoader.enabled }}
+      {{- if or $.Values.modelLoader.enabled $.Values.customCACert.enabled }}
       initContainers:
+        {{- if $.Values.customCACert.enabled }}
+        - name: ca-cert-installer
+          image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag }}"
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              cp /custom-ca/* /usr/local/share/ca-certificates/ 2>/dev/null || true
+              update-ca-certificates 2>/dev/null || cat /custom-ca/*.crt >> /etc/ssl/certs/ca-certificates.crt
+              cp /etc/ssl/certs/ca-certificates.crt /ca-out/ca-certificates.crt
+              echo "CA certs updated"
+          volumeMounts:
+            - name: custom-ca
+              mountPath: /custom-ca
+              readOnly: true
+            - name: ca-bundle
+              mountPath: /ca-out
+        {{- end }}
+        {{- if $.Values.modelLoader.enabled }}
         - name: model-loader
           image: "{{ $.Values.modelLoader.image.repository }}:{{ $.Values.modelLoader.image.tag }}"
           imagePullPolicy: {{ $.Values.modelLoader.image.pullPolicy }}
@@ -57,9 +77,22 @@ spec:
                   name: {{ $.Release.Name }}-hf-token
                   key: token
           {{- end }}
+          {{- if $.Values.customCACert.enabled }}
+            - name: REQUESTS_CA_BUNDLE
+              value: /ca-out/ca-certificates.crt
+            - name: SSL_CERT_FILE
+              value: /ca-out/ca-certificates.crt
+            - name: CURL_CA_BUNDLE
+              value: /ca-out/ca-certificates.crt
+          {{- end }}
           volumeMounts:
             - name: model-cache
               mountPath: /models
+            {{- if $.Values.customCACert.enabled }}
+            - name: ca-bundle
+              mountPath: /ca-out
+              readOnly: true
+            {{- end }}
           resources:
             requests:
               cpu: "1"
@@ -67,6 +100,7 @@ spec:
             limits:
               cpu: "4"
               memory: 8Gi
+        {{- end }}
       {{- end }}
       containers:
         - name: vllm
@@ -105,6 +139,18 @@ spec:
                   name: {{ $.Release.Name }}-hf-token
                   key: token
           {{- end }}
+          {{- if $.Values.customCACert.enabled }}
+            - name: REQUESTS_CA_BUNDLE
+              value: /ca-out/ca-certificates.crt
+            - name: SSL_CERT_FILE
+              value: /ca-out/ca-certificates.crt
+            - name: CURL_CA_BUNDLE
+              value: /ca-out/ca-certificates.crt
+          {{- end }}
+          {{- range $envKey, $envVal := $model.extraEnv }}
+            - name: {{ $envKey }}
+              value: {{ $envVal | quote }}
+          {{- end }}
           readinessProbe:
             httpGet:
               path: /health
@@ -138,6 +184,11 @@ spec:
               mountPath: /models
             - name: shm
               mountPath: /dev/shm
+            {{- if $.Values.customCACert.enabled }}
+            - name: ca-bundle
+              mountPath: /ca-out
+              readOnly: true
+            {{- end }}
       {{- if gt (int $gpu) 0 }}
       tolerations:
         - key: {{ $.Values.gpuToleration.key }}
@@ -160,5 +211,12 @@ spec:
           emptyDir:
             medium: Memory
             sizeLimit: 8Gi
+        {{- if $.Values.customCACert.enabled }}
+        - name: custom-ca
+          configMap:
+            name: {{ $.Values.customCACert.configMapName }}
+        - name: ca-bundle
+          emptyDir: {}
+        {{- end }}
 {{- end }}
 {{- end }}

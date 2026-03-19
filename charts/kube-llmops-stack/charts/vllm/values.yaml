@@ -25,24 +25,24 @@ service:
   type: ClusterIP
   port: 8000
 
-# Probes
+# Probes — generous defaults for large model loading times
 readinessProbe:
   httpGet:
     path: /health
     port: 8000
-  initialDelaySeconds: 30
-  periodSeconds: 10
+  initialDelaySeconds: 120
+  periodSeconds: 15
   timeoutSeconds: 5
-  failureThreshold: 30
+  failureThreshold: 120
 
 livenessProbe:
   httpGet:
     path: /health
     port: 8000
-  initialDelaySeconds: 60
+  initialDelaySeconds: 600
   periodSeconds: 30
   timeoutSeconds: 5
-  failureThreshold: 3
+  failureThreshold: 60
 
 # Model loader init container
 modelLoader:
@@ -65,3 +65,10 @@ gpuToleration:
   key: nvidia.com/gpu
   operator: Exists
   effect: NoSchedule
+
+# Custom CA certificates (for corporate proxies / self-signed certs)
+# Mount a ConfigMap containing CA certs into containers
+customCACert:
+  enabled: false
+  configMapName: ""           # Name of ConfigMap with CA cert files
+  mountPath: /usr/local/share/ca-certificates/custom

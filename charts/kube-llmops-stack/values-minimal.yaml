@@ -2,8 +2,8 @@
 # Usage: helm install kube-llmops charts/kube-llmops-stack -f charts/kube-llmops-stack/values-minimal.yaml
 
 models:
-  - name: qwen3-5-0-8b
-    source: Qwen/Qwen3.5-0.8B
+  - name: qwen2-5-0-5b
+    source: Qwen/Qwen2.5-0.5B-Instruct
     engine: vllm
     replicas: 1
     resources:
@@ -13,13 +13,17 @@ models:
 vllm:
   enabled: true
   models:
-    - name: qwen3-5-0-8b
-      source: Qwen/Qwen3.5-0.8B
+    - name: qwen2-5-0-5b
+      source: Qwen/Qwen2.5-0.5B-Instruct
       engine: vllm
       replicas: 1
       resources:
         gpu: 1
         memory: 8Gi
+      engineArgs:
+        --gpu-memory-utilization: "0.8"
+        --max-model-len: "4096"
+        --enforce-eager: ""
 
 llamacpp:
   enabled: true
@@ -33,8 +37,8 @@ litellm:
   enabled: true
   masterKey: sk-kube-llmops-dev
   models:
-    - name: qwen3-5-0-8b
-      source: Qwen/Qwen3.5-0.8B
+    - name: qwen2-5-0-5b
+      source: Qwen/Qwen2.5-0.5B-Instruct
       engine: vllm
   postgresql:
     auth:

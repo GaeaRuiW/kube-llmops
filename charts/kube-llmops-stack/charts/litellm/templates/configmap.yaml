@@ -31,7 +31,7 @@ data:
           {{- else }}
           model: openai/{{ $model.name }}
           {{- end }}
-          api_base: http://{{ $prefix }}-{{ $model.name }}.{{ $.Release.Namespace }}.svc.cluster.local:{{ $port }}
+          api_base: http://{{ $prefix }}-{{ $model.name }}.{{ $.Release.Namespace }}.svc.cluster.local:{{ $port }}/v1
           {{- if ne $engine "tei" }}
           api_key: "no-key-needed"
           {{- end }}

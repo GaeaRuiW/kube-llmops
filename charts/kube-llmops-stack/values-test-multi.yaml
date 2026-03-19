@@ -3,7 +3,7 @@
 
 models:
   - name: chat-model
-    source: Qwen/Qwen3.5-0.8B
+    source: Qwen/Qwen2.5-0.5B-Instruct
     engine: vllm
     replicas: 1
     resources:
@@ -30,7 +30,7 @@ vllm:
   enabled: true
   models:
     - name: chat-model
-      source: Qwen/Qwen3.5-0.8B
+      source: Qwen/Qwen2.5-0.5B-Instruct
       engine: vllm
       replicas: 1
       resources:

@@ -10,8 +10,8 @@ global:
 # Each model will be deployed with the auto-selected or explicitly specified engine.
 # Example:
 #   models:
-#     - name: qwen3-5-0-8b
-#       source: Qwen/Qwen3.5-0.8B
+#     - name: qwen2-5-0-5b
+#       source: Qwen/Qwen2.5-0.5B-Instruct
 #       engine: auto              # auto | vllm | llamacpp | sglang | tei
 #       replicas: 1
 #       resources:
@@ -58,6 +58,11 @@ vllm:
     key: nvidia.com/gpu
     operator: Exists
     effect: NoSchedule
+  # Custom CA certificates for corporate environments
+  customCACert:
+    enabled: false
+    configMapName: ""         # Pre-created ConfigMap with CA cert files
+    mountPath: /usr/local/share/ca-certificates/custom
 
 # -- llama.cpp engine configuration (sub-chart, for GGUF models)
 llamacpp:

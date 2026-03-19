@@ -2,8 +2,8 @@
 # Usage: helm install kube-llmops charts/kube-llmops-stack -f charts/kube-llmops-stack/values-standard.yaml
 
 models:
-  - name: qwen3-5-0-8b
-    source: Qwen/Qwen3.5-0.8B
+  - name: qwen2-5-0-5b
+    source: Qwen/Qwen2.5-0.5B-Instruct
     engine: vllm
     replicas: 1
     resources:
@@ -13,8 +13,8 @@ models:
 vllm:
   enabled: true
   models:
-    - name: qwen3-5-0-8b
-      source: Qwen/Qwen3.5-0.8B
+    - name: qwen2-5-0-5b
+      source: Qwen/Qwen2.5-0.5B-Instruct
       engine: vllm
       replicas: 1
       resources:
@@ -36,8 +36,8 @@ litellm:
   masterKey: ""               # REQUIRED: --set litellm.masterKey=sk-xxx
   langfuseEnabled: true       # Wire LiteLLM -> Langfuse callbacks
   models:
-    - name: qwen3-5-0-8b
-      source: Qwen/Qwen3.5-0.8B
+    - name: qwen2-5-0-5b
+      source: Qwen/Qwen2.5-0.5B-Instruct
       engine: vllm
   postgresql:
     auth:
