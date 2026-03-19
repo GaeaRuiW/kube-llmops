@@ -1,0 +1,77 @@
+# Engine mapping rules
+# Priority: User explicit override > Auto-detection
+# Format: condition -> engine + default args
+
+rules:
+  # GGUF files -> llama.cpp
+  - match:
+      format: gguf
+    engine: llamacpp
+    image: ghcr.io/ggerganov/llama.cpp:server
+    args:
+      --host: "0.0.0.0"
+      --port: "8080"
+      --ctx-size: "4096"
+
+  # Embedding models -> TEI
+  - match:
+      model_type: embedding
+    engine: tei
+    image: ghcr.io/huggingface/text-embeddings-inference:latest
+    args: {}
+
+  # Reranker models -> TEI
+  - match:
+      model_type: reranker
+    engine: tei
+    image: ghcr.io/huggingface/text-embeddings-inference:latest
+    args:
+      --reranking: ""
+
+  # SafeTensors with GPTQ quantization -> vLLM
+  - match:
+      format: safetensors
+      quant_method: gptq
+    engine: vllm
+    image: vllm/vllm-openai:latest
+    args:
+      --quantization: gptq
+
+  # SafeTensors with AWQ quantization -> vLLM
+  - match:
+      format: safetensors
+      quant_method: awq
+    engine: vllm
+    image: vllm/vllm-openai:latest
+    args:
+      --quantization: awq
+
+  # SafeTensors with FP8 quantization -> vLLM
+  - match:
+      format: safetensors
+      quant_method: fp8
+    engine: vllm
+    image: vllm/vllm-openai:latest
+    args:
+      --quantization: fp8
+
+  # Default: SafeTensors without quantization -> vLLM
+  - match:
+      format: safetensors
+    engine: vllm
+    image: vllm/vllm-openai:latest
+    args: {}
+
+# Fallback when no rule matches
+fallback:
+  engine: vllm
+  image: vllm/vllm-openai:latest
+  args: {}
+
+# CPU-only override (applied when no GPU is available)
+cpu_fallback:
+  engine: llamacpp
+  image: ghcr.io/ggerganov/llama.cpp:server
+  args:
+    --host: "0.0.0.0"
+    --port: "8080"
