@@ -34,6 +34,8 @@ spec:
           env:
             - name: NODE_ENV
               value: production
+            - name: HOSTNAME
+              value: "0.0.0.0"
             - name: NEXTAUTH_SECRET
               value: {{ .Values.auth.nextAuthSecret | quote }}
             - name: SALT
