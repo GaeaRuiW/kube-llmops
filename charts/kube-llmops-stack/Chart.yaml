@@ -43,3 +43,15 @@ dependencies:
     condition: litellm.enabled
     tags:
       - gateway
+  - name: observability
+    version: 0.1.0
+    repository: "file://charts/observability"
+    condition: observability.enabled
+    tags:
+      - monitoring
+  - name: langfuse
+    version: 0.1.0
+    repository: "file://charts/langfuse"
+    condition: langfuse.enabled
+    tags:
+      - tracing

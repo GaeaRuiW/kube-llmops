@@ -1,0 +1,64 @@
+# Standard profile: multi-model capable, full monitoring + tracing
+# Usage: helm install kube-llmops charts/kube-llmops-stack -f charts/kube-llmops-stack/values-standard.yaml
+
+models:
+  - name: qwen3.5-0.8b
+    source: Qwen/Qwen3.5-0.8B
+    engine: vllm
+    replicas: 1
+    resources:
+      gpu: 1
+      memory: 8Gi
+
+vllm:
+  enabled: true
+  models:
+    - name: qwen3.5-0.8b
+      source: Qwen/Qwen3.5-0.8B
+      engine: vllm
+      replicas: 1
+      resources:
+        gpu: 1
+        memory: 8Gi
+  modelLoader:
+    hfToken: ""               # Set via --set vllm.modelLoader.hfToken=hf_xxx
+
+llamacpp:
+  enabled: true
+  models: []
+
+tei:
+  enabled: true
+  models: []
+
+litellm:
+  enabled: true
+  masterKey: ""               # REQUIRED: --set litellm.masterKey=sk-xxx
+  langfuseEnabled: true       # Wire LiteLLM -> Langfuse callbacks
+  models:
+    - name: qwen3.5-0.8b
+      source: Qwen/Qwen3.5-0.8B
+      engine: vllm
+  postgresql:
+    auth:
+      password: ""            # REQUIRED: --set litellm.postgresql.auth.password=xxx
+
+observability:
+  enabled: true
+  dcgmExporter:
+    enabled: true
+  grafana:
+    adminPassword: ""         # REQUIRED: --set observability.grafana.adminPassword=xxx
+
+langfuse:
+  enabled: true               # Langfuse ON in standard profile
+  postgresql:
+    enabled: false             # Reuse LiteLLM's PG
+    auth:
+      password: ""            # REQUIRED: --set langfuse.postgresql.auth.password=xxx
+
+logging:
+  enabled: false              # Logging added in v0.2.0
+
+keda:
+  enabled: false              # Autoscaling added in v0.2.0

@@ -41,7 +41,11 @@ litellm:
       password: llmops-pg-dev-pw
 
 observability:
-  enabled: false
+  enabled: true
+  dcgmExporter:
+    enabled: true
+  grafana:
+    adminPassword: admin
 
 langfuse:
   enabled: false

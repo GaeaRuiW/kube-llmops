@@ -2,6 +2,11 @@ enabled: true
 
 models: []
 
+# Langfuse integration (set by parent chart when langfuse is enabled)
+langfuseEnabled: false
+langfusePublicKey: ""
+langfuseSecretKey: ""
+
 image:
   repository: ghcr.io/berriai/litellm
   tag: main-stable

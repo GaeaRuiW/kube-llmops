@@ -11,5 +11,11 @@ dependencies:
 - name: litellm
   repository: file://charts/litellm
   version: 0.1.0
-digest: sha256:f3ec74baed3292530f8d28cb9265d6500ccdb4287718c22a06833d7b92e6b044
-generated: "2026-03-19T10:41:40.631039968+08:00"
+- name: observability
+  repository: file://charts/observability
+  version: 0.1.0
+- name: langfuse
+  repository: file://charts/langfuse
+  version: 0.1.0
+digest: sha256:23e3b7973354d836b8d63ad331f43280eb1b188e43b6fda99869c9d1a8fbaf5a
+generated: "2026-03-19T10:47:48.689379016+08:00"

@@ -173,29 +173,65 @@ litellm:
     service:
       port: 5432
 
-# -- Observability
+# -- Observability (sub-chart)
 observability:
   enabled: true
-  # OpenTelemetry Collector
   otelCollector:
     enabled: true
-  # Prometheus
+    image:
+      repository: otel/opentelemetry-collector-contrib
+      tag: 0.114.0
+      pullPolicy: IfNotPresent
   prometheus:
     enabled: true
-  # DCGM Exporter (GPU metrics) -- only when global.gpu=true
+    image:
+      repository: prom/prometheus
+      tag: v2.54.1
+      pullPolicy: IfNotPresent
+    retention: 15d
+    storage:
+      size: 20Gi
+      storageClass: ""
   dcgmExporter:
     enabled: true
-  # Grafana
+    image:
+      repository: nvcr.io/nvidia/k8s/dcgm-exporter
+      tag: 3.3.8-3.6.0-ubuntu22.04
+      pullPolicy: IfNotPresent
   grafana:
     enabled: true
+    image:
+      repository: grafana/grafana
+      tag: 11.3.0
+      pullPolicy: IfNotPresent
     adminPassword: ""         # Set via --set or secret
+    service:
+      type: ClusterIP
+      port: 3000
+    storage:
+      size: 2Gi
+      storageClass: ""
 
 # -- LLM Tracing (Langfuse)
 langfuse:
   enabled: false              # Off in minimal, on in standard+
+  image:
+    repository: langfuse/langfuse
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicas: 1
+  service:
+    type: ClusterIP
+    port: 3000
+  auth:
+    nextAuthSecret: kube-llmops-langfuse-secret
+    salt: kube-llmops-langfuse-salt
   postgresql:
-    # Reuse LiteLLM's PostgreSQL by default (separate database)
-    enabled: false
+    enabled: false            # Reuse LiteLLM's PG by default
+    auth:
+      database: langfuse
+      username: langfuse
+      password: langfuse-default-pw
 
 # -- Logging
 logging:

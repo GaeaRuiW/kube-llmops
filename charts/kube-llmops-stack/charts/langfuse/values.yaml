@@ -1,0 +1,52 @@
+enabled: false
+
+image:
+  repository: langfuse/langfuse
+  tag: latest
+  pullPolicy: IfNotPresent
+
+replicas: 1
+
+service:
+  type: ClusterIP
+  port: 3000
+
+# Langfuse needs its own database (can share PG instance but separate DB)
+postgresql:
+  # When false, reuse LiteLLM's PostgreSQL by creating a DB in the same instance
+  enabled: false
+  auth:
+    database: langfuse
+    username: langfuse
+    password: langfuse-default-pw
+
+# Langfuse auth
+auth:
+  nextAuthSecret: kube-llmops-langfuse-secret
+  salt: kube-llmops-langfuse-salt
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+readinessProbe:
+  httpGet:
+    path: /api/public/health
+    port: 3000
+  initialDelaySeconds: 15
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 10
+
+livenessProbe:
+  httpGet:
+    path: /api/public/health
+    port: 3000
+  initialDelaySeconds: 30
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3

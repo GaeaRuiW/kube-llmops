@@ -49,3 +49,9 @@ data:
       {{- if .Values.postgresql.enabled }}
       database_url: postgresql://{{ .Values.postgresql.auth.username }}:{{ .Values.postgresql.auth.password }}@{{ $.Release.Name }}-litellm-pg:{{ .Values.postgresql.service.port }}/{{ .Values.postgresql.auth.database }}
       {{- end }}
+
+    {{- if .Values.langfuseEnabled }}
+    litellm_settings:
+      success_callback: ["langfuse"]
+      failure_callback: ["langfuse"]
+    {{- end }}

@@ -1,0 +1,61 @@
+enabled: true
+
+otelCollector:
+  enabled: true
+  image:
+    repository: otel/opentelemetry-collector-contrib
+    tag: 0.114.0
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+
+prometheus:
+  enabled: true
+  image:
+    repository: prom/prometheus
+    tag: v2.54.1
+    pullPolicy: IfNotPresent
+  retention: 15d
+  storage:
+    size: 20Gi
+    storageClass: ""
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+
+dcgmExporter:
+  enabled: true
+  image:
+    repository: nvcr.io/nvidia/k8s/dcgm-exporter
+    tag: 3.3.8-3.6.0-ubuntu22.04
+    pullPolicy: IfNotPresent
+
+grafana:
+  enabled: true
+  image:
+    repository: grafana/grafana
+    tag: 11.3.0
+    pullPolicy: IfNotPresent
+  adminPassword: admin
+  service:
+    type: ClusterIP
+    port: 3000
+  storage:
+    size: 2Gi
+    storageClass: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
