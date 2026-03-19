@@ -999,11 +999,11 @@ kube-llmops/
 - [x] **Langfuse** 集成（LiteLLM 回调 + OTel OTLP）
 - [x] **Fluentbit** + Loki 日志管线
 - [ ] 完整的 3 个 Grafana 仪表盘 + 告警规则
-- [x] **KEDA** 自动扩缩（等待请求数、TTFT）
-- [x] **Fluid** 分布式模型缓存
-- [x] MinIO + **Harbor**（模型仓库）
+- [x] **KEDA** 自动扩缩 -- ScaledObject 模板已就绪（需预装 KEDA operator）
+- [x] **Fluid** 分布式模型缓存 -- Dataset/Runtime 模板已就绪（需预装 Fluid operator）
+- [x] MinIO 模板 + **Harbor** 配置模板已就绪（需预装 Harbor）
 - [x] `values-standard.yaml`
-- [x] Keycloak SSO、Cilium NetworkPolicy
+- [x] NetworkPolicy 模板 + OIDC 配置模板已就绪（需外部身份提供商）
 
 ### 第三阶段：RAG 与推理优化 —— "构建 RAG 应用，优化路由"
 - [ ] pgvector（复用 LiteLLM PG）
