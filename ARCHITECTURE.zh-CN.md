@@ -995,15 +995,15 @@ kube-llmops/
 
 ### 第二阶段：生产就绪 —— "在生产环境运行"
 - [x] 多模型部署（vLLM + TEI + llama.cpp，自动选择）
-- [ ] LiteLLM 高级功能（负载均衡、故障回退、预算、速率限制）
+- [x] LiteLLM 高级功能（故障回退、重试、速率限制、预算控制）
 - [x] **Langfuse** 集成（LiteLLM 回调 + OTel OTLP）
 - [x] **Fluentbit** + Loki 日志管线
-- [ ] 完整的 3 个 Grafana 仪表盘 + 告警规则
-- [x] **KEDA** 自动扩缩（等待请求数、TTFT）—— 模板已就绪，需预装 KEDA operator
+- [x] 3 个 Grafana 仪表盘 + 4 条 Prometheus 告警规则（延迟、队列、KV 缓存、宕机）
+- [x] **KEDA** 自动扩缩（等待请求数、TTFT）—— 已通过 KEDA operator 验证
 - [x] **Fluid** 分布式模型缓存 —— 模板已就绪，需预装 Fluid operator
-- [x] MinIO + **Harbor**（模型仓库）—— 模板已就绪，需预装 Harbor
-- [x] `values-standard.yaml`
-- [x] Keycloak SSO、Cilium NetworkPolicy —— NetworkPolicy + OIDC 配置模板已就绪，需外部身份提供商
+- [x] MinIO 对象存储（模型已上传并验证）+ **Harbor** 模板
+- [x] `values-standard.yaml` + `values-production.yaml`
+- [x] Keycloak SSO（Grafana OIDC 已验证）+ NetworkPolicy 模板
 
 ### 第三阶段：RAG 与推理优化 —— "构建 RAG 应用，优化路由"
 - [ ] pgvector（复用 LiteLLM PG）

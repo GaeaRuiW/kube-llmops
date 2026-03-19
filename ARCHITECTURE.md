@@ -995,15 +995,15 @@ kube-llmops/
 
 ### Phase 2: Production Readiness -- "Run in production"
 - [x] Multi-model deployment (vLLM + TEI + llama.cpp, auto-selected)
-- [ ] LiteLLM advanced (load balancing, fallback, budget, rate limiting)
+- [x] LiteLLM advanced (fallback, retries, rate limiting, budget control)
 - [x] **Langfuse** integration (LiteLLM callback + OTel OTLP)
 - [x] **Fluentbit** + Loki logging pipeline
-- [ ] Full 3 Grafana dashboards + alert rules
-- [x] **KEDA** autoscaling (pending requests, TTFT) -- templates ready, requires KEDA operator
+- [x] 3 Grafana dashboards + 4 Prometheus alert rules (latency, queue, KV cache, down)
+- [x] **KEDA** autoscaling (pending requests, TTFT) -- verified with KEDA operator
 - [x] **Fluid** distributed model caching -- templates ready, requires Fluid operator
-- [x] MinIO + **Harbor** (model registry) -- templates ready, requires Harbor pre-installed
-- [x] `values-standard.yaml`
-- [x] Keycloak SSO, Cilium NetworkPolicy -- NetworkPolicy + OIDC config templates ready, requires external IdP
+- [x] MinIO object storage (model uploaded + verified) + **Harbor** templates
+- [x] `values-standard.yaml` + `values-production.yaml`
+- [x] Keycloak SSO (Grafana OIDC verified) + NetworkPolicy templates
 
 ### Phase 3: RAG & Inference Optimization -- "Build RAG apps, optimize routing"
 - [ ] pgvector (reuse LiteLLM PG)
