@@ -124,7 +124,7 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &    # LLM Tracing
 ## Roadmap
 
 - [x] **v0.1.0 (MVP)** -- Model serving + Gateway + Metrics + Tracing
-- [ ] **v0.2.0** -- Logging + Autoscaling + Model cache + Security
+- [x] **v0.2.0** -- Logging + Autoscaling + Model cache + Security
 - [ ] **v0.3.0** -- RAG + Vector DB + Inference Gateway (IGW)
 - [ ] **v0.4.0** -- Fine-tuning + ML platform
 - [ ] **v0.5.0** -- Disaggregated serving (llm-d)
