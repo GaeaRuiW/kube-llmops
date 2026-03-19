@@ -999,11 +999,11 @@ kube-llmops/
 - [x] **Langfuse** integration (LiteLLM callback + OTel OTLP)
 - [x] **Fluentbit** + Loki logging pipeline
 - [ ] Full 3 Grafana dashboards + alert rules
-- [x] **KEDA** autoscaling -- ScaledObject templates (requires KEDA operator)
-- [x] **Fluid** distributed model caching -- Dataset/Runtime templates (requires Fluid operator)
-- [x] MinIO template + **Harbor** config templates (requires Harbor pre-installed)
+- [x] **KEDA** autoscaling (pending requests, TTFT) -- templates ready, requires KEDA operator
+- [x] **Fluid** distributed model caching -- templates ready, requires Fluid operator
+- [x] MinIO + **Harbor** (model registry) -- templates ready, requires Harbor pre-installed
 - [x] `values-standard.yaml`
-- [x] NetworkPolicy templates + OIDC config templates (requires external IdP)
+- [x] Keycloak SSO, Cilium NetworkPolicy -- NetworkPolicy + OIDC config templates ready, requires external IdP
 
 ### Phase 3: RAG & Inference Optimization -- "Build RAG apps, optimize routing"
 - [ ] pgvector (reuse LiteLLM PG)
