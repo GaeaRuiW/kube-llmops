@@ -52,6 +52,15 @@ grafana:
   storage:
     size: 2Gi
     storageClass: ""
+  # OIDC/SSO integration (Keycloak, Dex, etc.)
+  oidc:
+    enabled: false
+    name: Keycloak
+    clientId: grafana
+    clientSecret: ""
+    issuerUrl: ""         # e.g. http://kube-llmops-keycloak:8080/realms/kube-llmops
+    grafanaRootUrl: ""    # e.g. http://localhost:3000
+    roleAttributePath: "contains(realm_access.roles[*], 'admin') && 'Admin' || 'Viewer'"
   resources:
     requests:
       cpu: 100m

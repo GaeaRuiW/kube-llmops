@@ -40,8 +40,13 @@ data:
     {{- if .Values.models }}
     router_settings:
       routing_strategy: simple-shuffle
-      num_retries: 2
-      timeout: 120
+      num_retries: {{ .Values.routerSettings.numRetries | default 3 }}
+      timeout: {{ .Values.routerSettings.timeout | default 120 }}
+      {{- if .Values.routerSettings.fallbacks }}
+      fallbacks: {{ .Values.routerSettings.fallbacks | toJson }}
+      {{- end }}
+      allowed_fails: {{ .Values.routerSettings.allowedFails | default 3 }}
+      cooldown_time: {{ .Values.routerSettings.cooldownTime | default 60 }}
     {{- end }}
 
     general_settings:
@@ -49,9 +54,23 @@ data:
       {{- if .Values.postgresql.enabled }}
       database_url: postgresql://{{ .Values.postgresql.auth.username }}:{{ .Values.postgresql.auth.password }}@{{ $.Release.Name }}-litellm-pg:{{ .Values.postgresql.service.port }}/{{ .Values.postgresql.auth.database }}
       {{- end }}
+      {{- if .Values.rateLimiting.enabled }}
+      global_max_parallel_requests: {{ .Values.rateLimiting.globalMaxParallelRequests | default 100 }}
+      max_request_size_mb: {{ .Values.rateLimiting.maxRequestSizeMb | default 10 }}
+      {{- end }}
 
     {{- if .Values.langfuseEnabled }}
     litellm_settings:
       success_callback: ["langfuse"]
       failure_callback: ["langfuse"]
+      {{- if .Values.rateLimiting.enabled }}
+      max_budget: {{ .Values.rateLimiting.maxBudget | default 100.0 }}
+      budget_duration: {{ .Values.rateLimiting.budgetDuration | default "30d" | quote }}
+      {{- end }}
+    {{- else }}
+      {{- if .Values.rateLimiting.enabled }}
+    litellm_settings:
+      max_budget: {{ .Values.rateLimiting.maxBudget | default 100.0 }}
+      budget_duration: {{ .Values.rateLimiting.budgetDuration | default "30d" | quote }}
+      {{- end }}
     {{- end }}

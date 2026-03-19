@@ -7,6 +7,23 @@ langfuseEnabled: false
 langfusePublicKey: ""
 langfuseSecretKey: ""
 
+# Router settings (load balancing, fallback, retries)
+routerSettings:
+  numRetries: 3
+  timeout: 120
+  allowedFails: 3         # Failures before marking deployment unhealthy
+  cooldownTime: 60        # Seconds to cooldown unhealthy deployment
+  # fallbacks:            # Model fallback chain, e.g.:
+  #   - model-a: [model-b]
+
+# Rate limiting and budget control
+rateLimiting:
+  enabled: false
+  globalMaxParallelRequests: 100
+  maxRequestSizeMb: 10
+  maxBudget: 100.0        # Max spend in USD (tracked via LiteLLM cost API)
+  budgetDuration: "30d"   # Budget reset period
+
 image:
   repository: ghcr.io/berriai/litellm
   tag: main-stable

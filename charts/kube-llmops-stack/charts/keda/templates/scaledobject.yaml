@@ -1,5 +1,5 @@
 {{- if .Values.enabled }}
-{{- $promAddr := .Values.defaults.prometheusAddress | default (printf "http://%s-prometheus:9090" .Release.Name) }}
+{{- $promAddr := .Values.defaults.prometheusAddress | default (printf "http://%s-prometheus.%s.svc.cluster.local:9090" .Release.Name .Release.Namespace) }}
 {{- range $idx, $model := (index .Values "vllmModels" | default list) }}
 ---
 apiVersion: keda.sh/v1alpha1

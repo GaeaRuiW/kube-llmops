@@ -80,6 +80,28 @@ spec:
               value: {{ .Values.grafana.adminPassword | default "admin" | quote }}
             - name: GF_INSTALL_PLUGINS
               value: ""
+            {{- if .Values.grafana.oidc.enabled }}
+            - name: GF_AUTH_GENERIC_OAUTH_ENABLED
+              value: "true"
+            - name: GF_AUTH_GENERIC_OAUTH_NAME
+              value: {{ .Values.grafana.oidc.name | default "Keycloak" | quote }}
+            - name: GF_AUTH_GENERIC_OAUTH_CLIENT_ID
+              value: {{ .Values.grafana.oidc.clientId | quote }}
+            - name: GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET
+              value: {{ .Values.grafana.oidc.clientSecret | quote }}
+            - name: GF_AUTH_GENERIC_OAUTH_SCOPES
+              value: "openid profile email"
+            - name: GF_AUTH_GENERIC_OAUTH_AUTH_URL
+              value: "{{ .Values.grafana.oidc.issuerUrl }}/protocol/openid-connect/auth"
+            - name: GF_AUTH_GENERIC_OAUTH_TOKEN_URL
+              value: "{{ .Values.grafana.oidc.issuerUrl }}/protocol/openid-connect/token"
+            - name: GF_AUTH_GENERIC_OAUTH_API_URL
+              value: "{{ .Values.grafana.oidc.issuerUrl }}/protocol/openid-connect/userinfo"
+            - name: GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH
+              value: {{ .Values.grafana.oidc.roleAttributePath | default "contains(realm_access.roles[*], 'admin') && 'Admin' || 'Viewer'" | quote }}
+            - name: GF_SERVER_ROOT_URL
+              value: {{ .Values.grafana.oidc.grafanaRootUrl | default "http://localhost:3000" | quote }}
+            {{- end }}
           readinessProbe:
             httpGet:
               path: /api/health

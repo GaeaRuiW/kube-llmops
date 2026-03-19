@@ -14,6 +14,8 @@ data:
       scrape_interval: 15s
       evaluation_interval: 15s
     remote_write: []
+    rule_files:
+      - /etc/prometheus/rules.yml
     scrape_configs:
       - job_name: prometheus
         static_configs:
@@ -21,6 +23,42 @@ data:
       - job_name: otel-collector
         static_configs:
           - targets: ["{{ $.Release.Name }}-otel-collector:8889"]
+  rules.yml: |
+    groups:
+      - name: vllm-alerts
+        rules:
+          - alert: VllmHighLatency
+            expr: histogram_quantile(0.95, sum(rate(vllm_e2e_request_latency_seconds_bucket[5m])) by (le)) > 10
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "vLLM P95 latency above 10s"
+              description: "P95 end-to-end latency is {{`{{ $value }}`}}s (threshold: 10s)"
+          - alert: VllmHighQueueDepth
+            expr: sum(vllm_num_requests_waiting) > 10
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              summary: "vLLM request queue depth above 10"
+              description: "{{`{{ $value }}`}} requests waiting in queue"
+          - alert: VllmKVCacheNearFull
+            expr: avg(vllm_kv_cache_usage_perc) > 0.9
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "vLLM KV cache usage above 90%"
+              description: "KV cache at {{`{{ $value | humanizePercentage }}`}}, risk of OOM or request rejection"
+          - alert: VllmDown
+            expr: up{job="vllm"} == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "vLLM instance down"
+              description: "vLLM scrape target has been down for more than 1 minute"
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -97,6 +135,9 @@ spec:
             - name: config
               mountPath: /etc/prometheus/prometheus.yml
               subPath: prometheus.yml
+            - name: config
+              mountPath: /etc/prometheus/rules.yml
+              subPath: rules.yml
             - name: data
               mountPath: /prometheus
       volumes:
