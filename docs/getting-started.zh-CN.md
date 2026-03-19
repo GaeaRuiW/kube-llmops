@@ -16,6 +16,10 @@
 - [访问 Web 界面](#访问-web-界面)
 - [GPU 专项调优](#gpu-专项调优)
 - [自定义配置](#自定义配置)
+- [KEDA 自动扩缩](#keda-自动扩缩)
+- [MinIO 对象存储](#minio-对象存储)
+- [Keycloak 单点登录](#keycloak-单点登录)
+- [Prometheus 告警规则](#prometheus-告警规则)
 - [故障排查](#故障排查)
 - [卸载](#卸载)
 
@@ -241,6 +245,12 @@ kubectl port-forward svc/kube-llmops-grafana 3000:3000 -n default &
 
 # LLM Tracing (Langfuse) — standard profile only
 kubectl port-forward svc/kube-llmops-langfuse 3001:3000 -n default &
+
+# SSO Admin (Keycloak) — if deployed
+kubectl port-forward svc/kube-llmops-keycloak 8080:8080 &  # SSO Admin
+
+# Object Storage (MinIO) — if enabled
+kubectl port-forward svc/kube-llmops-minio 9001:9001 &     # Object Storage
 ```
 
 ### 默认凭据
@@ -250,6 +260,8 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 -n default &
 | **LiteLLM**（AI 网关） | [http://localhost:4000/ui](http://localhost:4000/ui) | 任意用户名 | `sk-kube-llmops-dev` |
 | **Grafana**（监控仪表盘） | [http://localhost:3000](http://localhost:3000) | `admin` | `admin` |
 | **Langfuse**（LLM 追踪） | [http://localhost:3001](http://localhost:3001) | `admin@kube-llmops.local` | `admin123!` |
+| **Keycloak**（SSO 管理） | [http://localhost:8080](http://localhost:8080) | `admin` | `admin123!` |
+| **MinIO**（对象存储） | [http://localhost:9001](http://localhost:9001) | `minioadmin` | `minioadmin` |
 
 > **⚠️ 安全警告：** 以上均为开发环境的默认凭据。生产部署时，请务必覆盖这些凭据：
 >
@@ -436,6 +448,211 @@ kubectl create secret generic hf-token \
 
 # Reference it in your model config
 # (see "Add a New Model" above for extraEnv example)
+```
+
+---
+
+## KEDA 自动扩缩
+
+kube-llmops 支持基于请求队列深度，使用 [KEDA](https://keda.sh/) 对 vLLM pod 进行自动扩缩。
+
+### 前置条件
+
+首先安装 KEDA operator：
+
+```bash
+helm repo add kedacore https://kedacore.github.io/charts
+helm install keda kedacore/keda --namespace keda-system --create-namespace
+```
+
+### 启用自动扩缩
+
+在 values 文件中或通过 `--set` 配置：
+
+```yaml
+keda:
+  enabled: true
+  vllmModels:
+    - name: qwen2-5-0-5b   # Must match your vllm.models[].name
+  defaults:
+    minReplicas: 1
+    maxReplicas: 4
+    triggers:
+      requestsWaiting:
+        enabled: true
+        threshold: "2"      # Scale up when > 2 requests waiting
+```
+
+### 验证
+
+```bash
+# Check ScaledObject and HPA created
+kubectl get scaledobject
+kubectl get hpa
+
+# Expected output:
+# NAME                       READY   ACTIVE   TRIGGERS
+# vllm-qwen2-5-0-5b-scaler  True    False    prometheus
+```
+
+> **注意：** 在单 GPU 环境下，KEDA 会创建 HPA，但除非有更多 GPU 节点可用，否则无法实际增加副本数。
+
+---
+
+## MinIO 对象存储
+
+MinIO 提供 S3 兼容的对象存储，用于存放模型权重，实现跨 pod 共享模型缓存。
+
+### 部署 MinIO
+
+MinIO 包含在 Fluid 子 chart 中：
+
+```yaml
+fluid:
+  enabled: true
+  minio:
+    enabled: true
+    accessKey: minioadmin
+    secretKey: minioadmin
+    storage:
+      size: 50Gi
+```
+
+### 上传模型到 MinIO
+
+```bash
+# Port-forward MinIO
+kubectl port-forward svc/kube-llmops-minio 9000:9000 &
+
+# Install MinIO client
+curl -sL https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc && chmod +x /usr/local/bin/mc
+
+# Configure and upload
+mc alias set llmops http://localhost:9000 minioadmin minioadmin
+mc mb llmops/models
+mc cp --recursive /path/to/model/ llmops/models/your-model-name/
+
+# Verify
+mc ls llmops/models/your-model-name/
+```
+
+### 访问 MinIO 控制台
+
+```bash
+kubectl port-forward svc/kube-llmops-minio 9001:9001 &
+# Open http://localhost:9001
+# Login: minioadmin / minioadmin
+```
+
+---
+
+## Keycloak 单点登录
+
+kube-llmops 支持通过 Keycloak 或任意 OIDC 提供方为 Grafana 实现基于 OIDC 的 SSO。
+
+### 部署 Keycloak
+
+Keycloak 未包含在 Helm chart 中（它是集群级服务），需单独部署：
+
+```bash
+# Quick dev deployment
+kubectl apply -f - <<EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: keycloak
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: keycloak
+    spec:
+      containers:
+        - name: keycloak
+          image: quay.io/keycloak/keycloak:26.0
+          args: ["start-dev"]
+          env:
+            - name: KC_BOOTSTRAP_ADMIN_USERNAME
+              value: admin
+            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+              value: admin123!
+            - name: KC_HEALTH_ENABLED
+              value: "true"
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 9000
+            initialDelaySeconds: 30
+          resources:
+            requests: { cpu: 250m, memory: 512Mi }
+            limits: { cpu: "1", memory: 768Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kube-llmops-keycloak
+spec:
+  ports: [{ port: 8080, targetPort: 8080 }]
+  selector:
+    app.kubernetes.io/name: keycloak
+EOF
+```
+
+### 配置 Keycloak Realm
+
+```bash
+kubectl port-forward svc/kube-llmops-keycloak 8080:8080 &
+# Open http://localhost:8080 → Login: admin / admin123!
+# 1. Create realm: kube-llmops
+# 2. Create client: grafana (Client authentication: On, redirect URI: http://localhost:3000/*)
+# 3. Note the client secret from Credentials tab
+# 4. Create users as needed
+```
+
+### 启用 Grafana SSO
+
+```yaml
+observability:
+  grafana:
+    oidc:
+      enabled: true
+      clientId: grafana
+      clientSecret: <your-client-secret>
+      issuerUrl: http://kube-llmops-keycloak:8080/realms/kube-llmops
+      grafanaRootUrl: http://localhost:3000
+```
+
+升级后，Grafana 登录页面将显示"Sign in with Keycloak"按钮。
+
+| 服务 | URL | 凭据 |
+|---|---|---|
+| **Keycloak Admin** | `http://localhost:8080` | `admin` / `admin123!` |
+| **Grafana**（SSO） | `http://localhost:3000` | 通过 Keycloak SSO 登录 |
+
+---
+
+## Prometheus 告警规则
+
+kube-llmops 内置了 4 条用于 vLLM 监控的告警规则：
+
+| 告警 | 条件 | 严重级别 |
+|---|---|---|
+| `VllmHighLatency` | P95 延迟 > 10s 持续 2 分钟 | warning |
+| `VllmHighQueueDepth` | 队列深度 > 10 持续 1 分钟 | warning |
+| `VllmKVCacheNearFull` | KV 缓存 > 90% 持续 2 分钟 | critical |
+| `VllmDown` | 抓取目标宕机持续 1 分钟 | critical |
+
+查看活跃告警：
+
+```bash
+kubectl port-forward svc/kube-llmops-prometheus 9090:9090 &
+# Open http://localhost:9090/alerts
 ```
 
 ---

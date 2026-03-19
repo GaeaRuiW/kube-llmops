@@ -74,6 +74,8 @@ curl http://localhost:4000/v1/chat/completions \
 kubectl port-forward svc/kube-llmops-litellm 4000:4000 &    # AI Gateway
 kubectl port-forward svc/kube-llmops-grafana 3000:3000 &     # Metrics
 kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &    # LLM Tracing
+kubectl port-forward svc/kube-llmops-keycloak 8080:8080 &   # SSO Admin (optional)
+kubectl port-forward svc/kube-llmops-minio 9001:9001 &      # Object Storage (optional)
 ```
 
 | Service | URL | Default Credentials |
@@ -81,6 +83,8 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &    # LLM Tracing
 | **LiteLLM** (AI Gateway + Admin UI) | `http://localhost:4000/ui` | any username / `sk-kube-llmops-dev` |
 | **Grafana** (Dashboards) | `http://localhost:3000` | `admin` / `admin` |
 | **Langfuse** (LLM Tracing) | `http://localhost:3001` | `admin@kube-llmops.local` / `admin123!` |
+| **Keycloak** (SSO Admin) | `http://localhost:8080` | `admin` / `admin123!` |
+| **MinIO** (Object Storage) | `http://localhost:9001` | `minioadmin` / `minioadmin` |
 
 > [!WARNING]
 > These are development defaults. For production, override via `--set`:
@@ -99,8 +103,12 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &    # LLM Tracing
 | Engine auto-selection (GPTQ->vLLM, GGUF->llama.cpp) | Yes | N/A | No | No |
 | AI Gateway (key mgmt, cost tracking, rate limit) | Yes | No | No | No |
 | LLM tracing (prompt, tokens, cost per request) | Yes | No | No | No |
-| Pre-built Grafana dashboards (3) | Yes | No | No | No |
+| Pre-built Grafana dashboards (3) + alert rules (4) | Yes | No | No | No |
 | GPU monitoring (DCGM) | Yes | DIY | No | No |
+| KEDA autoscaling (queue depth, TTFT) | Yes | No | No | Partial |
+| SSO integration (Keycloak OIDC) | Yes | No | No | No |
+| S3 model storage (MinIO) | Yes | No | No | No |
+| Container log aggregation (Fluent Bit + Loki) | Yes | No | No | No |
 | One-click full stack | Yes | N/A | No | No |
 | Cloud-agnostic | Yes | Yes | Azure only | Yes |
 

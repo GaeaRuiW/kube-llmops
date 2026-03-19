@@ -71,9 +71,11 @@ curl http://localhost:4000/v1/chat/completions \
 ### 访问管理界面
 
 ```bash
-kubectl port-forward svc/kube-llmops-litellm 4000:4000 &    # AI Gateway
-kubectl port-forward svc/kube-llmops-grafana 3000:3000 &     # Metrics
-kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &    # LLM Tracing
+kubectl port-forward svc/kube-llmops-litellm 4000:4000 &    # AI 网关
+kubectl port-forward svc/kube-llmops-grafana 3000:3000 &     # 监控面板
+kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &    # LLM 追踪
+kubectl port-forward svc/kube-llmops-keycloak 8080:8080 &   # SSO 管理（可选）
+kubectl port-forward svc/kube-llmops-minio 9001:9001 &      # 对象存储（可选）
 ```
 
 | 服务 | URL | 默认凭据 |
@@ -81,6 +83,8 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &    # LLM Tracing
 | **LiteLLM**（AI 网关 + 管理界面） | `http://localhost:4000/ui` | 任意用户名 / `sk-kube-llmops-dev` |
 | **Grafana**（监控仪表盘） | `http://localhost:3000` | `admin` / `admin` |
 | **Langfuse**（LLM 调用追踪） | `http://localhost:3001` | `admin@kube-llmops.local` / `admin123!` |
+| **Keycloak**（SSO 管理） | `http://localhost:8080` | `admin` / `admin123!` |
+| **MinIO**（对象存储） | `http://localhost:9001` | `minioadmin` / `minioadmin` |
 
 > [!WARNING]
 > 以上为开发环境默认配置。生产环境请通过 `--set` 参数进行覆盖：
@@ -99,8 +103,12 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &    # LLM Tracing
 | 推理引擎自动选择（GPTQ→vLLM、GGUF→llama.cpp） | 支持 | 不适用 | 不支持 | 不支持 |
 | AI 网关（Key 管理、成本追踪、速率限制） | 支持 | 不支持 | 不支持 | 不支持 |
 | LLM 调用追踪（Prompt、Token、每次请求费用） | 支持 | 不支持 | 不支持 | 不支持 |
-| 预置 Grafana 仪表盘（3 个） | 支持 | 不支持 | 不支持 | 不支持 |
+| 预置 Grafana 仪表盘（3 个）+ 告警规则（4 条） | 支持 | 不支持 | 不支持 | 不支持 |
 | GPU 监控（DCGM） | 支持 | 需自行搭建 | 不支持 | 不支持 |
+| KEDA 自动扩缩（队列深度、TTFT） | 支持 | 不支持 | 不支持 | 部分支持 |
+| SSO 集成（Keycloak OIDC） | 支持 | 不支持 | 不支持 | 不支持 |
+| S3 模型存储（MinIO） | 支持 | 不支持 | 不支持 | 不支持 |
+| 容器日志聚合（Fluent Bit + Loki） | 支持 | 不支持 | 不支持 | 不支持 |
 | 一键部署完整栈 | 支持 | 不适用 | 不支持 | 不支持 |
 | 云平台无关 | 支持 | 支持 | 仅 Azure | 支持 |
 

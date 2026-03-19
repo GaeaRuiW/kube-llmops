@@ -16,6 +16,10 @@ This guide walks you through installing kube-llmops, verifying the deployment, a
 - [Access the UIs](#access-the-uis)
 - [GPU-Specific Tuning](#gpu-specific-tuning)
 - [Customization](#customization)
+- [Autoscaling with KEDA](#autoscaling-with-keda)
+- [MinIO Object Storage](#minio-object-storage)
+- [Single Sign-On (Keycloak)](#single-sign-on-keycloak)
+- [Prometheus Alert Rules](#prometheus-alert-rules)
 - [Troubleshooting](#troubleshooting)
 - [Uninstall](#uninstall)
 
@@ -241,6 +245,12 @@ kubectl port-forward svc/kube-llmops-grafana 3000:3000 -n default &
 
 # LLM Tracing (Langfuse) — standard profile only
 kubectl port-forward svc/kube-llmops-langfuse 3001:3000 -n default &
+
+# SSO Admin (Keycloak) — if deployed
+kubectl port-forward svc/kube-llmops-keycloak 8080:8080 &  # SSO Admin
+
+# Object Storage (MinIO) — if enabled
+kubectl port-forward svc/kube-llmops-minio 9001:9001 &     # Object Storage
 ```
 
 ### Default Credentials
@@ -250,6 +260,8 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 -n default &
 | **LiteLLM** (AI Gateway) | [http://localhost:4000/ui](http://localhost:4000/ui) | any username | `sk-kube-llmops-dev` |
 | **Grafana** (Dashboards) | [http://localhost:3000](http://localhost:3000) | `admin` | `admin` |
 | **Langfuse** (LLM Tracing) | [http://localhost:3001](http://localhost:3001) | `admin@kube-llmops.local` | `admin123!` |
+| **Keycloak** (SSO Admin) | [http://localhost:8080](http://localhost:8080) | `admin` | `admin123!` |
+| **MinIO** (Object Storage) | [http://localhost:9001](http://localhost:9001) | `minioadmin` | `minioadmin` |
 
 > **⚠️ Security Warning:** These are development defaults. For production deployments, always override credentials:
 >
@@ -436,6 +448,211 @@ kubectl create secret generic hf-token \
 
 # Reference it in your model config
 # (see "Add a New Model" above for extraEnv example)
+```
+
+---
+
+## Autoscaling with KEDA
+
+kube-llmops supports automatic scaling of vLLM pods based on request queue depth using [KEDA](https://keda.sh/).
+
+### Prerequisites
+
+Install the KEDA operator first:
+
+```bash
+helm repo add kedacore https://kedacore.github.io/charts
+helm install keda kedacore/keda --namespace keda-system --create-namespace
+```
+
+### Enable Autoscaling
+
+In your values file or via `--set`:
+
+```yaml
+keda:
+  enabled: true
+  vllmModels:
+    - name: qwen2-5-0-5b   # Must match your vllm.models[].name
+  defaults:
+    minReplicas: 1
+    maxReplicas: 4
+    triggers:
+      requestsWaiting:
+        enabled: true
+        threshold: "2"      # Scale up when > 2 requests waiting
+```
+
+### Verify
+
+```bash
+# Check ScaledObject and HPA created
+kubectl get scaledobject
+kubectl get hpa
+
+# Expected output:
+# NAME                       READY   ACTIVE   TRIGGERS
+# vllm-qwen2-5-0-5b-scaler  True    False    prometheus
+```
+
+> **Note:** With a single GPU, KEDA will create the HPA but cannot actually add replicas unless more GPU nodes are available.
+
+---
+
+## MinIO Object Storage
+
+MinIO provides S3-compatible storage for model weights, enabling shared model cache across pods.
+
+### Deploy MinIO
+
+MinIO is included in the Fluid sub-chart:
+
+```yaml
+fluid:
+  enabled: true
+  minio:
+    enabled: true
+    accessKey: minioadmin
+    secretKey: minioadmin
+    storage:
+      size: 50Gi
+```
+
+### Upload a Model to MinIO
+
+```bash
+# Port-forward MinIO
+kubectl port-forward svc/kube-llmops-minio 9000:9000 &
+
+# Install MinIO client
+curl -sL https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc && chmod +x /usr/local/bin/mc
+
+# Configure and upload
+mc alias set llmops http://localhost:9000 minioadmin minioadmin
+mc mb llmops/models
+mc cp --recursive /path/to/model/ llmops/models/your-model-name/
+
+# Verify
+mc ls llmops/models/your-model-name/
+```
+
+### Access MinIO Console
+
+```bash
+kubectl port-forward svc/kube-llmops-minio 9001:9001 &
+# Open http://localhost:9001
+# Login: minioadmin / minioadmin
+```
+
+---
+
+## Single Sign-On (Keycloak)
+
+kube-llmops supports OIDC-based SSO for Grafana via Keycloak or any OIDC provider.
+
+### Deploy Keycloak
+
+Keycloak is not included in the Helm chart (it's a cluster-level service). Deploy separately:
+
+```bash
+# Quick dev deployment
+kubectl apply -f - <<EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: keycloak
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: keycloak
+    spec:
+      containers:
+        - name: keycloak
+          image: quay.io/keycloak/keycloak:26.0
+          args: ["start-dev"]
+          env:
+            - name: KC_BOOTSTRAP_ADMIN_USERNAME
+              value: admin
+            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+              value: admin123!
+            - name: KC_HEALTH_ENABLED
+              value: "true"
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 9000
+            initialDelaySeconds: 30
+          resources:
+            requests: { cpu: 250m, memory: 512Mi }
+            limits: { cpu: "1", memory: 768Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kube-llmops-keycloak
+spec:
+  ports: [{ port: 8080, targetPort: 8080 }]
+  selector:
+    app.kubernetes.io/name: keycloak
+EOF
+```
+
+### Configure Keycloak Realm
+
+```bash
+kubectl port-forward svc/kube-llmops-keycloak 8080:8080 &
+# Open http://localhost:8080 → Login: admin / admin123!
+# 1. Create realm: kube-llmops
+# 2. Create client: grafana (Client authentication: On, redirect URI: http://localhost:3000/*)
+# 3. Note the client secret from Credentials tab
+# 4. Create users as needed
+```
+
+### Enable Grafana SSO
+
+```yaml
+observability:
+  grafana:
+    oidc:
+      enabled: true
+      clientId: grafana
+      clientSecret: <your-client-secret>
+      issuerUrl: http://kube-llmops-keycloak:8080/realms/kube-llmops
+      grafanaRootUrl: http://localhost:3000
+```
+
+After upgrade, the Grafana login page will show a "Sign in with Keycloak" button.
+
+| Service | URL | Credentials |
+|---|---|---|
+| **Keycloak Admin** | `http://localhost:8080` | `admin` / `admin123!` |
+| **Grafana** (SSO) | `http://localhost:3000` | via Keycloak SSO |
+
+---
+
+## Prometheus Alert Rules
+
+kube-llmops includes 4 built-in alert rules for vLLM monitoring:
+
+| Alert | Condition | Severity |
+|---|---|---|
+| `VllmHighLatency` | P95 latency > 10s for 2 min | warning |
+| `VllmHighQueueDepth` | Queue depth > 10 for 1 min | warning |
+| `VllmKVCacheNearFull` | KV cache > 90% for 2 min | critical |
+| `VllmDown` | Scrape target down for 1 min | critical |
+
+View active alerts:
+
+```bash
+kubectl port-forward svc/kube-llmops-prometheus 9090:9090 &
+# Open http://localhost:9090/alerts
 ```
 
 ---
