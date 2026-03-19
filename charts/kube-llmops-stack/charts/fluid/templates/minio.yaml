@@ -62,6 +62,20 @@ spec:
               value: {{ .Values.minio.accessKey | quote }}
             - name: MINIO_ROOT_PASSWORD
               value: {{ .Values.minio.secretKey | quote }}
+            {{- if .Values.minio.oidc.enabled }}
+            - name: MINIO_IDENTITY_OPENID_CONFIG_URL
+              value: "{{ .Values.minio.oidc.configUrl }}"
+            - name: MINIO_IDENTITY_OPENID_CLIENT_ID
+              value: {{ .Values.minio.oidc.clientId | quote }}
+            - name: MINIO_IDENTITY_OPENID_CLIENT_SECRET
+              value: {{ .Values.minio.oidc.clientSecret | quote }}
+            - name: MINIO_IDENTITY_OPENID_DISPLAY_NAME
+              value: {{ .Values.minio.oidc.displayName | default "Keycloak" | quote }}
+            - name: MINIO_IDENTITY_OPENID_SCOPES
+              value: "openid,profile,email"
+            - name: MINIO_IDENTITY_OPENID_REDIRECT_URI_DYNAMIC
+              value: "on"
+            {{- end }}
           ports:
             - name: api
               containerPort: 9000

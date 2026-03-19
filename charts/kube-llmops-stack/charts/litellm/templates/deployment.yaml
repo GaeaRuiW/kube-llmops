@@ -53,6 +53,10 @@ spec:
             - name: LANGFUSE_HOST
               value: "http://{{ $.Release.Name }}-langfuse:3000"
             {{- end }}
+            {{- if .Values.sso.enabled }}
+            - name: JWT_PUBLIC_KEY_URL
+              value: {{ .Values.sso.jwksUrl | quote }}
+            {{- end }}
           readinessProbe:
             httpGet:
               path: {{ .Values.readinessProbe.httpGet.path }}

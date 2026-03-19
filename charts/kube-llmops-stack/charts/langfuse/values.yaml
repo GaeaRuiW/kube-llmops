@@ -44,6 +44,14 @@ init:
   userName: admin
   userPassword: admin123!
 
+# OIDC/SSO integration (Keycloak, etc.)
+oidc:
+  enabled: false
+  clientId: langfuse
+  clientSecret: ""
+  issuerUrl: ""           # e.g. http://kube-llmops-keycloak:8080/realms/kube-llmops
+  name: Keycloak
+
 resources:
   requests:
     cpu: 250m

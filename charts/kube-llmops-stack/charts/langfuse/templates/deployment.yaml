@@ -70,6 +70,20 @@ spec:
             - name: LANGFUSE_INIT_USER_PASSWORD
               value: {{ .Values.init.userPassword | default "admin" | quote }}
             {{- end }}
+            {{- if .Values.oidc.enabled }}
+            - name: AUTH_CUSTOM_CLIENT_ID
+              value: {{ .Values.oidc.clientId | quote }}
+            - name: AUTH_CUSTOM_CLIENT_SECRET
+              value: {{ .Values.oidc.clientSecret | quote }}
+            - name: AUTH_CUSTOM_ISSUER
+              value: {{ .Values.oidc.issuerUrl | quote }}
+            - name: AUTH_CUSTOM_NAME
+              value: {{ .Values.oidc.name | default "Keycloak" | quote }}
+            - name: AUTH_CUSTOM_SCOPE
+              value: "openid profile email"
+            - name: AUTH_CUSTOM_ALLOW_ACCOUNT_LINKING
+              value: "true"
+            {{- end }}
           readinessProbe:
             httpGet:
               path: {{ .Values.readinessProbe.httpGet.path }}

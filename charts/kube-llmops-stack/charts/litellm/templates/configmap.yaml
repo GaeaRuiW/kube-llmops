@@ -58,6 +58,12 @@ data:
       global_max_parallel_requests: {{ .Values.rateLimiting.globalMaxParallelRequests | default 100 }}
       max_request_size_mb: {{ .Values.rateLimiting.maxRequestSizeMb | default 10 }}
       {{- end }}
+      {{- if .Values.sso.enabled }}
+      enable_jwt_auth: true
+      litellm_jwtauth:
+        admin_jwt_scope: "litellm_admin"
+        user_id_jwt_field: "preferred_username"
+      {{- end }}
 
     {{- if .Values.langfuseEnabled }}
     litellm_settings:

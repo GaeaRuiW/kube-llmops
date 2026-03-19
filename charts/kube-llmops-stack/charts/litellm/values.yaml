@@ -24,6 +24,11 @@ rateLimiting:
   maxBudget: 100.0        # Max spend in USD (tracked via LiteLLM cost API)
   budgetDuration: "30d"   # Budget reset period
 
+# SSO/JWT authentication (validate Keycloak tokens on API calls)
+sso:
+  enabled: false
+  jwksUrl: ""             # e.g. http://kube-llmops-keycloak:8080/realms/kube-llmops/protocol/openid-connect/certs
+
 image:
   repository: ghcr.io/berriai/litellm
   tag: main-stable
