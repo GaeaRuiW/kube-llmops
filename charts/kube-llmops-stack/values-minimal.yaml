@@ -1,16 +1,16 @@
-# Minimal profile: 1 model, basic monitoring, smallest footprint
+# Minimal profile: 1 small model, basic monitoring, smallest footprint
 # Usage: helm install kube-llmops charts/kube-llmops-stack -f charts/kube-llmops-stack/values-minimal.yaml
 
 models:
-  - name: qwen2.5-1.5b
-    source: Qwen/Qwen2.5-1.5B-Instruct
+  - name: qwen3.5-0.8b
+    source: Qwen/Qwen3.5-0.8B
     engine: auto
     replicas: 1
     resources:
       gpu: 1
       memory: 8Gi
 
-gateway:
+litellm:
   enabled: true
   masterKey: sk-kube-llmops-dev
 
@@ -19,11 +19,11 @@ observability:
   dcgmExporter:
     enabled: true
 
-tracing:
-  enabled: false            # Keep minimal
+langfuse:
+  enabled: false
 
 logging:
   enabled: false
 
-autoscaling:
+keda:
   enabled: false

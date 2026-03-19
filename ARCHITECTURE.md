@@ -37,8 +37,8 @@
                         /         |         \
               +---------+   +---------+   +----------+
               | vLLM    |   | vLLM    |   | TEI      |     Engine auto-selected
-              | Qwen-72B|   | DS-V3   |   | bge-m3   |     by Model Resolver
-              | (AWQ)   |   | (FP16)  |   |          |     based on model format
+              | Qwen3.5 |   | DS-V3   |   | bge-m3   |     by Model Resolver
+              | (GPTQ)  |   | (FP16)  |   |          |     based on model format
               +---------+   +---------+   +----------+
               | llama.cpp|
               | Llama-8B |
@@ -117,7 +117,7 @@ Users shouldn't need to know that AWQ models run best on vLLM and GGUF models ne
 
 ```
                    User provides model ID
-                   (e.g. "Qwen/Qwen2.5-72B-Instruct-AWQ")
+                   (e.g. "Qwen/Qwen3.5-122B-A10B-GPTQ-Int4")
                               |
                               v
                    ┌─────────────────────┐
@@ -215,9 +215,9 @@ def resolve_engine(model_meta, available_gpus):
 ```yaml
 # Helm values.yaml - User just specifies model, engine auto-detected
 models:
-  - name: qwen2.5-72b
-    source: Qwen/Qwen2.5-72B-Instruct-AWQ
-    # engine: auto                # default, auto-detect (resolves to vLLM + AWQ)
+  - name: qwen3.5-122b
+    source: Qwen/Qwen3.5-122B-A10B-GPTQ-Int4
+    # engine: auto                # default, auto-detect (resolves to vLLM + GPTQ)
     replicas: 2
     resources:
       gpu: 4
@@ -251,7 +251,7 @@ initContainers:
     image: kube-llmops/model-resolver:latest
     env:
       - name: MODEL_SOURCE
-        value: "Qwen/Qwen2.5-72B-Instruct-AWQ"
+        value: "Qwen/Qwen3.5-122B-A10B-GPTQ-Int4"
       - name: ENGINE_OVERRIDE
         value: ""                  # empty = auto-detect
     volumeMounts:
@@ -260,8 +260,8 @@ initContainers:
     # Outputs: /resolve/engine.env
     # ENGINE=vllm
     # ENGINE_IMAGE=vllm/vllm-openai:latest
-    # ENGINE_ARGS=--quantization awq --enable-prefix-caching --gpu-memory-utilization 0.92
-    # MODEL_PATH=/models/Qwen2.5-72B-Instruct-AWQ
+    # ENGINE_ARGS=--quantization gptq --enable-prefix-caching --gpu-memory-utilization 0.92
+    # MODEL_PATH=/models/Qwen3.5-122B-A10B-GPTQ-Int4
 ```
 
 ### Deliverables
@@ -320,11 +320,11 @@ ArgoCD Sync Waves:
 apiVersion: data.fluid.io/v1alpha1
 kind: Dataset
 metadata:
-  name: qwen2.5-72b-weights
+  name: qwen3.5-122b-weights
 spec:
   mounts:
-    - mountPoint: s3://model-store/Qwen2.5-72B-Instruct-AWQ/
-      name: qwen72b
+    - mountPoint: s3://model-store/Qwen3.5-122B-A10B-GPTQ-Int4/
+      name: qwen3-5-122b
       options:
         fs.s3a.endpoint: http://minio:9000
   placement: "Shared"     # cache shared across nodes
@@ -332,7 +332,7 @@ spec:
 apiVersion: data.fluid.io/v1alpha1
 kind: AlluxioRuntime
 metadata:
-  name: qwen2.5-72b-weights
+  name: qwen3.5-122b-weights
 spec:
   replicas: 3             # 3 cache workers
   tieredstore:
@@ -431,9 +431,9 @@ spec:
 apiVersion: inference.networking.x-k8s.io/v1alpha2
 kind: InferenceModel
 metadata:
-  name: qwen2.5-72b
+  name: qwen3.5-122b
 spec:
-  modelName: qwen2.5-72b
+  modelName: qwen3.5-122b
   targetRef:
     name: vllm-pool
   criticality: Critical
@@ -629,7 +629,7 @@ Langfuse receives OTel traces and enriches them with LLM-specific context:
 ```
 [Trace in Langfuse]
 │
-├── Generation: qwen2.5-72b
+├── Generation: qwen3.5-122b
 │   ├── Input:  "Explain Kubernetes to a 5-year-old" (1,024 tokens)
 │   ├── Output: "Imagine you have a bunch of toy boxes..." (512 tokens)
 │   ├── Latency: TTFT=320ms, Total=4.2s
@@ -775,14 +775,14 @@ Instead of a custom model registry, use Harbor to store model artifacts as OCI i
 
 ```bash
 # Push model weights as OCI artifact
-oras push harbor.example.com/models/qwen2.5-72b:awq-v1 \
+oras push harbor.example.com/models/qwen3.5-122b:gptq-v1 \
   --artifact-type application/vnd.llmops.model.v1 \
   ./model-weights/
 
 # Reference in Helm values
 models:
-  - name: qwen2.5-72b
-    source: oci://harbor.example.com/models/qwen2.5-72b:awq-v1
+  - name: qwen3.5-122b
+    source: oci://harbor.example.com/models/qwen3.5-122b:gptq-v1
 ```
 
 Benefits: versioning, access control, vulnerability scanning, replication across registries -- all built into Harbor.
@@ -826,7 +826,7 @@ KEDA triggers for LLM workloads:
 triggers:
   - type: prometheus
     metadata:
-      query: sum(vllm_num_requests_waiting{model_name="qwen2.5-72b"})
+      query: sum(vllm_num_requests_waiting{model_name="qwen3.5-122b"})
       threshold: "50"
   - type: prometheus
     metadata:

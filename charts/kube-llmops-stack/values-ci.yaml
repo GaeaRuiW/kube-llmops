@@ -1,4 +1,4 @@
-# CI profile: CPU-only, tiny model, for E2E testing on kind
+# CI profile: CPU-only, tiny model, for E2E testing on kind (no GPU required)
 # Usage: helm install kube-llmops charts/kube-llmops-stack -f charts/kube-llmops-stack/values-ci.yaml
 
 global:
@@ -17,7 +17,7 @@ models:
       --device: cpu
       --dtype: float32
 
-gateway:
+litellm:
   enabled: true
   masterKey: sk-ci-test-key
 
@@ -26,11 +26,26 @@ observability:
   dcgmExporter:
     enabled: false
 
-tracing:
-  enabled: false
+langfuse:
+  enabled: true
 
 logging:
   enabled: false
 
-autoscaling:
+keda:
+  enabled: false
+
+fluid:
+  enabled: false
+
+harbor:
+  enabled: false
+
+keycloak:
+  enabled: false
+
+milvus:
+  enabled: false
+
+minio:
   enabled: false

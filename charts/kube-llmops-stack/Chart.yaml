@@ -1,21 +1,20 @@
 apiVersion: v2
 name: kube-llmops-stack
-description: Kubernetes-native LLMOps Platform - Deploy, manage, monitor, and optimize LLMs on Kubernetes
+description: Kubernetes-native LLMOps Platform - deploy, manage, monitor, and optimize LLM infrastructure
 type: application
 version: 0.1.0
 appVersion: "0.1.0"
-home: https://github.com/your-org/kube-llmops
+home: https://github.com/wangr30/kube-llmops
 sources:
-  - https://github.com/your-org/kube-llmops
+  - https://github.com/wangr30/kube-llmops
 keywords:
   - llm
   - llmops
   - kubernetes
   - vllm
   - gpu
-  - ai
   - inference
   - monitoring
+  - observability
 maintainers:
-  - name: kube-llmops
-icon: ""
+  - name: wangr30

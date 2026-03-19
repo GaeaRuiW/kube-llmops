@@ -1,30 +1,42 @@
-# Helm
-*.tgz
-charts/*/charts/*.tgz
-
-# Python
+# Byte-compiled / optimized / DLL files
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
+*$py.class
+
+# Environments
+.env
+.env.local
+.env.*.local
 .venv/
-.pytest_cache/
-.ruff_cache/
+venv/
 
 # IDE
-.vscode/
 .idea/
+.vscode/
+*.swp
+*.swo
+*~
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Build
+# Helm
+charts/kube-llmops-stack/charts/*.tgz
+*.tgz
+
+# Build outputs
 dist/
 build/
-*.egg-info/
 
-# Secrets
+# Secrets -- NEVER commit
+**/secrets/
 *.key
 *.pem
-.env
-!.env.example
+
+# HuggingFace token
+.hf_token
+
+# Temporary
+tmp/
+.tmp/

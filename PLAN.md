@@ -255,7 +255,7 @@ make package      # produces .tgz file
 |     | - Support `HF_TOKEN` for gated models | |
 |     | - Dockerfile (slim, <100MB) | |
 | 1.3 | Wire vLLM sub-chart into umbrella chart | `Chart.yaml` dependency, `values.yaml` defaults |
-| 1.4 | `values-minimal.yaml` (first draft) | Single model (e.g. `Qwen/Qwen2.5-1.5B-Instruct`), 1 GPU, no monitoring |
+| 1.4 | `values-minimal.yaml` (first draft) | Single model (e.g. `Qwen/Qwen3.5-0.8B`), 1 GPU, no monitoring |
 | **CI** | | |
 | 1.5 | `build.yaml`: add Docker build for `model-loader` | Build image, Trivy scan, don't push |
 | 1.6 | `test.yaml`: add `helm template` with `values-minimal.yaml` | Ensure vLLM sub-chart renders correctly |
@@ -276,7 +276,7 @@ curl -s http://localhost:8000/v1/models | jq .
 curl -X POST http://localhost:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "Qwen2.5-1.5B-Instruct",
+    "model": "Qwen3.5-0.8B",
     "messages": [{"role": "user", "content": "Hello!"}],
     "max_tokens": 50
   }'
@@ -319,7 +319,7 @@ curl -X POST http://localhost:8000/v1/chat/completions \
 # Test 1: AWQ model -> should auto-select vLLM
 helm install test1 charts/kube-llmops-stack/ \
   --set models[0].name=qwen-awq \
-  --set models[0].source=Qwen/Qwen2.5-1.5B-Instruct  # SafeTensors, no quant
+  --set models[0].source=Qwen/Qwen3.5-0.8B  # SafeTensors, no quant
 
 kubectl logs <pod> -c model-resolver
 # Expected output: ENGINE=vllm, ENGINE_ARGS=--gpu-memory-utilization 0.92
@@ -378,7 +378,7 @@ helm install test3 charts/kube-llmops-stack/ \
 helm install multi charts/kube-llmops-stack/ -f test-multi-model.yaml
 # values contains:
 #   models:
-#     - name: chat-model     source: Qwen/Qwen2.5-1.5B-Instruct   (-> vLLM)
+#     - name: chat-model     source: Qwen/Qwen3.5-0.8B   (-> vLLM)
 #     - name: gguf-model     source: ...some-GGUF-model...          (-> llama.cpp)
 #     - name: embed-model    source: BAAI/bge-small-en-v1.5         (-> TEI)
 
@@ -434,7 +434,7 @@ curl -X POST http://localhost:4000/v1/chat/completions \
   -H "Authorization: Bearer sk-master-xxx" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "qwen2.5-1.5b",
+    "model": "qwen3.5-0.8b",
     "messages": [{"role": "user", "content": "What is Kubernetes?"}],
     "max_tokens": 100
   }'
@@ -448,7 +448,7 @@ curl -X POST http://localhost:4000/key/generate \
 curl -X POST http://localhost:4000/v1/chat/completions \
   -H "Authorization: Bearer sk-user-yyy" \
   -H "Content-Type: application/json" \
-  -d '{"model": "qwen2.5-1.5b", "messages": [{"role": "user", "content": "Hi"}]}'
+  -d '{"model": "qwen3.5-0.8b", "messages": [{"role": "user", "content": "Hi"}]}'
 
 # Pass criteria:
 # 1. LiteLLM pod Running, connected to PostgreSQL
@@ -506,7 +506,7 @@ helm install kube-llmops charts/kube-llmops-stack/ -f values-minimal.yaml
 for i in $(seq 1 20); do
   curl -s http://localhost:4000/v1/chat/completions \
     -H "Authorization: Bearer sk-master-xxx" \
-    -d '{"model":"qwen2.5-1.5b","messages":[{"role":"user","content":"Count to 10"}]}' &
+    -d '{"model":"qwen3.5-0.8b","messages":[{"role":"user","content":"Count to 10"}]}' &
 done
 wait
 
@@ -560,7 +560,7 @@ helm install kube-llmops charts/kube-llmops-stack/ -f values-minimal.yaml
 curl -X POST http://localhost:4000/v1/chat/completions \
   -H "Authorization: Bearer sk-master-xxx" \
   -d '{
-    "model": "qwen2.5-1.5b",
+    "model": "qwen3.5-0.8b",
     "messages": [
       {"role": "system", "content": "You are a helpful assistant."},
       {"role": "user", "content": "Explain Kubernetes in 3 sentences."}
@@ -679,7 +679,7 @@ kubectl get pods -w
 export GATEWAY=$(kubectl get svc litellm -o jsonpath='{.spec.clusterIP}')
 curl $GATEWAY:4000/v1/chat/completions \
   -H "Authorization: Bearer sk-master-xxx" \
-  -d '{"model":"qwen2.5-1.5b","messages":[{"role":"user","content":"Hello!"}]}'
+  -d '{"model":"qwen3.5-0.8b","messages":[{"role":"user","content":"Hello!"}]}'
 
 # 4. See metrics in Grafana
 kubectl port-forward svc/grafana 3000:3000
@@ -742,7 +742,7 @@ kubectl get pods -l app=vllm   # 1 pod
 # 2. Send burst traffic (100 concurrent requests)
 hey -n 100 -c 20 -m POST -H "Authorization: Bearer sk-xxx" \
   -H "Content-Type: application/json" \
-  -d '{"model":"qwen2.5-1.5b","messages":[{"role":"user","content":"Write a long story"}],"max_tokens":500}' \
+  -d '{"model":"qwen3.5-0.8b","messages":[{"role":"user","content":"Write a long story"}],"max_tokens":500}' \
   http://localhost:4000/v1/chat/completions
 
 # 3. Observe scale-up
@@ -810,11 +810,11 @@ time kubectl wait --for=condition=ready pod -l app=vllm --timeout=600s
 
 ```bash
 # Push a model to Harbor
-./scripts/push-model.sh Qwen/Qwen2.5-1.5B-Instruct harbor.local/models/qwen2.5-1.5b:v1
+./scripts/push-model.sh Qwen/Qwen3.5-0.8B harbor.local/models/qwen3.5-0.8b:v1
 
 # Deploy model from Harbor
 helm install test charts/kube-llmops-stack/ \
-  --set models[0].source=oci://harbor.local/models/qwen2.5-1.5b:v1
+  --set models[0].source=oci://harbor.local/models/qwen3.5-0.8b:v1
 
 # Pass: model loads from Harbor, not from HuggingFace
 ```
@@ -913,7 +913,7 @@ helm install test charts/kube-llmops-stack/ \
 - Kubernetes Operator + CRDs
 - CLI tool
 - Web Dashboard
-- **CHECKPOINT**: `kubectl llmops deploy qwen2.5-72b` works end-to-end
+- **CHECKPOINT**: `kubectl llmops deploy qwen3.5-122b` works end-to-end
 
 ---
 
@@ -959,7 +959,7 @@ These directly impact whether someone will star the repo.
 |---|---|---|---|
 | G1 | **README is the storefront** | Write a killer README: one-sentence hook, architecture diagram (image, not ASCII), feature highlights, GIF/screenshot of Grafana dashboard + Langfuse trace, 5-minute quick start. This is the single most important file for earning stars. | `README.md` |
 | G2 | **Quick Start needs a no-GPU path** | Provide a `values-quickstart.yaml` that runs on any laptop (CPU-only, tiny model). If someone clones and can't try it in 5 minutes, they leave. | `values-quickstart.yaml` |
-| G3 | **3-5 concrete use cases** | Not feature lists. Scenarios: "I want to deploy Qwen-72B and let 5 teams share it with budget limits", "I want to build a RAG chatbot on my company docs", "I want to monitor which team is burning the most GPU hours". Resonates better than tech specs. | `README.md` or `docs/use-cases.md` |
+| G3 | **3-5 concrete use cases** | Not feature lists. Scenarios: "I want to deploy Qwen3.5-122B and let 5 teams share it with budget limits", "I want to build a RAG chatbot on my company docs", "I want to monitor which team is burning the most GPU hours". Resonates better than tech specs. | `README.md` or `docs/use-cases.md` |
 | G4 | **License audit note** | Add a "License Notice" section: list all dependencies and their licenses. Flag AGPL components (Grafana, Loki) with a note: "If AGPL is a concern for your organization, these components are optional. You can bring your own Grafana or use alternatives." Don't block usage, just inform. | `ARCHITECTURE.md` + `README.md` |
 
 ### Before v0.2.0 -- Should Do
