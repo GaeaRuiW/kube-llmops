@@ -97,6 +97,8 @@ spec:
             - name: dashboards-provision
               mountPath: /etc/grafana/provisioning/dashboards/dashboards.yaml
               subPath: dashboards.yaml
+            - name: dashboards-json
+              mountPath: /etc/grafana/dashboards
       volumes:
         - name: data
           persistentVolumeClaim:
@@ -107,6 +109,9 @@ spec:
         - name: dashboards-provision
           configMap:
             name: {{ $.Release.Name }}-grafana-dashboard-provision
+        - name: dashboards-json
+          configMap:
+            name: {{ $.Release.Name }}-grafana-dashboards
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -127,7 +132,7 @@ data:
         disableDeletion: false
         editable: true
         options:
-          path: /var/lib/grafana/dashboards
+          path: /etc/grafana/dashboards
           foldersFromFilesStructure: false
 ---
 apiVersion: v1
@@ -147,4 +152,15 @@ spec:
   selector:
     app.kubernetes.io/name: grafana
     app.kubernetes.io/instance: {{ $.Release.Name }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $.Release.Name }}-grafana-dashboards
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+data:
+  {{- (.Files.Glob "dashboards/*.json").AsConfig | nindent 2 }}
 {{- end }}
