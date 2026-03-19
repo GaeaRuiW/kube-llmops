@@ -64,13 +64,37 @@ helm install kube-llmops kube-llmops/kube-llmops-stack -f values-ci.yaml
 ### Chat with your model
 
 ```bash
-kubectl port-forward svc/litellm 4000:4000 &
+kubectl port-forward svc/kube-llmops-litellm 4000:4000 &
 
 curl http://localhost:4000/v1/chat/completions \
-  -H "Authorization: Bearer $MASTER_KEY" \
+  -H "Authorization: Bearer sk-kube-llmops-dev" \
   -H "Content-Type: application/json" \
   -d '{"model":"qwen2-5-0-5b","messages":[{"role":"user","content":"Hello!"}]}'
 ```
+
+### Access the UIs
+
+```bash
+kubectl port-forward svc/kube-llmops-litellm 4000:4000 &    # AI Gateway
+kubectl port-forward svc/kube-llmops-grafana 3000:3000 &     # Metrics
+kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &    # LLM Tracing
+```
+
+| Service | URL | Default Credentials |
+|---|---|---|
+| **LiteLLM** (AI Gateway + Admin UI) | `http://localhost:4000/ui` | any username / `sk-kube-llmops-dev` |
+| **Grafana** (Dashboards) | `http://localhost:3000` | `admin` / `admin` |
+| **Langfuse** (LLM Tracing) | `http://localhost:3001` | `admin@kube-llmops.local` / `admin123!` |
+
+> [!WARNING]
+> These are development defaults. For production, override via `--set`:
+> ```bash
+> helm install kube-llmops kube-llmops/kube-llmops-stack \
+>   --set litellm.masterKey=sk-your-secret-key \
+>   --set observability.grafana.adminPassword=your-grafana-pw \
+>   --set langfuse.init.userPassword=your-langfuse-pw \
+>   --set langfuse.externalUrl=https://langfuse.your-domain.com
+> ```
 
 ## Features
 
