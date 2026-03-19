@@ -41,7 +41,7 @@ spec:
             - name: SALT
               value: {{ .Values.auth.salt | quote }}
             - name: NEXTAUTH_URL
-              value: "http://{{ $.Release.Name }}-langfuse:{{ .Values.service.port }}"
+              value: {{ .Values.externalUrl | default (printf "http://%s-langfuse:%v" $.Release.Name (.Values.service.port | int)) | quote }}
             - name: DATABASE_URL
               {{- if .Values.postgresql.enabled }}
               value: "postgresql://{{ .Values.postgresql.auth.username }}:{{ .Values.postgresql.auth.password }}@{{ $.Release.Name }}-langfuse-pg:5432/{{ .Values.postgresql.auth.database }}"

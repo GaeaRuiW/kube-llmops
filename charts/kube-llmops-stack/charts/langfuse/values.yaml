@@ -8,6 +8,10 @@ image:
 
 replicas: 1
 
+# External URL for NextAuth redirects (set when using port-forward or ingress)
+# Example: http://localhost:3001 or https://langfuse.example.com
+externalUrl: ""
+
 service:
   type: ClusterIP
   port: 3000
