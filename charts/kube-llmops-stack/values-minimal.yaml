@@ -1,5 +1,8 @@
-# Minimal profile: 1 small model + LiteLLM gateway + basic monitoring
+# Minimal profile: 1 small model + full observability stack
 # Usage: helm install kube-llmops charts/kube-llmops-stack -f charts/kube-llmops-stack/values-minimal.yaml
+#
+# Default model: Qwen2.5-0.5B-Instruct (small, fast to load, works on most GPUs)
+# To use a different model, create an override file — see docs/getting-started.md
 #
 # GPU-specific tuning (add to your own override file if needed):
 #   --enforce-eager: ""              # Required for Blackwell (SM 12.0) GPUs
@@ -37,6 +40,9 @@ tei:
 litellm:
   enabled: true
   masterKey: sk-kube-llmops-dev
+  langfuseEnabled: true
+  langfusePublicKey: "pk-lf-kube-llmops"
+  langfuseSecretKey: "sk-lf-kube-llmops"
   models:
     - name: qwen2-5-0-5b
       source: Qwen/Qwen2.5-0.5B-Instruct
@@ -52,11 +58,15 @@ observability:
   grafana:
     adminPassword: admin
 
+# Langfuse: LLM tracing (prompt, tokens, latency per request)
+# Adds ~205MB memory. Disable with: --set langfuse.enabled=false
 langfuse:
-  enabled: false
+  enabled: true
 
+# Logging: container log aggregation (Fluent Bit + Loki)
+# Adds ~75MB memory. Disable with: --set logging.enabled=false
 logging:
-  enabled: false
+  enabled: true
 
 keda:
   enabled: false

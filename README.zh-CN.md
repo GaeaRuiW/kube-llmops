@@ -106,12 +106,12 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &    # LLM Tracing
 
 ## 部署配置
 
-| 配置文件 | GPU | 模型数量 | 监控 | 追踪 | 适用场景 |
-|---|---|---|---|---|---|
-| `values-ci.yaml` | 无 | 微型（CPU） | 基础 | 关闭 | CI / 演示 |
-| `values-minimal.yaml` | 1 块 | 1 个（小） | Prometheus + Grafana | 关闭 | 开发环境 |
-| `values-standard.yaml` | 4-8 块 | 2-3 个 | 完整 OTel 栈 | Langfuse | 团队协作 |
-| `values-production.yaml` | 16+ 块 | N 个 | 完整 + 高可用 | 全量 | 企业生产 |
+| 配置文件 | GPU | 模型数量 | 监控 | 追踪 | 日志 | 适用场景 |
+|---|---|---|---|---|---|---|
+| `values-ci.yaml` | 无 | 无（CPU） | 基础 | 关闭 | 关闭 | CI / 演示 |
+| `values-minimal.yaml` | 1 块 | 1 个（小） | Prometheus + Grafana | Langfuse | Fluent Bit + Loki | 开发环境 |
+| `values-standard.yaml` | 4-8 块 | 2-3 个 | 完整 OTel 栈 | Langfuse | Fluent Bit + Loki | 团队协作 |
+| `values-production.yaml` | 16+ 块 | N 个 | 完整 + 高可用 | 全量 | 全量 | 企业生产 |
 
 ## 文档
 

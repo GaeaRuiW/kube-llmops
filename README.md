@@ -106,12 +106,12 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &    # LLM Tracing
 
 ## Deployment Profiles
 
-| Profile | GPU | Models | Monitoring | Tracing | Use Case |
-|---|---|---|---|---|---|
-| `values-ci.yaml` | None | Tiny (CPU) | Basic | Off | CI / Demo |
-| `values-minimal.yaml` | 1x | 1 small | Prometheus + Grafana | Off | Development |
-| `values-standard.yaml` | 4-8x | 2-3 | Full OTel stack | Langfuse | Team |
-| `values-production.yaml` | 16+x | N | Full + HA | Full | Enterprise |
+| Profile | GPU | Models | Monitoring | Tracing | Logging | Use Case |
+|---|---|---|---|---|---|---|
+| `values-ci.yaml` | None | None (CPU) | Basic | Off | Off | CI / Demo |
+| `values-minimal.yaml` | 1x | 1 small | Prometheus + Grafana | Langfuse | Fluent Bit + Loki | Development |
+| `values-standard.yaml` | 4-8x | 2-3 | Full OTel stack | Langfuse | Fluent Bit + Loki | Team |
+| `values-production.yaml` | 16+x | N | Full + HA | Full | Full | Enterprise |
 
 ## Documentation
 

@@ -333,45 +333,47 @@ models:
 Edit your values file or create an override:
 
 ```yaml
-# my-values.yaml
-models:
-  - name: qwen2-5-0-5b
-    modelId: Qwen/Qwen2.5-0.5B-Instruct
-    engine: vllm
-    enabled: true
-    replicas: 1
-    resources:
-      limits:
-        nvidia.com/gpu: "1"
-      requests:
-        memory: "4Gi"
-        cpu: "2"
+# my-models.yaml
+vllm:
+  models:
+    - name: qwen2-5-0-5b           # keep existing model
+      source: Qwen/Qwen2.5-0.5B-Instruct
+      engine: vllm
+      replicas: 1
+      resources:
+        gpu: 1
+        memory: 8Gi
 
-  - name: llama3-1-8b
-    modelId: meta-llama/Llama-3.1-8B-Instruct
-    engine: vllm
-    enabled: true
-    replicas: 1
-    resources:
-      limits:
-        nvidia.com/gpu: "1"
-      requests:
-        memory: "16Gi"
-        cpu: "4"
-    extraEnv:
-      - name: HF_TOKEN
-        valueFrom:
-          secretKeyRef:
-            name: hf-token
-            key: token
+    - name: llama3-1-8b             # add a new model
+      source: meta-llama/Llama-3.1-8B-Instruct
+      engine: vllm
+      replicas: 1
+      resources:
+        gpu: 1
+        memory: 16Gi
+      engineArgs:
+        --max-model-len: "4096"
+
+# LiteLLM must also know about the new model for routing
+litellm:
+  models:
+    - name: qwen2-5-0-5b
+      source: Qwen/Qwen2.5-0.5B-Instruct
+      engine: vllm
+    - name: llama3-1-8b
+      source: meta-llama/Llama-3.1-8B-Instruct
+      engine: vllm
 ```
+
+> **Note:** Gated models (e.g. Llama) require a HuggingFace token.
+> Set `vllm.modelLoader.hfToken` or create a Secret manually.
 
 Then upgrade:
 
 ```bash
 helm upgrade kube-llmops charts/kube-llmops-stack \
   -f charts/kube-llmops-stack/values-minimal.yaml \
-  -f my-values.yaml \
+  -f my-models.yaml \
   --namespace default
 ```
 

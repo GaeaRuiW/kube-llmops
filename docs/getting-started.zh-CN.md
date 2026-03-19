@@ -333,45 +333,47 @@ models:
 编辑你的 values 文件或创建覆盖文件：
 
 ```yaml
-# my-values.yaml
-models:
-  - name: qwen2-5-0-5b
-    modelId: Qwen/Qwen2.5-0.5B-Instruct
-    engine: vllm
-    enabled: true
-    replicas: 1
-    resources:
-      limits:
-        nvidia.com/gpu: "1"
-      requests:
-        memory: "4Gi"
-        cpu: "2"
+# my-models.yaml
+vllm:
+  models:
+    - name: qwen2-5-0-5b           # 保留已有模型
+      source: Qwen/Qwen2.5-0.5B-Instruct
+      engine: vllm
+      replicas: 1
+      resources:
+        gpu: 1
+        memory: 8Gi
 
-  - name: llama3-1-8b
-    modelId: meta-llama/Llama-3.1-8B-Instruct
-    engine: vllm
-    enabled: true
-    replicas: 1
-    resources:
-      limits:
-        nvidia.com/gpu: "1"
-      requests:
-        memory: "16Gi"
-        cpu: "4"
-    extraEnv:
-      - name: HF_TOKEN
-        valueFrom:
-          secretKeyRef:
-            name: hf-token
-            key: token
+    - name: llama3-1-8b             # 添加新模型
+      source: meta-llama/Llama-3.1-8B-Instruct
+      engine: vllm
+      replicas: 1
+      resources:
+        gpu: 1
+        memory: 16Gi
+      engineArgs:
+        --max-model-len: "4096"
+
+# LiteLLM 也需要知道新模型才能路由请求
+litellm:
+  models:
+    - name: qwen2-5-0-5b
+      source: Qwen/Qwen2.5-0.5B-Instruct
+      engine: vllm
+    - name: llama3-1-8b
+      source: meta-llama/Llama-3.1-8B-Instruct
+      engine: vllm
 ```
+
+> **注意：** 受限模型（如 Llama）需要 HuggingFace token。
+> 通过 `vllm.modelLoader.hfToken` 设置，或手动创建 Secret。
 
 然后执行升级：
 
 ```bash
 helm upgrade kube-llmops charts/kube-llmops-stack \
   -f charts/kube-llmops-stack/values-minimal.yaml \
-  -f my-values.yaml \
+  -f my-models.yaml \
   --namespace default
 ```
 
