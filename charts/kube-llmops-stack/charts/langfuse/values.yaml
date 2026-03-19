@@ -30,6 +30,20 @@ auth:
   nextAuthSecret: kube-llmops-langfuse-secret
   salt: kube-llmops-langfuse-salt
 
+# Auto-provisioning: creates org, project, user, and API keys on first startup
+# API keys (projectPublicKey/projectSecretKey) must match LiteLLM's langfusePublicKey/langfuseSecretKey
+init:
+  enabled: true
+  orgId: kube-llmops
+  orgName: kube-llmops
+  projectId: kube-llmops
+  projectName: kube-llmops
+  projectPublicKey: pk-lf-kube-llmops
+  projectSecretKey: sk-lf-kube-llmops
+  userEmail: admin@kube-llmops.local
+  userName: admin
+  userPassword: admin123!
+
 resources:
   requests:
     cpu: 250m

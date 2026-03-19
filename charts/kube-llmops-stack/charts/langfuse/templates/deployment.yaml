@@ -46,11 +46,30 @@ spec:
               {{- if .Values.postgresql.enabled }}
               value: "postgresql://{{ .Values.postgresql.auth.username }}:{{ .Values.postgresql.auth.password }}@{{ $.Release.Name }}-langfuse-pg:5432/{{ .Values.postgresql.auth.database }}"
               {{- else }}
-              # Reuse LiteLLM's PostgreSQL (must have langfuse DB created)
               value: "postgresql://{{ .Values.postgresql.auth.username }}:{{ .Values.postgresql.auth.password }}@{{ $.Release.Name }}-litellm-pg:5432/{{ .Values.postgresql.auth.database }}"
               {{- end }}
             - name: TELEMETRY_ENABLED
               value: "false"
+            {{- if .Values.init.enabled }}
+            - name: LANGFUSE_INIT_ORG_ID
+              value: {{ .Values.init.orgId | default "kube-llmops" | quote }}
+            - name: LANGFUSE_INIT_ORG_NAME
+              value: {{ .Values.init.orgName | default "kube-llmops" | quote }}
+            - name: LANGFUSE_INIT_PROJECT_ID
+              value: {{ .Values.init.projectId | default "kube-llmops" | quote }}
+            - name: LANGFUSE_INIT_PROJECT_NAME
+              value: {{ .Values.init.projectName | default "kube-llmops" | quote }}
+            - name: LANGFUSE_INIT_PROJECT_PUBLIC_KEY
+              value: {{ .Values.init.projectPublicKey | quote }}
+            - name: LANGFUSE_INIT_PROJECT_SECRET_KEY
+              value: {{ .Values.init.projectSecretKey | quote }}
+            - name: LANGFUSE_INIT_USER_EMAIL
+              value: {{ .Values.init.userEmail | default "admin@kube-llmops.local" | quote }}
+            - name: LANGFUSE_INIT_USER_NAME
+              value: {{ .Values.init.userName | default "admin" | quote }}
+            - name: LANGFUSE_INIT_USER_PASSWORD
+              value: {{ .Values.init.userPassword | default "admin" | quote }}
+            {{- end }}
           readinessProbe:
             httpGet:
               path: {{ .Values.readinessProbe.httpGet.path }}
