@@ -1,23 +1,33 @@
 # Minimal profile: 1 small model, basic monitoring, smallest footprint
 # Usage: helm install kube-llmops charts/kube-llmops-stack -f charts/kube-llmops-stack/values-minimal.yaml
 
+# Top-level models list (for future Model Resolver in M2)
 models:
   - name: qwen3.5-0.8b
     source: Qwen/Qwen3.5-0.8B
-    engine: auto
+    engine: vllm
     replicas: 1
     resources:
       gpu: 1
       memory: 8Gi
 
-litellm:
+# Pass models into vllm sub-chart
+vllm:
   enabled: true
-  masterKey: sk-kube-llmops-dev
+  models:
+    - name: qwen3.5-0.8b
+      source: Qwen/Qwen3.5-0.8B
+      engine: vllm
+      replicas: 1
+      resources:
+        gpu: 1
+        memory: 8Gi
+
+litellm:
+  enabled: false              # LiteLLM added in M4
 
 observability:
-  enabled: true
-  dcgmExporter:
-    enabled: true
+  enabled: false              # Monitoring added in M5
 
 langfuse:
   enabled: false

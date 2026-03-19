@@ -20,6 +20,45 @@ global:
 #       engineArgs: {}            # Additional engine-specific arguments
 models: []
 
+# -- vLLM engine configuration (sub-chart)
+# models[] is injected into vllm.models automatically
+vllm:
+  enabled: true
+  models: []                  # Populated from top-level models[] at install time
+  image:
+    repository: vllm/vllm-openai
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8000
+  modelLoader:
+    enabled: true
+    image:
+      repository: ghcr.io/gaearuiw/kube-llmops/model-loader
+      tag: latest
+      pullPolicy: IfNotPresent
+    hfToken: ""               # Set via --set vllm.modelLoader.hfToken=xxx
+  modelCache:
+    enabled: true
+    storageClass: ""
+    size: 50Gi
+    existingClaim: ""
+  readinessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 30
+  livenessProbe:
+    initialDelaySeconds: 60
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 3
+  gpuToleration:
+    key: nvidia.com/gpu
+    operator: Exists
+    effect: NoSchedule
+
 # -- AI Gateway (LiteLLM)
 litellm:
   enabled: true

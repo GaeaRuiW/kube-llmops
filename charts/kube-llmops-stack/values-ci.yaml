@@ -17,17 +17,35 @@ models:
       --device: cpu
       --dtype: float32
 
-litellm:
+vllm:
   enabled: true
-  masterKey: sk-ci-test-key
+  models:
+    - name: tiny-model
+      source: hf-internal-testing/tiny-random-LlamaForCausalLM
+      engine: vllm
+      replicas: 1
+      resources:
+        gpu: 0
+        cpu: 2
+        memory: 4Gi
+      engineArgs:
+        --device: cpu
+        --dtype: float32
+  modelLoader:
+    enabled: false            # Tiny model downloads fast, no need for init container
+  modelCache:
+    enabled: false            # Use emptyDir for CI
+
+litellm:
+  enabled: false
 
 observability:
-  enabled: true
+  enabled: false
   dcgmExporter:
     enabled: false
 
 langfuse:
-  enabled: true
+  enabled: false
 
 logging:
   enabled: false

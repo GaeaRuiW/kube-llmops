@@ -18,3 +18,10 @@ keywords:
   - observability
 maintainers:
   - name: GaeaRuiW
+dependencies:
+  - name: vllm
+    version: 0.1.0
+    repository: "file://charts/vllm"
+    condition: vllm.enabled
+    tags:
+      - model-serving

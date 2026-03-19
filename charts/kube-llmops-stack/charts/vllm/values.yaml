@@ -1,0 +1,67 @@
+# vLLM sub-chart default values
+# These are overridden by the parent chart's models[] entries
+
+enabled: true
+
+# Model defaults (typically overridden per-model from parent)
+model:
+  name: ""
+  source: ""
+  replicas: 1
+  resources:
+    gpu: 1
+    memory: 16Gi
+    cpu: 4
+  engineArgs: {}
+
+# vLLM container image
+image:
+  repository: vllm/vllm-openai
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# Service
+service:
+  type: ClusterIP
+  port: 8000
+
+# Probes
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 30
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Model loader init container
+modelLoader:
+  enabled: true
+  image:
+    repository: ghcr.io/gaearuiw/kube-llmops/model-loader
+    tag: latest
+    pullPolicy: IfNotPresent
+
+# Model cache volume
+modelCache:
+  enabled: true
+  storageClass: ""
+  size: 50Gi
+  # Use existing PVC (if set, storageClass and size are ignored)
+  existingClaim: ""
+
+# GPU tolerations (applied automatically when gpu > 0)
+gpuToleration:
+  key: nvidia.com/gpu
+  operator: Exists
+  effect: NoSchedule

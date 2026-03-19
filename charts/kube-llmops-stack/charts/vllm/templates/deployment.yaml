@@ -1,0 +1,164 @@
+{{/*
+This template renders one Deployment per model entry that uses vllm engine.
+It is called from the parent chart with model-specific context.
+*/}}
+{{- range $idx, $model := .Values.models }}
+{{- if or (eq (default "auto" $model.engine) "vllm") (eq (default "auto" $model.engine) "auto") }}
+{{- $resources := default dict $model.resources }}
+{{- $gpu := ternary (int $resources.gpu) 1 (hasKey $resources "gpu") }}
+{{- $memory := default "16Gi" $resources.memory }}
+{{- $cpu := default "4" $resources.cpu }}
+{{- $replicas := default 1 $model.replicas }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-{{ $model.name }}
+  labels:
+    app.kubernetes.io/name: vllm
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/component: model-serving
+    app.kubernetes.io/part-of: kube-llmops
+    kube-llmops/model: {{ $model.name }}
+    kube-llmops/engine: vllm
+spec:
+  replicas: {{ $replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vllm
+      app.kubernetes.io/instance: {{ $.Release.Name }}
+      kube-llmops/model: {{ $model.name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: vllm
+        app.kubernetes.io/instance: {{ $.Release.Name }}
+        app.kubernetes.io/component: model-serving
+        app.kubernetes.io/part-of: kube-llmops
+        kube-llmops/model: {{ $model.name }}
+        kube-llmops/engine: vllm
+    spec:
+      {{- if $.Values.modelLoader.enabled }}
+      initContainers:
+        - name: model-loader
+          image: "{{ $.Values.modelLoader.image.repository }}:{{ $.Values.modelLoader.image.tag }}"
+          imagePullPolicy: {{ $.Values.modelLoader.image.pullPolicy }}
+          env:
+            - name: MODEL_SOURCE
+              value: {{ $model.source | quote }}
+            - name: MODEL_DIR
+              value: /models
+            - name: HF_HOME
+              value: /models/huggingface
+          {{- if $.Values.modelLoader.hfToken }}
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Release.Name }}-hf-token
+                  key: token
+          {{- end }}
+          volumeMounts:
+            - name: model-cache
+              mountPath: /models
+          resources:
+            requests:
+              cpu: "1"
+              memory: 2Gi
+            limits:
+              cpu: "4"
+              memory: 8Gi
+      {{- end }}
+      containers:
+        - name: vllm
+          image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag }}"
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          args:
+            - "--model"
+            - {{ $model.source | quote }}
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - "8000"
+            - "--served-model-name"
+            - {{ $model.name | quote }}
+            {{- if gt (int $gpu) 1 }}
+            - "--tensor-parallel-size"
+            - {{ $gpu | quote }}
+            {{- end }}
+            {{- range $key, $val := $model.engineArgs }}
+            - {{ $key | quote }}
+            {{- if $val }}
+            - {{ $val | quote }}
+            {{- end }}
+            {{- end }}
+          env:
+            - name: HF_HOME
+              value: /models/huggingface
+          {{- if $.Values.modelLoader.hfToken }}
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Release.Name }}-hf-token
+                  key: token
+          {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: {{ $.Values.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ $.Values.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ $.Values.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ $.Values.readinessProbe.failureThreshold }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: {{ $.Values.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ $.Values.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ $.Values.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ $.Values.livenessProbe.failureThreshold }}
+          resources:
+            requests:
+              cpu: {{ $cpu | quote }}
+              memory: {{ $memory }}
+              {{- if gt (int $gpu) 0 }}
+              nvidia.com/gpu: {{ $gpu | quote }}
+              {{- end }}
+            limits:
+              memory: {{ $memory }}
+              {{- if gt (int $gpu) 0 }}
+              nvidia.com/gpu: {{ $gpu | quote }}
+              {{- end }}
+          volumeMounts:
+            - name: model-cache
+              mountPath: /models
+            - name: shm
+              mountPath: /dev/shm
+      {{- if gt (int $gpu) 0 }}
+      tolerations:
+        - key: {{ $.Values.gpuToleration.key }}
+          operator: {{ $.Values.gpuToleration.operator }}
+          effect: {{ $.Values.gpuToleration.effect }}
+      {{- end }}
+      volumes:
+        - name: model-cache
+          {{- if and $.Values.modelCache.enabled (not $.Values.modelCache.existingClaim) }}
+          persistentVolumeClaim:
+            claimName: vllm-{{ $model.name }}-cache
+          {{- else if $.Values.modelCache.existingClaim }}
+          persistentVolumeClaim:
+            claimName: {{ $.Values.modelCache.existingClaim }}
+          {{- else }}
+          emptyDir:
+            sizeLimit: {{ $.Values.modelCache.size }}
+          {{- end }}
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 8Gi
+{{- end }}
+{{- end }}

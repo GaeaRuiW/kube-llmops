@@ -1,0 +1,20 @@
+{{/*
+Parent chart template that passes models[] into vllm sub-chart context.
+This is needed because Helm sub-charts only see values under their own key.
+We create a ConfigMap that demonstrates the models are properly configured.
+*/}}
+{{- if and .Values.vllm.enabled .Values.models }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "kube-llmops.fullname" . }}-models
+  labels:
+    {{- include "kube-llmops.labels" . | nindent 4 }}
+data:
+  models.yaml: |
+    {{- range .Values.models }}
+    - name: {{ .name }}
+      source: {{ .source }}
+      engine: {{ default "auto" .engine }}
+    {{- end }}
+{{- end }}
