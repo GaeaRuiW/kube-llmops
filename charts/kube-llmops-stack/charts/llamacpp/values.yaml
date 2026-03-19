@@ -1,0 +1,41 @@
+enabled: true
+
+models: []
+
+image:
+  repository: ghcr.io/ggerganov/llama.cpp
+  tag: server
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 15
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 20
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 30
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+modelCache:
+  enabled: true
+  storageClass: ""
+  size: 30Gi
+  existingClaim: ""
+
+gpuToleration:
+  key: nvidia.com/gpu
+  operator: Exists
+  effect: NoSchedule

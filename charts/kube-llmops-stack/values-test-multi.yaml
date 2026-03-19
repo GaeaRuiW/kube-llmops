@@ -1,0 +1,77 @@
+# Multi-engine test: deploys 3 models on 3 different engines
+# Usage: helm template test charts/kube-llmops-stack -f charts/kube-llmops-stack/values-test-multi.yaml
+
+models:
+  - name: chat-model
+    source: Qwen/Qwen3.5-0.8B
+    engine: vllm
+    replicas: 1
+    resources:
+      gpu: 1
+      memory: 8Gi
+  - name: gguf-model
+    source: bartowski/Meta-Llama-3.1-8B-Instruct-GGUF
+    engine: llamacpp
+    replicas: 1
+    resources:
+      gpu: 1
+      memory: 16Gi
+    engineArgs:
+      --ctx-size: "4096"
+  - name: embed-model
+    source: BAAI/bge-small-en-v1.5
+    engine: tei
+    replicas: 1
+    resources:
+      gpu: 1
+      memory: 2Gi
+
+vllm:
+  enabled: true
+  models:
+    - name: chat-model
+      source: Qwen/Qwen3.5-0.8B
+      engine: vllm
+      replicas: 1
+      resources:
+        gpu: 1
+        memory: 8Gi
+
+llamacpp:
+  enabled: true
+  models:
+    - name: gguf-model
+      source: bartowski/Meta-Llama-3.1-8B-Instruct-GGUF
+      engine: llamacpp
+      replicas: 1
+      resources:
+        gpu: 1
+        memory: 16Gi
+      engineArgs:
+        --ctx-size: "4096"
+
+tei:
+  enabled: true
+  models:
+    - name: embed-model
+      source: BAAI/bge-small-en-v1.5
+      engine: tei
+      replicas: 1
+      resources:
+        gpu: 1
+        memory: 2Gi
+
+litellm:
+  enabled: false
+
+observability:
+  enabled: false
+
+langfuse:
+  enabled: false
+
+logging:
+  enabled: false
+
+keda:
+  enabled: false

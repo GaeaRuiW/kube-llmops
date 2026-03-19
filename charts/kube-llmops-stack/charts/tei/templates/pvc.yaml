@@ -1,0 +1,25 @@
+{{- range $idx, $model := .Values.models }}
+{{- if eq (default "" $model.engine) "tei" }}
+{{- if and $.Values.modelCache.enabled (not $.Values.modelCache.existingClaim) }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: tei-{{ $model.name }}-cache
+  labels:
+    app.kubernetes.io/name: tei
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+    kube-llmops/model: {{ $model.name }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- if $.Values.modelCache.storageClass }}
+  storageClassName: {{ $.Values.modelCache.storageClass }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ $.Values.modelCache.size }}
+{{- end }}
+{{- end }}
+{{- end }}

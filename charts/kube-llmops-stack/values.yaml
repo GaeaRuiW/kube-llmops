@@ -59,6 +59,68 @@ vllm:
     operator: Exists
     effect: NoSchedule
 
+# -- llama.cpp engine configuration (sub-chart, for GGUF models)
+llamacpp:
+  enabled: true
+  models: []
+  image:
+    repository: ghcr.io/ggerganov/llama.cpp
+    tag: server
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8080
+  modelCache:
+    enabled: true
+    storageClass: ""
+    size: 30Gi
+    existingClaim: ""
+  readinessProbe:
+    initialDelaySeconds: 15
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 20
+  livenessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 3
+  gpuToleration:
+    key: nvidia.com/gpu
+    operator: Exists
+    effect: NoSchedule
+
+# -- TEI engine configuration (sub-chart, for embedding & reranking models)
+tei:
+  enabled: true
+  models: []
+  image:
+    repository: ghcr.io/huggingface/text-embeddings-inference
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8080
+  modelCache:
+    enabled: true
+    storageClass: ""
+    size: 10Gi
+    existingClaim: ""
+  readinessProbe:
+    initialDelaySeconds: 15
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 20
+  livenessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 3
+  gpuToleration:
+    key: nvidia.com/gpu
+    operator: Exists
+    effect: NoSchedule
+
 # -- AI Gateway (LiteLLM)
 litellm:
   enabled: true

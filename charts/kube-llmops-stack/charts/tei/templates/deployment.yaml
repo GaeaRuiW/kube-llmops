@@ -1,0 +1,111 @@
+{{- range $idx, $model := .Values.models }}
+{{- if eq (default "" $model.engine) "tei" }}
+{{- $resources := default dict $model.resources }}
+{{- $gpu := ternary (int $resources.gpu) 1 (hasKey $resources "gpu") }}
+{{- $memory := default "4Gi" $resources.memory }}
+{{- $cpu := default "2" $resources.cpu }}
+{{- $replicas := default 1 $model.replicas }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tei-{{ $model.name }}
+  labels:
+    app.kubernetes.io/name: tei
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/component: model-serving
+    app.kubernetes.io/part-of: kube-llmops
+    kube-llmops/model: {{ $model.name }}
+    kube-llmops/engine: tei
+spec:
+  replicas: {{ $replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tei
+      app.kubernetes.io/instance: {{ $.Release.Name }}
+      kube-llmops/model: {{ $model.name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tei
+        app.kubernetes.io/instance: {{ $.Release.Name }}
+        app.kubernetes.io/component: model-serving
+        app.kubernetes.io/part-of: kube-llmops
+        kube-llmops/model: {{ $model.name }}
+        kube-llmops/engine: tei
+    spec:
+      containers:
+        - name: tei
+          image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag }}"
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          args:
+            - "--model-id"
+            - {{ $model.source | quote }}
+            - "--hostname"
+            - "0.0.0.0"
+            - "--port"
+            - "8080"
+            {{- range $key, $val := $model.engineArgs }}
+            - {{ $key | quote }}
+            {{- if $val }}
+            - {{ $val | quote }}
+            {{- end }}
+            {{- end }}
+          env:
+            - name: HF_HOME
+              value: /models/huggingface
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: {{ $.Values.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ $.Values.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ $.Values.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ $.Values.readinessProbe.failureThreshold }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: {{ $.Values.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ $.Values.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ $.Values.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ $.Values.livenessProbe.failureThreshold }}
+          resources:
+            requests:
+              cpu: {{ $cpu | quote }}
+              memory: {{ $memory }}
+              {{- if gt $gpu 0 }}
+              nvidia.com/gpu: {{ $gpu | quote }}
+              {{- end }}
+            limits:
+              memory: {{ $memory }}
+              {{- if gt $gpu 0 }}
+              nvidia.com/gpu: {{ $gpu | quote }}
+              {{- end }}
+          volumeMounts:
+            - name: model-cache
+              mountPath: /models
+      {{- if gt $gpu 0 }}
+      tolerations:
+        - key: {{ $.Values.gpuToleration.key }}
+          operator: {{ $.Values.gpuToleration.operator }}
+          effect: {{ $.Values.gpuToleration.effect }}
+      {{- end }}
+      volumes:
+        - name: model-cache
+          {{- if and $.Values.modelCache.enabled (not $.Values.modelCache.existingClaim) }}
+          persistentVolumeClaim:
+            claimName: tei-{{ $model.name }}-cache
+          {{- else if $.Values.modelCache.existingClaim }}
+          persistentVolumeClaim:
+            claimName: {{ $.Values.modelCache.existingClaim }}
+          {{- else }}
+          emptyDir:
+            sizeLimit: {{ $.Values.modelCache.size }}
+          {{- end }}
+{{- end }}
+{{- end }}

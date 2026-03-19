@@ -1,0 +1,112 @@
+{{- range $idx, $model := .Values.models }}
+{{- if eq (default "" $model.engine) "llamacpp" }}
+{{- $resources := default dict $model.resources }}
+{{- $gpu := ternary (int $resources.gpu) 0 (hasKey $resources "gpu") }}
+{{- $memory := default "8Gi" $resources.memory }}
+{{- $cpu := default "4" $resources.cpu }}
+{{- $replicas := default 1 $model.replicas }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llamacpp-{{ $model.name }}
+  labels:
+    app.kubernetes.io/name: llamacpp
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/component: model-serving
+    app.kubernetes.io/part-of: kube-llmops
+    kube-llmops/model: {{ $model.name }}
+    kube-llmops/engine: llamacpp
+spec:
+  replicas: {{ $replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: llamacpp
+      app.kubernetes.io/instance: {{ $.Release.Name }}
+      kube-llmops/model: {{ $model.name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: llamacpp
+        app.kubernetes.io/instance: {{ $.Release.Name }}
+        app.kubernetes.io/component: model-serving
+        app.kubernetes.io/part-of: kube-llmops
+        kube-llmops/model: {{ $model.name }}
+        kube-llmops/engine: llamacpp
+    spec:
+      containers:
+        - name: llamacpp
+          image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag }}"
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          args:
+            - "--model"
+            - "/models/{{ $model.name }}.gguf"
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - "8080"
+            {{- if gt $gpu 0 }}
+            - "--n-gpu-layers"
+            - "999"
+            {{- end }}
+            {{- range $key, $val := $model.engineArgs }}
+            - {{ $key | quote }}
+            {{- if $val }}
+            - {{ $val | quote }}
+            {{- end }}
+            {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: {{ $.Values.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ $.Values.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ $.Values.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ $.Values.readinessProbe.failureThreshold }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: {{ $.Values.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ $.Values.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ $.Values.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ $.Values.livenessProbe.failureThreshold }}
+          resources:
+            requests:
+              cpu: {{ $cpu | quote }}
+              memory: {{ $memory }}
+              {{- if gt $gpu 0 }}
+              nvidia.com/gpu: {{ $gpu | quote }}
+              {{- end }}
+            limits:
+              memory: {{ $memory }}
+              {{- if gt $gpu 0 }}
+              nvidia.com/gpu: {{ $gpu | quote }}
+              {{- end }}
+          volumeMounts:
+            - name: model-cache
+              mountPath: /models
+      {{- if gt $gpu 0 }}
+      tolerations:
+        - key: {{ $.Values.gpuToleration.key }}
+          operator: {{ $.Values.gpuToleration.operator }}
+          effect: {{ $.Values.gpuToleration.effect }}
+      {{- end }}
+      volumes:
+        - name: model-cache
+          {{- if and $.Values.modelCache.enabled (not $.Values.modelCache.existingClaim) }}
+          persistentVolumeClaim:
+            claimName: llamacpp-{{ $model.name }}-cache
+          {{- else if $.Values.modelCache.existingClaim }}
+          persistentVolumeClaim:
+            claimName: {{ $.Values.modelCache.existingClaim }}
+          {{- else }}
+          emptyDir:
+            sizeLimit: {{ $.Values.modelCache.size }}
+          {{- end }}
+{{- end }}
+{{- end }}

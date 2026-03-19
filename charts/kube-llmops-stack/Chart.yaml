@@ -25,3 +25,15 @@ dependencies:
     condition: vllm.enabled
     tags:
       - model-serving
+  - name: llamacpp
+    version: 0.1.0
+    repository: "file://charts/llamacpp"
+    condition: llamacpp.enabled
+    tags:
+      - model-serving
+  - name: tei
+    version: 0.1.0
+    repository: "file://charts/tei"
+    condition: tei.enabled
+    tags:
+      - model-serving

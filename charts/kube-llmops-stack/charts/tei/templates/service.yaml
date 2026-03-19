@@ -1,0 +1,27 @@
+{{- range $idx, $model := .Values.models }}
+{{- if eq (default "" $model.engine) "tei" }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tei-{{ $model.name }}
+  labels:
+    app.kubernetes.io/name: tei
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/component: model-serving
+    app.kubernetes.io/part-of: kube-llmops
+    kube-llmops/model: {{ $model.name }}
+    kube-llmops/engine: tei
+spec:
+  type: {{ $.Values.service.type }}
+  ports:
+    - port: {{ $.Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: tei
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    kube-llmops/model: {{ $model.name }}
+{{- end }}
+{{- end }}
