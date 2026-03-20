@@ -71,17 +71,13 @@ spec:
               value: {{ .Values.init.userPassword | default "admin" | quote }}
             {{- end }}
             {{- if .Values.oidc.enabled }}
-            - name: AUTH_CUSTOM_CLIENT_ID
+            - name: AUTH_KEYCLOAK_CLIENT_ID
               value: {{ .Values.oidc.clientId | quote }}
-            - name: AUTH_CUSTOM_CLIENT_SECRET
+            - name: AUTH_KEYCLOAK_CLIENT_SECRET
               value: {{ .Values.oidc.clientSecret | quote }}
-            - name: AUTH_CUSTOM_ISSUER
+            - name: AUTH_KEYCLOAK_ISSUER
               value: {{ .Values.oidc.issuerUrl | quote }}
-            - name: AUTH_CUSTOM_NAME
-              value: {{ .Values.oidc.name | default "Keycloak" | quote }}
-            - name: AUTH_CUSTOM_SCOPE
-              value: "openid profile email"
-            - name: AUTH_CUSTOM_ALLOW_ACCOUNT_LINKING
+            - name: AUTH_KEYCLOAK_ALLOW_ACCOUNT_LINKING
               value: "true"
             {{- end }}
           readinessProbe:
