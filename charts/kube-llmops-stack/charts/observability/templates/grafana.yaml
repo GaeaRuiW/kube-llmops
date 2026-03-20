@@ -94,9 +94,9 @@ spec:
             - name: GF_AUTH_GENERIC_OAUTH_AUTH_URL
               value: "{{ .Values.grafana.oidc.issuerUrl }}/protocol/openid-connect/auth"
             - name: GF_AUTH_GENERIC_OAUTH_TOKEN_URL
-              value: "{{ .Values.grafana.oidc.issuerUrl }}/protocol/openid-connect/token"
+              value: "{{ .Values.grafana.oidc.internalIssuerUrl | default .Values.grafana.oidc.issuerUrl }}/protocol/openid-connect/token"
             - name: GF_AUTH_GENERIC_OAUTH_API_URL
-              value: "{{ .Values.grafana.oidc.issuerUrl }}/protocol/openid-connect/userinfo"
+              value: "{{ .Values.grafana.oidc.internalIssuerUrl | default .Values.grafana.oidc.issuerUrl }}/protocol/openid-connect/userinfo"
             - name: GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH
               value: {{ .Values.grafana.oidc.roleAttributePath | default "contains(realm_access.roles[*], 'admin') && 'Admin' || 'Viewer'" | quote }}
             - name: GF_SERVER_ROOT_URL

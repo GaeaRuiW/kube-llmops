@@ -81,6 +81,7 @@ observability:
       clientId: grafana
       clientSecret: grafana-oidc-secret
       issuerUrl: http://keycloak.llmops.local/realms/kube-llmops
+      internalIssuerUrl: http://kube-llmops-keycloak:8080/realms/kube-llmops
       grafanaRootUrl: http://grafana.llmops.local
 
 # ========== Langfuse ==========
