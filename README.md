@@ -12,9 +12,12 @@
 `kube-llmops` is an opinionated, batteries-included Helm chart that deploys a complete LLM operations stack on Kubernetes:
 
 - **Model Serving** -- vLLM, llama.cpp, or TEI, auto-selected based on model format
-- **AI Gateway** -- LiteLLM for unified OpenAI-compatible API, API key management, cost tracking
-- **Observability** -- OpenTelemetry + Prometheus + Grafana dashboards + Langfuse for LLM tracing
-- **Infrastructure** -- GPU scheduling, distributed model caching, autoscaling
+- **AI Gateway** -- LiteLLM for unified OpenAI-compatible API, key management, rate limiting, budget control
+- **Observability** -- Prometheus + Grafana (3 dashboards + 4 alert rules) + Langfuse LLM tracing
+- **Logging** -- Fluent Bit + Loki, queryable in Grafana Explore
+- **Autoscaling** -- KEDA scales vLLM pods based on queue depth and latency
+- **Security** -- Keycloak SSO for Grafana/Langfuse, NetworkPolicy isolation
+- **Storage** -- MinIO S3-compatible model storage, PVC model cache
 
 ```bash
 helm install kube-llmops kube-llmops/kube-llmops-stack -f values-minimal.yaml

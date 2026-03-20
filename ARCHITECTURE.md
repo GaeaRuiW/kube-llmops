@@ -13,7 +13,7 @@
 |---|---|---|
 | 1 | **Best solution first, CNCF preferred** | Choose the best tool for the job. When multiple equally good options exist, prefer CNCF (Graduated > Incubating > Sandbox). Never add complexity just for a CNCF badge. |
 | 2 | **Don't reinvent, integrate** | vLLM, LiteLLM, OpenTelemetry, Envoy... already battle-tested. Our value is the **glue + defaults + one-click experience**. |
-| 3 | **Smart defaults, full override** | Model format auto-detection picks the right engine. 3 deployment presets (`minimal`/`standard`/`production`). Everything can be manually overridden. |
+| 3 | **Smart defaults, full override** | Model format auto-detection picks the right engine. 4 deployment presets (`ci`/`minimal`/`standard`/`production`). Everything can be manually overridden. |
 | 4 | **IaC + GitOps native** | Everything declarative. ArgoCD Sync Waves handle deployment ordering. |
 | 5 | **LLM-specific, not generic** | Token-based metering, GPU scheduling, model weight caching, TTFT monitoring, prefix-cache-aware routing. |
 

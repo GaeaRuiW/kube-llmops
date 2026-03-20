@@ -9,12 +9,15 @@
 
 ## 什么是 kube-llmops？
 
-`kube-llmops` 是一个开箱即用的 Helm Chart（Helm 图表），可在 Kubernetes 上一键部署完整的 LLM 运维栈：
+`kube-llmops` 是一个开箱即用的 Helm Chart，可在 Kubernetes 上一键部署完整的 LLM 运维栈：
 
 - **模型推理服务** -- vLLM、llama.cpp 或 TEI，根据模型格式自动选择推理引擎
-- **AI 网关** -- LiteLLM 提供统一的 OpenAI 兼容 API、API Key 管理、成本追踪
-- **可观测性** -- OpenTelemetry + Prometheus + Grafana 仪表盘 + Langfuse LLM 调用追踪
-- **基础设施** -- GPU 调度、分布式模型缓存、自动扩缩容
+- **AI 网关** -- LiteLLM 提供统一的 OpenAI 兼容 API、Key 管理、速率限制、预算控制
+- **可观测性** -- Prometheus + Grafana（3 个仪表盘 + 4 条告警规则）+ Langfuse LLM 调用追踪
+- **日志** -- Fluent Bit + Loki，在 Grafana Explore 中查询
+- **自动扩缩** -- KEDA 根据队列深度和延迟自动扩缩 vLLM Pod
+- **安全** -- Keycloak SSO 登录 Grafana/Langfuse，NetworkPolicy 网络隔离
+- **存储** -- MinIO S3 兼容模型存储，PVC 模型缓存
 
 ```bash
 helm install kube-llmops kube-llmops/kube-llmops-stack -f values-minimal.yaml
