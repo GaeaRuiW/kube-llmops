@@ -1,0 +1,66 @@
+name: E2E
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly Monday 6AM UTC
+
+jobs:
+  e2e-ci-profile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.0
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+      - name: Helm dependency update
+        run: helm dependency update charts/kube-llmops-stack/
+      - name: Install (CI profile)
+        run: |
+          helm install kube-llmops charts/kube-llmops-stack/ \
+            -f charts/kube-llmops-stack/values-ci.yaml \
+            --wait --timeout 5m
+      - name: Verify all pods running
+        run: |
+          kubectl get pods
+          echo "Checking LiteLLM..."
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=litellm --timeout=120s
+          echo "Checking Prometheus..."
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=prometheus --timeout=120s
+          echo "Checking Grafana..."
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=grafana --timeout=120s
+      - name: Verify LiteLLM API
+        run: |
+          kubectl port-forward svc/kube-llmops-litellm 4000:4000 &
+          sleep 5
+          curl -sf http://localhost:4000/health/liveliness
+          echo " LiteLLM healthy"
+      - name: Verify Grafana
+        run: |
+          kubectl port-forward svc/kube-llmops-grafana 3000:3000 &
+          sleep 3
+          curl -sf http://localhost:3000/api/health | grep -q "ok"
+          echo " Grafana healthy"
+      - name: Verify dashboards loaded
+        run: |
+          DASHBOARDS=$(curl -sf http://admin:admin123!@localhost:3000/api/search?type=dash-db | python3 -c "import sys,json; print(len(json.load(sys.stdin)))")
+          echo "Dashboards: $DASHBOARDS"
+          [ "$DASHBOARDS" -ge 3 ] || (echo "FAIL: expected >=3 dashboards" && exit 1)
+      - name: Verify Prometheus rules
+        run: |
+          kubectl port-forward svc/kube-llmops-prometheus 9090:9090 &
+          sleep 3
+          RULES=$(curl -sf http://localhost:9090/api/v1/rules | python3 -c "import sys,json; d=json.load(sys.stdin); print(sum(len(g['rules']) for g in d['data']['groups']))")
+          echo "Alert rules: $RULES"
+          [ "$RULES" -ge 4 ] || (echo "FAIL: expected >=4 alert rules" && exit 1)
+      - name: Clean uninstall
+        run: |
+          helm uninstall kube-llmops
+          sleep 10
+          REMAINING=$(kubectl get pods --no-headers 2>/dev/null | wc -l)
+          echo "Remaining pods: $REMAINING"
+          [ "$REMAINING" -eq 0 ] || (echo "WARN: some pods remain after uninstall" && kubectl get pods)
+        if: always()

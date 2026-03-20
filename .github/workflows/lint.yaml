@@ -73,3 +73,36 @@ jobs:
         with:
           globs: "**/*.md"
           config: .markdownlint.json
+
+  python-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Run ruff linter
+        run: ruff check images/
+
+      - name: Run ruff formatter check
+        run: ruff format --check images/
+
+  dockerfile-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint Dockerfiles with hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: images/model-resolver/Dockerfile
+
+      - name: Lint model-loader Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: images/model-loader/Dockerfile

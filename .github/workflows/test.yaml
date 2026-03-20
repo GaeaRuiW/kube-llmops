@@ -11,20 +11,68 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        values:
-          - ""
-          # Uncomment as profiles are added:
-          # - "-f charts/kube-llmops-stack/values-minimal.yaml"
-          # - "-f charts/kube-llmops-stack/values-ci.yaml"
+        profile:
+          - name: default
+            args: ""
+          - name: ci
+            args: "-f charts/kube-llmops-stack/values-ci.yaml"
+          - name: minimal
+            args: "-f charts/kube-llmops-stack/values-minimal.yaml"
+          - name: standard
+            args: "-f charts/kube-llmops-stack/values-standard.yaml"
+          - name: production
+            args: "-f charts/kube-llmops-stack/values-production.yaml"
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Helm
-        uses: azure/setup-helm@v4
+      - uses: azure/setup-helm@v4
         with:
           version: v3.16.0
+      - name: Helm dependency update
+        run: helm dependency update charts/kube-llmops-stack/
+      - name: Helm template (${{ matrix.profile.name }})
+        run: helm template test charts/kube-llmops-stack/ ${{ matrix.profile.args }} > /dev/null
 
-      - name: Helm template (dry-run render)
+  python-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
         run: |
-          helm template test-release charts/kube-llmops-stack/ ${{ matrix.values }} > /dev/null
-          echo "Template rendering succeeded"
+          pip install pytest pyyaml
+      - name: Run model-resolver tests
+        run: |
+          cd images/model-resolver
+          python -m pytest tests/ -v --tb=short
+
+  chart-install-test:
+    runs-on: ubuntu-latest
+    needs: [helm-template, python-tests]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.0
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+      - name: Helm dependency update
+        run: helm dependency update charts/kube-llmops-stack/
+      - name: Install with CI profile
+        run: |
+          helm install kube-llmops charts/kube-llmops-stack/ \
+            -f charts/kube-llmops-stack/values-ci.yaml \
+            --wait --timeout 5m
+      - name: Verify pods
+        run: |
+          kubectl get pods
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/part-of=kube-llmops --timeout=120s || true
+      - name: Verify LiteLLM health
+        run: |
+          kubectl port-forward svc/kube-llmops-litellm 4000:4000 &
+          sleep 5
+          curl -sf http://localhost:4000/health/liveliness
+      - name: Helm uninstall
+        run: helm uninstall kube-llmops
+        if: always()

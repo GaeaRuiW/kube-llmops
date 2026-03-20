@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release-chart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.0
+      - name: Helm dependency update
+        run: helm dependency update charts/kube-llmops-stack/
+      - name: Package chart
+        run: |
+          mkdir -p dist
+          helm package charts/kube-llmops-stack/ -d dist/
+      - name: Push to GHCR (OCI)
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
+          helm push dist/*.tgz oci://ghcr.io/gaearuiw/kube-llmops
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.tgz
+          generate_release_notes: true
+
+  release-images:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image: [model-resolver, model-loader]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: images/${{ matrix.image }}/
+          push: true
+          tags: |
+            ghcr.io/gaearuiw/kube-llmops/${{ matrix.image }}:${{ github.ref_name }}
+            ghcr.io/gaearuiw/kube-llmops/${{ matrix.image }}:latest

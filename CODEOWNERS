@@ -1,0 +1,12 @@
+# Default owner
+* @GaeaRuiW
+
+# Helm charts
+charts/ @GaeaRuiW
+
+# CI/CD
+.github/ @GaeaRuiW
+
+# Documentation
+docs/ @GaeaRuiW
+*.md @GaeaRuiW

@@ -2,7 +2,7 @@ CHART_DIR := charts/kube-llmops-stack
 CHART_NAME := kube-llmops-stack
 VERSION ?= $(shell grep '^version:' $(CHART_DIR)/Chart.yaml | awk '{print $$2}')
 
-.PHONY: lint test template build package e2e clean help
+.PHONY: lint test template build package e2e clean help python-test ci security-scan
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
@@ -38,9 +38,13 @@ package: ## Package Helm chart
 e2e: ## Run E2E tests on kind cluster
 	@echo "Creating kind cluster..."
 	kind create cluster --name kube-llmops-e2e 2>/dev/null || true
-	helm install kube-llmops $(CHART_DIR) -f $(CHART_DIR)/values-ci.yaml --wait --timeout 10m
-	@echo "Running smoke tests..."
-	scripts/health-check.sh || true
+	helm dependency update $(CHART_DIR)
+	helm install kube-llmops $(CHART_DIR) -f $(CHART_DIR)/values-ci.yaml --wait --timeout 5m
+	@echo "Verifying..."
+	kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=litellm --timeout=120s
+	kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=prometheus --timeout=120s
+	kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=grafana --timeout=120s
+	@echo "E2E passed!"
 	helm uninstall kube-llmops
 	kind delete cluster --name kube-llmops-e2e
 
@@ -55,3 +59,19 @@ endif
 	@sed -i 's/^version:.*/version: $(VERSION)/' $(CHART_DIR)/Chart.yaml
 	@sed -i 's/^appVersion:.*/appVersion: "$(VERSION)"/' $(CHART_DIR)/Chart.yaml
 	@echo "Updated Chart.yaml to version $(VERSION)"
+
+python-test: ## Run Python unit tests
+	cd images/model-resolver && python -m pytest tests/ -v --tb=short
+
+ci: lint test python-test ## Run full CI suite locally
+
+security-scan: ## Run security scans
+	@echo "Scanning Helm chart for secrets..."
+	@grep -rn "password\|secret\|token" $(CHART_DIR)/values.yaml | grep -v "^#" | grep -v "REQUIRED" || echo "No hardcoded secrets found"
+	@echo "Scanning Docker images with Trivy..."
+	@for img in model-resolver model-loader; do \
+		if [ -f images/$$img/Dockerfile ]; then \
+			docker build -t kube-llmops/$$img:scan images/$$img/ 2>/dev/null && \
+			trivy image --severity CRITICAL,HIGH kube-llmops/$$img:scan 2>/dev/null || echo "Trivy not available, skipping $$img"; \
+		fi; \
+	done

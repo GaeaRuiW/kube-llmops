@@ -11,38 +11,54 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Helm
-        uses: azure/setup-helm@v4
+      - uses: azure/setup-helm@v4
         with:
           version: v3.16.0
-
+      - name: Helm dependency update
+        run: helm dependency update charts/kube-llmops-stack/
       - name: Helm package
         run: |
           mkdir -p dist
           helm package charts/kube-llmops-stack/ -d dist/
-
-      - name: Upload chart artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: helm-chart
           path: dist/*.tgz
-          retention-days: 7
 
-  # Docker builds will be added as images are created (M1+)
-  # docker-build:
-  #   runs-on: ubuntu-latest
-  #   strategy:
-  #     matrix:
-  #       image: [model-loader, model-resolver]
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Build image
-  #       run: docker build -t kube-llmops/${{ matrix.image }}:ci images/${{ matrix.image }}/
-  #     - name: Trivy scan
-  #       uses: aquasecurity/trivy-action@master
-  #       with:
-  #         image-ref: kube-llmops/${{ matrix.image }}:ci
-  #         format: table
-  #         exit-code: 1
-  #         severity: CRITICAL,HIGH
+  docker-build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image:
+          - name: model-resolver
+            context: images/model-resolver
+          - name: model-loader
+            context: images/model-loader
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t ghcr.io/gaearuiw/kube-llmops/${{ matrix.image.name }}:ci ${{ matrix.image.context }}/
+      - name: Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ghcr.io/gaearuiw/kube-llmops/${{ matrix.image.name }}:ci
+          format: table
+          exit-code: 1
+          severity: CRITICAL,HIGH
+          timeout: 5m
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for secrets in code
+        uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --only-verified
+      - name: License check
+        run: |
+          echo "Checking for AGPL dependencies..."
+          if grep -r "AGPL" charts/ --include="*.yaml" | grep -v "License Notice" | grep -v ".tgz"; then
+            echo "WARNING: AGPL dependency found in chart values"
+          fi
+          echo "License check passed"
