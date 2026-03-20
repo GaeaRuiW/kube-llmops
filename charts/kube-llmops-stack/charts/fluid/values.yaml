@@ -9,6 +9,9 @@ minio:
     pullPolicy: IfNotPresent
   accessKey: minioadmin
   secretKey: minioadmin
+  # Buckets to auto-create on startup (directories under /data)
+  defaultBuckets:
+    - langfuse
   storage:
     size: 50Gi
   service:

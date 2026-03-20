@@ -52,11 +52,13 @@ spec:
         - name: minio
           image: "{{ .Values.minio.image.repository }}:{{ .Values.minio.image.tag }}"
           imagePullPolicy: {{ .Values.minio.image.pullPolicy }}
+          command: ["sh", "-c"]
           args:
-            - "server"
-            - "/data"
-            - "--console-address"
-            - ":9001"
+            - |
+              {{- range .Values.minio.defaultBuckets }}
+              mkdir -p /data/{{ . }}
+              {{- end }}
+              exec minio server /data --console-address :9001
           env:
             - name: MINIO_ROOT_USER
               value: {{ .Values.minio.accessKey | quote }}
