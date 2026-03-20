@@ -41,6 +41,11 @@ litellm:
 # Secret key for Dify
 secretKey: "kube-llmops-dify-secret-key-2024"
 
+# File storage (S3 via MinIO — shared between API + Worker pods)
+storage:
+  s3AccessKey: minioadmin
+  s3SecretKey: minioadmin
+
 # Dify API resources
 api:
   replicas: 1
