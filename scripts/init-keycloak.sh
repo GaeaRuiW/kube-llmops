@@ -100,6 +100,29 @@ _curl -o /dev/null -w "  Status: %{http_code}\n" \
   -H "Content-Type: application/json" \
   -d "[$ROLE]"
 
+# Add realm_access.roles to userinfo for Grafana role mapping
+echo "Adding realm roles mapper to grafana client..."
+GRAFANA_UUID=$(_curl "${KEYCLOAK_URL}/admin/realms/${REALM}/clients?clientId=grafana" \
+  -H "Authorization: Bearer $TOKEN" | python3 -c "import json,sys; print(json.load(sys.stdin)[0]['id'])")
+_curl -o /dev/null -w "  Status: %{http_code}\n" \
+  "${KEYCLOAK_URL}/admin/realms/${REALM}/clients/${GRAFANA_UUID}/protocol-mappers/models" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "realm roles",
+    "protocol": "openid-connect",
+    "protocolMapper": "oidc-usermodel-realm-role-mapper",
+    "consentRequired": false,
+    "config": {
+      "multivalued": "true",
+      "userinfo.token.claim": "true",
+      "id.token.claim": "true",
+      "access.token.claim": "true",
+      "claim.name": "realm_access.roles",
+      "jsonType.label": "String"
+    }
+  }'
+
 echo ""
 echo "============================================="
 echo "  Keycloak initialized!"
