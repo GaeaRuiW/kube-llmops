@@ -1,0 +1,43 @@
+# Run RAG evaluation as a Kubernetes Job
+# Usage: kubectl apply -f examples/eval/k8s-eval-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rag-eval-{{ now | date "20060102-150405" }}
+  labels:
+    app.kubernetes.io/name: rag-eval
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rag-eval
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: eval
+          image: python:3.12-slim
+          command: ["python3", "/eval/run.py"]
+          env:
+            - name: LITELLM_URL
+              value: "http://kube-llmops-litellm:4000"
+            - name: LITELLM_KEY
+              value: "sk-kube-llmops-dev"
+            - name: MODEL
+              value: "qwen2-5-0-5b"
+            - name: LANGFUSE_HOST
+              value: "http://kube-llmops-langfuse:3000"
+            - name: LANGFUSE_PUBLIC_KEY
+              value: "pk-lf-kube-llmops"
+            - name: LANGFUSE_SECRET_KEY
+              value: "sk-lf-kube-llmops"
+            - name: EVAL_THRESHOLD
+              value: "0.5"
+          volumeMounts:
+            - name: eval-data
+              mountPath: /eval
+      volumes:
+        - name: eval-data
+          configMap:
+            name: rag-eval-dataset

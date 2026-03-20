@@ -59,6 +59,20 @@ data:
             annotations:
               summary: "vLLM instance down"
               description: "vLLM scrape target has been down for more than 1 minute"
+          - alert: RAGHighRetrievalLatency
+            expr: histogram_quantile(0.95, sum(rate(vllm_e2e_request_latency_seconds_bucket[5m])) by (le)) > 5
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "RAG retrieval+generation P95 latency above 5s"
+          - alert: RAGEmbeddingServiceDown
+            expr: up{job="embedding"} == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Embedding service is down"
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

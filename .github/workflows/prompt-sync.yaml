@@ -1,0 +1,48 @@
+name: Prompt Sync
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'examples/prompts/**'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate prompt templates
+        run: |
+          python3 -c "
+          import json
+          with open('examples/prompts/rag-system-prompts.json') as f:
+              data = json.load(f)
+          prompts = data['prompts']
+          print(f'Found {len(prompts)} prompts:')
+          for p in prompts:
+              assert 'name' in p, f'Missing name in prompt'
+              assert 'template' in p, f'Missing template in {p[\"name\"]}'
+              assert len(p['template']) > 10, f'Template too short in {p[\"name\"]}'
+              print(f'  {p[\"name\"]}: {len(p[\"template\"])} chars')
+          print('All prompts valid.')
+          "
+  
+  sync:
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Sync prompts to Langfuse
+        env:
+          LANGFUSE_HOST: ${{ secrets.LANGFUSE_HOST }}
+          LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
+          LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
+        run: bash scripts/sync-prompts.sh

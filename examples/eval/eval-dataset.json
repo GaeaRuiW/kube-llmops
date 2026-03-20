@@ -1,0 +1,27 @@
+[
+  {
+    "question": "What is Kubernetes?",
+    "expected_keywords": ["container", "orchestrat", "cluster", "deploy"],
+    "category": "general"
+  },
+  {
+    "question": "What is vLLM used for?",
+    "expected_keywords": ["inference", "LLM", "serving", "model"],
+    "category": "llm"
+  },
+  {
+    "question": "Explain RAG in one sentence",
+    "expected_keywords": ["retrieval", "generation", "augmented", "knowledge"],
+    "category": "rag"
+  },
+  {
+    "question": "What is a vector database?",
+    "expected_keywords": ["vector", "similarity", "embedding", "search"],
+    "category": "rag"
+  },
+  {
+    "question": "How does LiteLLM work?",
+    "expected_keywords": ["gateway", "API", "model", "routing"],
+    "category": "llm"
+  }
+]

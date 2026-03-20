@@ -2,6 +2,19 @@ enabled: true
 
 models: []
 
+# Embedding models (routed through LiteLLM like LLM models)
+# Option 1: Local embedding service (TEI, infinity, or custom)
+# Option 2: External API (OpenAI, Cohere, etc.)
+embeddingModels: []
+  # Example: local embedding service
+  # - name: bge-small-zh
+  #   apiBase: http://kube-llmops-embedding:8080/v1
+  #   apiKey: "no-key-needed"
+  # Example: OpenAI embedding API
+  # - name: text-embedding-3-small
+  #   apiBase: https://api.openai.com/v1
+  #   apiKey: "sk-your-openai-key"
+
 # Langfuse integration (set by parent chart when langfuse is enabled)
 langfuseEnabled: false
 langfusePublicKey: ""

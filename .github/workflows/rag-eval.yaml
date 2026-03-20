@@ -1,0 +1,65 @@
+name: RAG Evaluation
+
+on:
+  # Manual trigger with parameters
+  workflow_dispatch:
+    inputs:
+      model:
+        description: 'Model to evaluate'
+        default: 'qwen2-5-0-5b'
+      threshold:
+        description: 'Minimum pass rate (0-1)'
+        default: '0.5'
+  # Auto-trigger on prompt/eval dataset changes
+  push:
+    branches: [main]
+    paths:
+      - 'examples/eval/**'
+      - 'examples/rag/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'examples/eval/**'
+      - 'examples/rag/**'
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    # Only run if a cluster is available (skip in pure CI)
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run RAG evaluation
+        env:
+          LITELLM_URL: ${{ secrets.LITELLM_URL || 'http://localhost:4000' }}
+          LITELLM_KEY: ${{ secrets.LITELLM_KEY || 'sk-kube-llmops-dev' }}
+          MODEL: ${{ github.event.inputs.model }}
+          EVAL_THRESHOLD: ${{ github.event.inputs.threshold }}
+        run: bash scripts/rag-eval.sh
+
+  eval-dataset-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate eval dataset JSON
+        run: |
+          python3 -c "
+          import json, sys
+          for f in ['examples/eval/eval-dataset.json']:
+              try:
+                  with open(f) as fh:
+                      data = json.load(fh)
+                  assert isinstance(data, list), f'{f}: must be a JSON array'
+                  for i, item in enumerate(data):
+                      assert 'question' in item, f'{f}[{i}]: missing question'
+                      assert 'expected_keywords' in item, f'{f}[{i}]: missing expected_keywords'
+                  print(f'PASS: {f} ({len(data)} items)')
+              except FileNotFoundError:
+                  print(f'SKIP: {f} not found')
+          "

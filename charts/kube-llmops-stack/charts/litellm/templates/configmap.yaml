@@ -36,6 +36,13 @@ data:
           api_key: "no-key-needed"
           {{- end }}
     {{- end }}
+    {{- range $idx, $emb := .Values.embeddingModels }}
+      - model_name: {{ $emb.name }}
+        litellm_params:
+          model: openai/{{ $emb.name }}
+          api_base: {{ $emb.apiBase }}
+          api_key: {{ $emb.apiKey | default "no-key-needed" | quote }}
+    {{- end }}
 
     {{- if .Values.models }}
     router_settings:
