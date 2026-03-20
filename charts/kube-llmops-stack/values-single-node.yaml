@@ -1,11 +1,18 @@
-# Complete single-node deployment values
-# Usage: helm install kube-llmops charts/kube-llmops-stack -f values-single-node.yaml
+# Single-node deployment — core features + SSO + observability
+# Usage: 
+#   helm install kube-llmops charts/kube-llmops-stack -f values-single-node.yaml
+#   ./scripts/init-keycloak.sh
+#
+# After install, add to /etc/hosts:
+#   <NODE_IP> litellm.llmops.local grafana.llmops.local langfuse.llmops.local keycloak.llmops.local prometheus.llmops.local
 
+# ========== Ingress ==========
 ingress:
   enabled: true
   className: traefik
   host: llmops.local
 
+# ========== Model Serving ==========
 vllm:
   enabled: true
   modelLoader:
@@ -21,8 +28,9 @@ vllm:
       engineArgs:
         --gpu-memory-utilization: "0.8"
         --max-model-len: "4096"
-        --enforce-eager: ""
-        --attention-backend: TRITON_ATTN
+        # Uncomment for Blackwell (SM 12.0) GPUs:
+        # --enforce-eager: ""
+        # --attention-backend: TRITON_ATTN
 
 llamacpp:
   enabled: true
@@ -32,6 +40,7 @@ tei:
   enabled: true
   models: []
 
+# ========== AI Gateway ==========
 litellm:
   enabled: true
   masterKey: sk-kube-llmops-dev
@@ -51,6 +60,7 @@ litellm:
       password: llmops-pg-dev-pw
       database: litellm
 
+# ========== Observability ==========
 observability:
   enabled: true
   dcgmExporter:
@@ -64,12 +74,24 @@ observability:
     adminPassword: admin123!
     storage:
       size: 2Gi
+    oidc:
+      enabled: true
+      clientId: grafana
+      clientSecret: grafana-oidc-secret
+      issuerUrl: http://keycloak.llmops.local/realms/kube-llmops
+      grafanaRootUrl: http://grafana.llmops.local
 
+# ========== Langfuse ==========
 langfuse:
   enabled: true
   image:
     tag: "2.95.11"
   externalUrl: "http://langfuse.llmops.local"
+  oidc:
+    enabled: true
+    clientId: langfuse
+    clientSecret: langfuse-oidc-secret
+    issuerUrl: http://keycloak.llmops.local/realms/kube-llmops
   postgresql:
     enabled: false
     auth:
@@ -77,14 +99,23 @@ langfuse:
       username: langfuse
       password: langfuse-default-pw
 
+# ========== Logging ==========
 logging:
   enabled: true
   loki:
     storage:
       size: 2Gi
 
+# ========== Disabled ==========
 keda:
   enabled: false
-
 dify:
+  enabled: false
+security:
+  enabled: false
+fluid:
+  enabled: false
+harbor:
+  enabled: false
+milvus:
   enabled: false
