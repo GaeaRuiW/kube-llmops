@@ -64,6 +64,13 @@ postgresql:
     database: litellm
     username: litellm
     password: litellm-default-pw
+  # Extra databases/users to create on first startup
+  # Each entry creates: CREATE USER <name>; CREATE DATABASE <name> OWNER <name>;
+  extraDatabases:
+    - name: langfuse
+      password: langfuse-default-pw
+    # - name: dify
+    #   password: dify-default-pw
   storage:
     size: 5Gi
     storageClass: ""

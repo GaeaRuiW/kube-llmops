@@ -172,6 +172,7 @@ litellm:
       database: litellm
       username: litellm
       password: ""            # Set via --set or secret
+    extraDatabases: []        # e.g. [{name: langfuse, password: pw}]
     storage:
       size: 5Gi
       storageClass: ""
