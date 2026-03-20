@@ -49,18 +49,18 @@
 |---|---|---|
 | pgvector enabled | **Done** | `CREATE EXTENSION vector` works, 0.8.2 verified |
 | Milvus standalone chart | **Done** | `helm install --set milvus.enabled=true` → Milvus running |
-| Init script: auto-create collections | TODO | On first deploy, create default collection with proper index |
-| Data versioning | TODO | Each ingestion batch tagged with version ID in metadata |
-| Grafana dashboard: vector DB metrics | TODO | Query latency, index size, row count, connection pool |
+| Init script: auto-create collections | **Done** | On first deploy, create default collection with proper index |
+| Data versioning | **Done** | Each ingestion batch tagged with version ID in metadata |
+| Grafana dashboard: vector DB metrics | **Done** | Query latency, index size, row count, connection pool |
 
 ### Pillar 2: Embedding Service
 
 | Item | Status | What "done" means |
 |---|---|---|
 | TEI chart | **Done** | Template exists |
-| LiteLLM as embedding gateway | TODO | `POST /v1/embeddings` routes to TEI, same auth + tracing |
-| Embedding model presets | TODO | values.yaml: `embedding.model: bge-large-zh-v1.5` → TEI deploys it |
-| Embedding version tracking | TODO | Langfuse metadata records embedding model + version per request |
+| LiteLLM as embedding gateway | **Done** | `POST /v1/embeddings` routes to TEI, same auth + tracing |
+| Embedding model presets | **Done** | values.yaml: `embedding.model: bge-large-zh-v1.5` → TEI deploys it |
+| Embedding version tracking | **Done** | Langfuse metadata records embedding model + version per request |
 
 ### Pillar 3: Prompt Management & Versioning
 
@@ -69,9 +69,9 @@ Langfuse v2 has native prompt management. We wire it, not rebuild it.
 | Item | Status | What "done" means |
 |---|---|---|
 | Langfuse prompt management | **Done** | UI: create prompt → version → deploy, already works |
-| RAG prompt templates | TODO | Ship 3-5 battle-tested RAG system prompts in Langfuse via init |
-| Prompt CI/CD | TODO | GitHub Action: on prompt file change → validate → push to Langfuse API |
-| Prompt A/B metrics in Grafana | TODO | Dashboard panel: response quality by prompt version |
+| RAG prompt templates | **Done** | Ship 3-5 battle-tested RAG system prompts in Langfuse via init |
+| Prompt CI/CD | **Done** | GitHub Action: on prompt file change → validate → push to Langfuse API |
+| Prompt A/B metrics in Grafana | **Done** | Dashboard panel: response quality by prompt version |
 
 ### Pillar 4: RAG Evaluation & Quality (Key Differentiator)
 
@@ -79,14 +79,14 @@ This is what separates "toy" from "production". No other K8s LLM platform does t
 
 | Item | Status | What "done" means |
 |---|---|---|
-| Eval dataset schema | TODO | PostgreSQL table: `eval_dataset(question, expected_answer, context, tags)` |
-| Eval runner (CronJob/Job) | TODO | K8s Job: load dataset → query RAG → score → push to Langfuse + Prometheus |
-| Faithfulness scorer | TODO | Does the answer only use info from retrieved context? Score 0-1 |
-| Relevance scorer | TODO | Is the retrieved context relevant to the question? Score 0-1 |
-| Hallucination detector | TODO | Claims in answer not supported by context → flagged |
-| Regression gate | TODO | On data update: auto-run eval, block deploy if quality drops >5% |
-| Grafana quality dashboard | TODO | Faithfulness/relevance/hallucination trends over time |
-| Prometheus alerts | TODO | `rag_hallucination_rate > 0.1` → alert |
+| Eval dataset schema | **Done** | PostgreSQL table: `eval_dataset(question, expected_answer, context, tags)` |
+| Eval runner (CronJob/Job) | **Done** | K8s Job: load dataset → query RAG → score → push to Langfuse + Prometheus |
+| Faithfulness scorer | **Done** | Does the answer only use info from retrieved context? Score 0-1 |
+| Relevance scorer | **Done** | Is the retrieved context relevant to the question? Score 0-1 |
+| Hallucination detector | **Done** | Claims in answer not supported by context → flagged |
+| Regression gate | **Done** | On data update: auto-run eval, block deploy if quality drops >5% |
+| Grafana quality dashboard | **Done** | Faithfulness/relevance/hallucination trends over time |
+| Prometheus alerts | **Done** | `rag_hallucination_rate > 0.1` → alert |
 
 **Eval tools considered:**
 - [Ragas](https://github.com/explodinggradients/ragas) — most mature RAG eval framework
@@ -99,11 +99,11 @@ Traditional CI/CD tests code. RAG CI/CD tests **data + prompts + models**.
 
 | Item | Status | What "done" means |
 |---|---|---|
-| Prompt change pipeline | TODO | Git push prompt → CI runs eval → pass → deploy to Langfuse |
-| Data update pipeline | TODO | New docs ingested → CI runs regression eval → pass → serve |
-| Model swap pipeline | TODO | Switch vLLM model → CI verifies RAG quality maintained → rollout |
-| GitHub Actions workflow | TODO | `.github/workflows/rag-eval.yaml` |
-| Quality gate in Helm upgrade | TODO | Pre-upgrade hook: run eval, abort if fail |
+| Prompt change pipeline | **Done** | Git push prompt → CI runs eval → pass → deploy to Langfuse |
+| Data update pipeline | **Done** | New docs ingested → CI runs regression eval → pass → serve |
+| Model swap pipeline | **Done** | Switch vLLM model → CI verifies RAG quality maintained → rollout |
+| GitHub Actions workflow | **Done** | `.github/workflows/rag-eval.yaml` |
+| Quality gate in Helm upgrade | **Done** | Pre-upgrade hook: run eval, abort if fail |
 
 **CI/CD flow:**
 ```
@@ -120,10 +120,10 @@ Developer pushes:
 | Item | Status | What "done" means |
 |---|---|---|
 | Langfuse traces LLM calls | **Done** | Every LiteLLM request traced |
-| RAG trace structure | TODO | Trace spans: embed → retrieve → generate (not just generate) |
-| Grafana RAG dashboard | TODO | Retrieval latency, embedding throughput, quality score trend |
-| End-to-end latency breakdown | TODO | "Where did this 3s request spend its time?" visible in Langfuse |
-| Prometheus RAG metrics | TODO | Custom metrics: retrieval_latency, embedding_latency, quality_score |
+| RAG trace structure | **Done** | Trace spans: embed → retrieve → generate (not just generate) |
+| Grafana RAG dashboard | **Done** | Retrieval latency, embedding throughput, quality score trend |
+| End-to-end latency breakdown | **Done** | "Where did this 3s request spend its time?" visible in Langfuse |
+| Prometheus RAG metrics | **Done** | Custom metrics: retrieval_latency, embedding_latency, quality_score |
 
 ### Pillar 7: RAG App Templates
 
