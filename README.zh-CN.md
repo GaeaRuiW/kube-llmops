@@ -53,8 +53,11 @@ helm install kube-llmops kube-llmops/kube-llmops-stack -f values-minimal.yaml
 helm repo add kube-llmops https://GaeaRuiW.github.io/kube-llmops
 helm repo update
 
-# 使用最小配置安装（1 块 GPU、1 个模型、基础监控）
-helm install kube-llmops kube-llmops/kube-llmops-stack -f values-minimal.yaml
+# 使用最小配置安装（1 块 GPU、1 个模型、完整可观测性）
+helm install kube-llmops kube-llmops/kube-llmops-stack \
+  -f values-minimal.yaml \
+  --set ingress.enabled=true \
+  --set ingress.host=llmops.local
 
 # 或：仅 CPU 演示模式（无需 GPU）
 helm install kube-llmops kube-llmops/kube-llmops-stack -f values-ci.yaml
@@ -63,9 +66,7 @@ helm install kube-llmops kube-llmops/kube-llmops-stack -f values-ci.yaml
 ### 与模型对话
 
 ```bash
-kubectl port-forward svc/kube-llmops-litellm 4000:4000 &
-
-curl http://localhost:4000/v1/chat/completions \
+curl http://litellm.llmops.local/v1/chat/completions \
   -H "Authorization: Bearer sk-kube-llmops-dev" \
   -H "Content-Type: application/json" \
   -d '{"model":"qwen2-5-0-5b","messages":[{"role":"user","content":"Hello!"}]}'
@@ -73,21 +74,37 @@ curl http://localhost:4000/v1/chat/completions \
 
 ### 访问管理界面
 
+**方式 A：Ingress（推荐 — 无需 port-forward）**
+
 ```bash
-kubectl port-forward svc/kube-llmops-litellm 4000:4000 &    # AI 网关
-kubectl port-forward svc/kube-llmops-grafana 3000:3000 &     # 监控面板
-kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &    # LLM 追踪
-kubectl port-forward svc/kube-llmops-keycloak 8080:8080 &   # SSO 管理（可选）
-kubectl port-forward svc/kube-llmops-minio 9001:9001 &      # 对象存储（可选）
+# 安装时启用 Ingress
+helm install kube-llmops kube-llmops/kube-llmops-stack \
+  -f values-minimal.yaml \
+  --set ingress.enabled=true \
+  --set ingress.host=llmops.local    # 或你的真实域名
+
+# 如果没有真实域名，添加 hosts 映射：
+NODE_IP=$(kubectl get node -o jsonpath='{.items[0].status.addresses[0].address}')
+echo "$NODE_IP litellm.llmops.local grafana.llmops.local langfuse.llmops.local dify.llmops.local keycloak.llmops.local minio.llmops.local prometheus.llmops.local" | sudo tee -a /etc/hosts
 ```
 
-| 服务 | URL | 默认凭据 |
+| 服务 | Ingress 地址 | 默认凭据 |
 |---|---|---|
-| **LiteLLM**（AI 网关 + 管理界面） | `http://localhost:4000/ui` | 任意用户名 / `sk-kube-llmops-dev` |
-| **Grafana**（监控仪表盘） | `http://localhost:3000` | `admin` / `admin123!` |
-| **Langfuse**（LLM 调用追踪） | `http://localhost:3001` | `admin@kube-llmops.local` / `admin123!` |
-| **Keycloak**（SSO 管理） | `http://localhost:8080` | `admin` / `admin123!` |
-| **MinIO**（对象存储） | `http://localhost:9001` | `minioadmin` / `minioadmin` |
+| **LiteLLM**（AI 网关） | `http://litellm.llmops.local` | 任意用户名 / `sk-kube-llmops-dev` |
+| **Grafana**（监控仪表盘） | `http://grafana.llmops.local` | `admin` / `admin123!` |
+| **Langfuse**（LLM 调用追踪） | `http://langfuse.llmops.local` | `admin@kube-llmops.local` / `admin123!` |
+| **Dify**（RAG 平台） | `http://dify.llmops.local` | 首次注册 |
+| **Keycloak**（SSO 管理） | `http://keycloak.llmops.local` | `admin` / `admin123!` |
+| **MinIO**（对象存储） | `http://minio.llmops.local` | `minioadmin` / `minioadmin` |
+| **Prometheus**（指标） | `http://prometheus.llmops.local` | 无需认证 |
+
+**方式 B：Port-forward（备选）**
+
+```bash
+kubectl port-forward svc/kube-llmops-litellm 4000:4000 &
+kubectl port-forward svc/kube-llmops-grafana 3000:3000 &
+kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &
+```
 
 > [!TIP]
 > 启用 SSO 后，使用 **Keycloak** 凭据（`admin` / `admin123!`）登录 Grafana、Langfuse、MinIO。
