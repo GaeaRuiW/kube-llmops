@@ -283,6 +283,8 @@ security:
 # -- Ingress
 ingress:
   enabled: false
-  className: nginx
-  host: llm.example.com
+  className: traefik         # k3s default; set to nginx for other clusters
+  host: ""                   # Set to your domain (e.g. llm.example.com)
+                             # Leave empty to access all services without a domain
   tls: false
+  annotations: {}

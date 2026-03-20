@@ -1,0 +1,179 @@
+{{/*
+Ingress for all kube-llmops services.
+
+Mode 1 — With domain (recommended):
+  Set ingress.host=llm.example.com
+  Services accessible at:
+    litellm.llm.example.com
+    grafana.llm.example.com
+    langfuse.llm.example.com
+    dify.llm.example.com
+
+Mode 2 — Without domain (IP only):
+  Set ingress.host="" and ingress.ipMode=true
+  Each service gets a unique port via NodePort.
+  See Helm NOTES.txt for the assigned ports.
+*/}}
+{{- if .Values.ingress.enabled }}
+{{- $host := .Values.ingress.host }}
+{{- $className := .Values.ingress.className | default "traefik" }}
+
+{{/* ========== LiteLLM ========== */}}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-litellm-ingress
+  labels:
+    app.kubernetes.io/part-of: kube-llmops
+  annotations:
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  ingressClassName: {{ $className }}
+  {{- if and .Values.ingress.tls $host }}
+  tls:
+    - hosts:
+        - {{ if $host }}litellm.{{ $host }}{{ else }}*{{ end }}
+      secretName: {{ .Release.Name }}-litellm-tls
+  {{- end }}
+  rules:
+    - {{- if $host }}
+      host: litellm.{{ $host }}
+      {{- end }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-litellm
+                port:
+                  number: 4000
+
+{{- if index .Values "observability" "enabled" }}
+{{/* ========== Grafana ========== */}}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-grafana-ingress
+  labels:
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  ingressClassName: {{ $className }}
+  {{- if and .Values.ingress.tls $host }}
+  tls:
+    - hosts:
+        - grafana.{{ $host }}
+      secretName: {{ .Release.Name }}-grafana-tls
+  {{- end }}
+  rules:
+    - {{- if $host }}
+      host: grafana.{{ $host }}
+      {{- end }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-grafana
+                port:
+                  number: 3000
+{{- end }}
+
+{{- if index .Values "langfuse" "enabled" }}
+{{/* ========== Langfuse ========== */}}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-langfuse-ingress
+  labels:
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  ingressClassName: {{ $className }}
+  {{- if and .Values.ingress.tls $host }}
+  tls:
+    - hosts:
+        - langfuse.{{ $host }}
+      secretName: {{ .Release.Name }}-langfuse-tls
+  {{- end }}
+  rules:
+    - {{- if $host }}
+      host: langfuse.{{ $host }}
+      {{- end }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-langfuse
+                port:
+                  number: 3000
+{{- end }}
+
+{{- if index .Values "dify" "enabled" }}
+{{/* ========== Dify ========== */}}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-dify-ingress
+  labels:
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  ingressClassName: {{ $className }}
+  {{- if and .Values.ingress.tls $host }}
+  tls:
+    - hosts:
+        - dify.{{ $host }}
+      secretName: {{ .Release.Name }}-dify-tls
+  {{- end }}
+  rules:
+    - {{- if $host }}
+      host: dify.{{ $host }}
+      {{- end }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-dify-web
+                port:
+                  number: 3000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-dify-api-ingress
+  labels:
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  ingressClassName: {{ $className }}
+  {{- if and .Values.ingress.tls $host }}
+  tls:
+    - hosts:
+        - dify-api.{{ $host }}
+      secretName: {{ .Release.Name }}-dify-api-tls
+  {{- end }}
+  rules:
+    - {{- if $host }}
+      host: dify-api.{{ $host }}
+      {{- end }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-dify-api
+                port:
+                  number: 5001
+{{- end }}
+
+{{- end }}
