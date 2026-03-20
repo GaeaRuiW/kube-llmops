@@ -5,7 +5,7 @@ minio:
   enabled: true
   image:
     repository: minio/minio
-    tag: RELEASE.2024-11-07T00-52-20Z
+    tag: RELEASE.2025-03-12T18-04-18Z
     pullPolicy: IfNotPresent
   accessKey: minioadmin
   secretKey: minioadmin

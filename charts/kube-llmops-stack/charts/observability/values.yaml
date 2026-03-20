@@ -4,7 +4,7 @@ otelCollector:
   enabled: true
   image:
     repository: otel/opentelemetry-collector-contrib
-    tag: 0.114.0
+    tag: 0.120.0
     pullPolicy: IfNotPresent
   resources:
     requests:
@@ -18,7 +18,7 @@ prometheus:
   enabled: true
   image:
     repository: prom/prometheus
-    tag: v2.54.1
+    tag: v3.2.1
     pullPolicy: IfNotPresent
   retention: 15d
   storage:
@@ -36,14 +36,14 @@ dcgmExporter:
   enabled: true
   image:
     repository: nvcr.io/nvidia/k8s/dcgm-exporter
-    tag: 3.3.8-3.6.0-ubuntu22.04
+    tag: 3.6.0-4.2.0-ubuntu22.04
     pullPolicy: IfNotPresent
 
 grafana:
   enabled: true
   image:
     repository: grafana/grafana
-    tag: 11.3.0
+    tag: 11.6.0
     pullPolicy: IfNotPresent
   adminPassword: admin123!
   service:

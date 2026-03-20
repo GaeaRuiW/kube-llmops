@@ -44,7 +44,7 @@ sso:
 
 image:
   repository: ghcr.io/berriai/litellm
-  tag: main-stable
+  tag: main-v1.63.11-stable
   pullPolicy: IfNotPresent
 
 replicas: 1
@@ -59,7 +59,7 @@ postgresql:
   enabled: true
   image:
     repository: pgvector/pgvector
-    tag: "pg16"                   # pgvector-enabled PostgreSQL 16
+    tag: "pg17"                   # pgvector-enabled PostgreSQL 17
   auth:
     database: litellm
     username: litellm

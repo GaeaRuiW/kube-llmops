@@ -3,7 +3,7 @@ enabled: false
 # Milvus standalone mode (for development/small deployments)
 image:
   repository: milvusdb/milvus
-  tag: v2.4.13-latest
+  tag: v2.5.6
   pullPolicy: IfNotPresent
 
 service:
@@ -27,6 +27,6 @@ resources:
 etcd:
   image:
     repository: quay.io/coreos/etcd
-    tag: v3.5.16
+    tag: v3.5.18
   storage:
     size: 2Gi

@@ -3,11 +3,11 @@ enabled: false
 image:
   api:
     repository: langgenius/dify-api
-    tag: "0.15.3"
+    tag: "1.0.0"
     pullPolicy: IfNotPresent
   web:
     repository: langgenius/dify-web
-    tag: "0.15.3"
+    tag: "1.0.0"
     pullPolicy: IfNotPresent
 
 # Redis for Dify (deployed alongside)

@@ -4,7 +4,7 @@ models: []
 
 image:
   repository: ghcr.io/huggingface/text-embeddings-inference
-  tag: latest
+  tag: cpu-1.6
   pullPolicy: IfNotPresent
 
 service:
