@@ -33,7 +33,11 @@ data:
       "clients": [
         {{- $clients := list }}
         {{- range .Values.realm.clients }}
-        {{- $clients = append $clients (printf "{\"clientId\": %q, \"enabled\": true, \"publicClient\": false, \"secret\": \"%s-oidc-secret\", \"redirectUris\": [\"*\"], \"standardFlowEnabled\": true, \"directAccessGrantsEnabled\": true, \"protocol\": \"openid-connect\"}" . .) }}
+        {{- $client := printf "{\"clientId\": %q, \"enabled\": true, \"publicClient\": false, \"secret\": \"%s-oidc-secret\", \"redirectUris\": [\"*\"], \"standardFlowEnabled\": true, \"directAccessGrantsEnabled\": true, \"protocol\": \"openid-connect\"" . . }}
+        {{- if eq . "grafana" }}
+        {{- $client = printf "%s, \"protocolMappers\": [{\"name\": \"realm roles\", \"protocol\": \"openid-connect\", \"protocolMapper\": \"oidc-usermodel-realm-role-mapper\", \"consentRequired\": false, \"config\": {\"multivalued\": \"true\", \"userinfo.token.claim\": \"true\", \"id.token.claim\": \"true\", \"access.token.claim\": \"true\", \"claim.name\": \"realm_access.roles\", \"jsonType.label\": \"String\"}}]" $client }}
+        {{- end }}
+        {{- $clients = append $clients (printf "%s}" $client) }}
         {{- end }}
         {{ join "," $clients }}
       ],
