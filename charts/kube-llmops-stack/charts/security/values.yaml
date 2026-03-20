@@ -34,3 +34,20 @@ multiTenant:
   #     memoryQuota: 64Gi
   #     cpuQuota: 32
   #     maxPods: 40
+
+# Envoy AI Gateway (Tier 2 — advanced routing, LoRA adapter support)
+# Requires: Gateway API CRDs + Envoy Gateway controller pre-installed
+envoyGateway:
+  enabled: false
+  port: 8888
+  # InferenceModel resources for LoRA adapter routing (requires IGW extension)
+  # inferenceModels:
+  #   - name: my-model-base
+  #     modelName: my-model
+  #     poolName: vllm-pool
+  #   - name: my-model-lora-chinese
+  #     modelName: my-model
+  #     poolName: vllm-pool
+  #     adapters:
+  #       - name: chinese-adapter
+  #         weight: 100

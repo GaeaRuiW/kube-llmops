@@ -1,0 +1,80 @@
+{{/*
+Envoy AI Gateway resources — Gateway, HTTPRoute, and InferenceModel templates.
+Requires: Gateway API CRDs + Envoy Gateway controller installed.
+*/}}
+{{- if and .Values.enabled .Values.envoyGateway.enabled }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: {{ .Release.Name }}-llm
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: {{ .Release.Name }}-ai-gateway
+  labels:
+    app.kubernetes.io/name: ai-gateway
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  gatewayClassName: {{ .Release.Name }}-llm
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: {{ .Values.envoyGateway.port | default 8888 }}
+---
+# Route /v1/* to LiteLLM gateway
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ .Release.Name }}-litellm-route
+  labels:
+    app.kubernetes.io/name: ai-gateway
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  parentRefs:
+    - name: {{ .Release.Name }}-ai-gateway
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /v1
+      backendRefs:
+        - name: {{ .Release.Name }}-litellm
+          port: 4000
+{{- end }}
+{{/*
+InferenceModel CRD templates for LoRA adapter routing.
+These are placeholder templates — the actual CRD requires the
+Inference Gateway (IGW) extension to be installed.
+
+When IGW is available, each model+adapter combo gets an InferenceModel
+resource that tells the gateway how to route requests to the correct
+vLLM instance with the right LoRA adapter loaded.
+*/}}
+{{- if and .Values.enabled .Values.envoyGateway.enabled .Values.envoyGateway.inferenceModels }}
+{{- range .Values.envoyGateway.inferenceModels }}
+---
+apiVersion: inference.networking.x-k8s.io/v1alpha2
+kind: InferenceModel
+metadata:
+  name: {{ .name }}
+  labels:
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  modelName: {{ .modelName }}
+  {{- if .adapters }}
+  targetModels:
+    {{- range .adapters }}
+    - name: {{ .name }}
+      weight: {{ .weight | default 100 }}
+    {{- end }}
+  {{- end }}
+  poolRef:
+    name: {{ .poolName | default "vllm-pool" }}
+{{- end }}
+{{- end }}

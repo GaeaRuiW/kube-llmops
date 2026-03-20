@@ -1009,9 +1009,9 @@ kube-llmops/
 - [x] pgvector (PostgreSQL image switched to pgvector/pgvector:pg16)
 - [x] Milvus Helm sub-chart (standalone mode)
 - [x] TEI embedding/reranking serving -- chart template ready
-- [ ] RAG ingestion worker + example app
-- [ ] **Envoy AI Gateway + IGW** (Tier 2, KV-cache-aware routing)
-- [ ] **LoRA adapter routing** via IGW InferenceModel CRD
+- [x] RAG ingestion worker + example app (examples/rag/)
+- [x] **Envoy AI Gateway + IGW** (Tier 2, Gateway + HTTPRoute verified on cluster)
+- [x] **LoRA adapter routing** -- InferenceModel CRD templates ready (requires IGW extension)
 - [x] Multi-tenancy (Namespace + ResourceQuota + NetworkPolicy per team)
 - [x] `values-production.yaml`
 - [x] Backup/restore automation (scripts/backup.sh + restore.sh)

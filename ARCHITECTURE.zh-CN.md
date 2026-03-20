@@ -1009,9 +1009,9 @@ kube-llmops/
 - [x] pgvector（PostgreSQL 镜像切换为 pgvector/pgvector:pg16）
 - [x] Milvus Helm 子 Chart（单机模式）
 - [x] TEI 嵌入/重排序服务 —— Chart 模板已就绪
-- [ ] RAG 数据摄入 Worker + 示例应用
-- [ ] **Envoy AI Gateway + IGW**（Tier 2，KV-Cache 感知路由）
-- [ ] **LoRA 适配器路由**（通过 IGW InferenceModel CRD）
+- [x] RAG 数据摄入 Worker + 示例应用（examples/rag/）
+- [x] **Envoy AI Gateway + IGW**（Tier 2，Gateway + HTTPRoute 已在集群验证）
+- [x] **LoRA 适配器路由** —— InferenceModel CRD 模板已就绪（需 IGW 扩展）
 - [x] 多租户（Namespace + ResourceQuota + NetworkPolicy 按团队隔离）
 - [x] `values-production.yaml`
 - [x] 备份/恢复自动化（scripts/backup.sh + restore.sh）
