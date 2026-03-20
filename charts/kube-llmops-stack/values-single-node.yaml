@@ -64,7 +64,7 @@ litellm:
 observability:
   enabled: true
   dcgmExporter:
-    enabled: false
+    enabled: true               # GPU metrics; disable only on WSL2
   prometheus:
     enabled: true
     storage:
@@ -108,14 +108,20 @@ logging:
 
 # ========== Disabled ==========
 keda:
-  enabled: false
+  enabled: false                # Single node, no scale target
 dify:
-  enabled: false
+  enabled: false                # Enable when RAG is ready
 security:
-  enabled: false
-fluid:
   enabled: false
 harbor:
   enabled: false
 milvus:
   enabled: false
+
+# ========== MinIO (Model Storage) ==========
+fluid:
+  enabled: true
+  minio:
+    enabled: true
+    storage:
+      size: 50Gi
