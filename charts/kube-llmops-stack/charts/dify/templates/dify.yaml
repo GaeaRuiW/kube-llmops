@@ -322,9 +322,9 @@ spec:
             - name: HOSTNAME
               value: "0.0.0.0"
             - name: CONSOLE_API_URL
-              value: ""
+              value: {{ .Values.web.consoleApiUrl | default "" | quote }}
             - name: APP_API_URL
-              value: ""
+              value: {{ .Values.web.appApiUrl | default "" | quote }}
           readinessProbe:
             httpGet:
               path: /
