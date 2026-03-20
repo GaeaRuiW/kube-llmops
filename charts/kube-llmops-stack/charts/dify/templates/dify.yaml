@@ -319,6 +319,8 @@ spec:
               containerPort: 3000
               protocol: TCP
           env:
+            - name: HOSTNAME
+              value: "0.0.0.0"
             - name: CONSOLE_API_URL
               value: ""
             - name: APP_API_URL
