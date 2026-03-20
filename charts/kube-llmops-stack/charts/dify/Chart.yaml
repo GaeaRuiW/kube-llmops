@@ -1,0 +1,5 @@
+apiVersion: v2
+name: dify
+description: Dify RAG platform — pre-wired to kube-llmops infrastructure
+version: 0.1.0
+type: application

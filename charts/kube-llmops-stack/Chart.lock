@@ -35,5 +35,8 @@ dependencies:
 - name: milvus
   repository: file://charts/milvus
   version: 0.1.0
-digest: sha256:27fc163f4bb78cf7780fd8372f406eaef195870a1b66802fd73b06369a39b968
-generated: "2026-03-20T11:36:55.559160183+08:00"
+- name: dify
+  repository: file://charts/dify
+  version: 0.1.0
+digest: sha256:24e420802ed9419a96f28cfe55e4385bf83b25ede4ca89a371b4a4c66de827cb
+generated: "2026-03-20T15:39:18.785162216+08:00"

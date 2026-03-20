@@ -91,3 +91,9 @@ dependencies:
     condition: milvus.enabled
     tags:
       - vectordb
+  - name: dify
+    version: 0.1.0
+    repository: "file://charts/dify"
+    condition: dify.enabled
+    tags:
+      - rag

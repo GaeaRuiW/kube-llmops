@@ -1,0 +1,69 @@
+enabled: false
+
+image:
+  api:
+    repository: langgenius/dify-api
+    tag: "0.15.3"
+    pullPolicy: IfNotPresent
+  web:
+    repository: langgenius/dify-web
+    tag: "0.15.3"
+    pullPolicy: IfNotPresent
+
+# Redis for Dify (deployed alongside)
+redis:
+  image:
+    repository: redis
+    tag: "7-alpine"
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+# Dify database (reuses kube-llmops PostgreSQL)
+postgresql:
+  # Connection to existing kube-llmops PostgreSQL
+  host: ""          # Auto: <release>-litellm-pg
+  port: 5432
+  database: dify
+  username: dify
+  password: dify-default-pw
+
+# Pre-configured LiteLLM connection
+litellm:
+  host: ""          # Auto: <release>-litellm
+  port: 4000
+  apiKey: sk-kube-llmops-dev
+
+# Secret key for Dify
+secretKey: "kube-llmops-dify-secret-key-2024"
+
+# Dify API resources
+api:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+# Dify Web resources
+web:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+service:
+  type: ClusterIP
+  webPort: 3000
+  apiPort: 5001

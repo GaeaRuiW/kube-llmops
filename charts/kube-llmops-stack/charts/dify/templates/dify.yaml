@@ -1,0 +1,396 @@
+{{- if .Values.enabled }}
+# ============================================================
+# Redis — Dify cache + Celery broker
+# ============================================================
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-dify-redis
+  labels:
+    app.kubernetes.io/name: dify
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dify-redis
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dify-redis
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: redis
+        app.kubernetes.io/part-of: kube-llmops
+    spec:
+      containers:
+        - name: redis
+          image: "{{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: redis
+              containerPort: 6379
+              protocol: TCP
+          resources:
+            requests:
+              cpu: {{ .Values.redis.resources.requests.cpu }}
+              memory: {{ .Values.redis.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.redis.resources.limits.cpu }}
+              memory: {{ .Values.redis.resources.limits.memory }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-dify-redis
+  labels:
+    app.kubernetes.io/name: dify
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6379
+      targetPort: redis
+      name: redis
+  selector:
+    app.kubernetes.io/name: dify-redis
+    app.kubernetes.io/instance: {{ .Release.Name }}
+
+# ============================================================
+# Dify API — FastAPI backend (RAG, LLM, vector store)
+# ============================================================
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-dify-api
+  labels:
+    app.kubernetes.io/name: dify
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  replicas: {{ .Values.api.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dify-api
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dify-api
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: api
+        app.kubernetes.io/part-of: kube-llmops
+    spec:
+      containers:
+        - name: dify-api
+          image: "{{ .Values.image.api.repository }}:{{ .Values.image.api.tag }}"
+          imagePullPolicy: {{ .Values.image.api.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 5001
+              protocol: TCP
+          env:
+            # ---- Mode ----
+            - name: MODE
+              value: api
+            # ---- Database (reuse kube-llmops PostgreSQL) ----
+            - name: DB_HOST
+              value: {{ .Values.postgresql.host | default (printf "%s-litellm-pg" .Release.Name) | quote }}
+            - name: DB_PORT
+              value: {{ .Values.postgresql.port | quote }}
+            - name: DB_DATABASE
+              value: {{ .Values.postgresql.database | quote }}
+            - name: DB_USERNAME
+              value: {{ .Values.postgresql.username | quote }}
+            - name: DB_PASSWORD
+              value: {{ .Values.postgresql.password | quote }}
+            # ---- Redis ----
+            - name: REDIS_HOST
+              value: {{ .Release.Name }}-dify-redis
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_DB
+              value: "0"
+            # ---- Celery (uses Redis) ----
+            - name: CELERY_BROKER_URL
+              value: "redis://{{ .Release.Name }}-dify-redis:6379/1"
+            # ---- Storage (local filesystem for simplicity) ----
+            - name: STORAGE_TYPE
+              value: local
+            - name: STORAGE_LOCAL_PATH
+              value: /app/api/storage
+            # ---- Secret key ----
+            - name: SECRET_KEY
+              value: {{ .Values.secretKey | quote }}
+            # ---- Vector store: pgvector ----
+            - name: VECTOR_STORE
+              value: pgvector
+            - name: PGVECTOR_HOST
+              value: {{ .Values.postgresql.host | default (printf "%s-litellm-pg" .Release.Name) | quote }}
+            - name: PGVECTOR_PORT
+              value: {{ .Values.postgresql.port | quote }}
+            - name: PGVECTOR_DATABASE
+              value: {{ .Values.postgresql.database | quote }}
+            - name: PGVECTOR_USER
+              value: {{ .Values.postgresql.username | quote }}
+            - name: PGVECTOR_PASSWORD
+              value: {{ .Values.postgresql.password | quote }}
+            # ---- URLs (empty = auto-detect from request headers) ----
+            - name: CONSOLE_API_URL
+              value: ""
+            - name: SERVICE_API_URL
+              value: ""
+            - name: APP_WEB_URL
+              value: ""
+            # ---- Log level ----
+            - name: LOG_LEVEL
+              value: INFO
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5001
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5001
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: {{ .Values.api.resources.requests.cpu }}
+              memory: {{ .Values.api.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.api.resources.limits.cpu | quote }}
+              memory: {{ .Values.api.resources.limits.memory }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-dify-api
+  labels:
+    app.kubernetes.io/name: dify
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.service.apiPort }}
+      targetPort: http
+      name: http
+  selector:
+    app.kubernetes.io/name: dify-api
+    app.kubernetes.io/instance: {{ .Release.Name }}
+
+# ============================================================
+# Dify Worker — Background task processing (Celery)
+# ============================================================
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-dify-worker
+  labels:
+    app.kubernetes.io/name: dify
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: worker
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dify-worker
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dify-worker
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: worker
+        app.kubernetes.io/part-of: kube-llmops
+    spec:
+      containers:
+        - name: dify-worker
+          image: "{{ .Values.image.api.repository }}:{{ .Values.image.api.tag }}"
+          imagePullPolicy: {{ .Values.image.api.pullPolicy }}
+          env:
+            # ---- Mode: worker ----
+            - name: MODE
+              value: worker
+            # ---- Database ----
+            - name: DB_HOST
+              value: {{ .Values.postgresql.host | default (printf "%s-litellm-pg" .Release.Name) | quote }}
+            - name: DB_PORT
+              value: {{ .Values.postgresql.port | quote }}
+            - name: DB_DATABASE
+              value: {{ .Values.postgresql.database | quote }}
+            - name: DB_USERNAME
+              value: {{ .Values.postgresql.username | quote }}
+            - name: DB_PASSWORD
+              value: {{ .Values.postgresql.password | quote }}
+            # ---- Redis ----
+            - name: REDIS_HOST
+              value: {{ .Release.Name }}-dify-redis
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_DB
+              value: "0"
+            # ---- Celery ----
+            - name: CELERY_BROKER_URL
+              value: "redis://{{ .Release.Name }}-dify-redis:6379/1"
+            # ---- Storage ----
+            - name: STORAGE_TYPE
+              value: local
+            - name: STORAGE_LOCAL_PATH
+              value: /app/api/storage
+            # ---- Secret key ----
+            - name: SECRET_KEY
+              value: {{ .Values.secretKey | quote }}
+            # ---- Vector store ----
+            - name: VECTOR_STORE
+              value: pgvector
+            - name: PGVECTOR_HOST
+              value: {{ .Values.postgresql.host | default (printf "%s-litellm-pg" .Release.Name) | quote }}
+            - name: PGVECTOR_PORT
+              value: {{ .Values.postgresql.port | quote }}
+            - name: PGVECTOR_DATABASE
+              value: {{ .Values.postgresql.database | quote }}
+            - name: PGVECTOR_USER
+              value: {{ .Values.postgresql.username | quote }}
+            - name: PGVECTOR_PASSWORD
+              value: {{ .Values.postgresql.password | quote }}
+            # ---- Log level ----
+            - name: LOG_LEVEL
+              value: INFO
+          resources:
+            requests:
+              cpu: {{ .Values.api.resources.requests.cpu }}
+              memory: {{ .Values.api.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.api.resources.limits.cpu | quote }}
+              memory: {{ .Values.api.resources.limits.memory }}
+
+# ============================================================
+# Dify Web — Next.js frontend
+# ============================================================
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-dify-web
+  labels:
+    app.kubernetes.io/name: dify
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: web
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  replicas: {{ .Values.web.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dify-web
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dify-web
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: web
+        app.kubernetes.io/part-of: kube-llmops
+    spec:
+      containers:
+        - name: dify-web
+          image: "{{ .Values.image.web.repository }}:{{ .Values.image.web.tag }}"
+          imagePullPolicy: {{ .Values.image.web.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: CONSOLE_API_URL
+              value: ""
+            - name: APP_API_URL
+              value: ""
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: {{ .Values.web.resources.requests.cpu }}
+              memory: {{ .Values.web.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.web.resources.limits.cpu }}
+              memory: {{ .Values.web.resources.limits.memory }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-dify-web
+  labels:
+    app.kubernetes.io/name: dify
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: web
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.service.webPort }}
+      targetPort: http
+      name: http
+  selector:
+    app.kubernetes.io/name: dify-web
+    app.kubernetes.io/instance: {{ .Release.Name }}
+
+# ============================================================
+# Combined Dify service — single entry point (web + api)
+# ============================================================
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-dify
+  labels:
+    app.kubernetes.io/name: dify
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: 3000
+      targetPort: 3000
+      name: web
+    - port: 5001
+      targetPort: 5001
+      name: api
+  # Note: This service cannot select both web and api pods.
+  # Use the individual services (dify-web, dify-api) for routing.
+  # This combined service points to the web frontend by default.
+  selector:
+    app.kubernetes.io/name: dify-web
+    app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
