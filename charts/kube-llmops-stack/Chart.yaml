@@ -97,3 +97,9 @@ dependencies:
     condition: dify.enabled
     tags:
       - rag
+  - name: keycloak
+    version: 0.1.0
+    repository: "file://charts/keycloak"
+    condition: keycloak.enabled
+    tags:
+      - auth

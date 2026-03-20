@@ -1,0 +1,59 @@
+{{- if .Values.enabled }}
+---
+# Realm import JSON — auto-creates realm, clients, roles, and users on first startup
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-keycloak-realm
+  labels:
+    app.kubernetes.io/name: keycloak
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+data:
+  realm-import.json: |
+    {
+      "realm": {{ .Values.realm.name | quote }},
+      "enabled": true,
+      "sslRequired": "none",
+      "registrationAllowed": false,
+      "loginWithEmailAllowed": true,
+      "duplicateEmailsAllowed": false,
+      "resetPasswordAllowed": true,
+      "editUsernameAllowed": false,
+      "bruteForceProtected": true,
+      "roles": {
+        "realm": [
+          {{- $roles := list }}
+          {{- range .Values.realm.defaultUser.roles }}
+          {{- $roles = append $roles (printf "{\"name\": %q, \"description\": \"%s role for kube-llmops SSO\"}" . .) }}
+          {{- end }}
+          {{ join "," $roles }}
+        ]
+      },
+      "clients": [
+        {{- $clients := list }}
+        {{- range .Values.realm.clients }}
+        {{- $clients = append $clients (printf "{\"clientId\": %q, \"enabled\": true, \"publicClient\": false, \"secret\": \"%s-oidc-secret\", \"redirectUris\": [\"*\"], \"standardFlowEnabled\": true, \"directAccessGrantsEnabled\": true, \"protocol\": \"openid-connect\"}" . .) }}
+        {{- end }}
+        {{ join "," $clients }}
+      ],
+      "users": [
+        {
+          "username": {{ .Values.realm.defaultUser.username | quote }},
+          "email": {{ .Values.realm.defaultUser.email | quote }},
+          "firstName": {{ .Values.realm.defaultUser.firstName | quote }},
+          "lastName": {{ .Values.realm.defaultUser.lastName | quote }},
+          "enabled": true,
+          "emailVerified": true,
+          "credentials": [
+            {
+              "type": "password",
+              "value": {{ .Values.realm.defaultUser.password | quote }},
+              "temporary": false
+            }
+          ],
+          "realmRoles": {{ .Values.realm.defaultUser.roles | toJson }}
+        }
+      ]
+    }
+{{- end }}

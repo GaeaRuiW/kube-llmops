@@ -116,6 +116,38 @@ spec:
                   number: 3000
 {{- end }}
 
+{{- if index .Values "keycloak" "enabled" }}
+{{/* ========== Keycloak ========== */}}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-keycloak-ingress
+  labels:
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  ingressClassName: {{ $className }}
+  {{- if and .Values.ingress.tls $host }}
+  tls:
+    - hosts:
+        - keycloak.{{ $host }}
+      secretName: {{ .Release.Name }}-keycloak-tls
+  {{- end }}
+  rules:
+    - {{- if $host }}
+      host: keycloak.{{ $host }}
+      {{- end }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-keycloak
+                port:
+                  number: 8080
+{{- end }}
+
 {{- if index .Values "dify" "enabled" }}
 {{/* ========== Dify ========== */}}
 ---

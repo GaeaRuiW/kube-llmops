@@ -7,6 +7,44 @@
 本文件格式基于 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)，
 并且本项目遵循 [语义化版本](https://semver.org/spec/v2.0.0.html) 规范。
 
+## [0.2.0] - 2026-03-21
+
+### 新增
+
+#### LLM 追踪（Langfuse v3）
+
+- Langfuse v2 → v3（3.160.0）升级，完整基础设施栈
+- ClickHouse（24.12-alpine）用于 OLAP 追踪/分析存储
+- Redis（7-alpine）用于异步工作队列
+- S3/MinIO 集成，用于事件和媒体 blob 存储
+- `ENCRYPTION_KEY` 支持敏感数据加密
+- MCP（Model Context Protocol）提示词功能
+
+#### 基础设施自动化
+
+- PostgreSQL `extraDatabases` 通过 `/docker-entrypoint-initdb.d/` 自动创建
+- MinIO `defaultBuckets` 启动时自动创建（先 mkdir 再启动服务）
+- 幂等初始化脚本（重启安全，使用 IF NOT EXISTS）
+
+#### Keycloak SSO
+
+- Keycloak 部署 + 初始化脚本（`scripts/init-keycloak.sh`）
+- 为 Grafana、Langfuse、MinIO、LiteLLM 创建 OIDC 客户端
+- 所有服务的 Traefik Ingress（`*.llmops.local`）
+
+### 变更
+
+- Langfuse 镜像：`2.95.11` → `3.160.0`
+- 父 chart 改用子 chart 默认 tag，不再使用 `latest`
+- 移除过期的 `.tgz` chart 包（Helm 改用目录源）
+
+### 修复
+
+- Langfuse v3 启动时 ZodError（根因：缺少 S3 blob 存储配置）
+- ClickHouse 单节点部署（`CLICKHOUSE_CLUSTER_ENABLED=false`）
+- vLLM Blackwell GPU 崩溃：启用 `--enforce-eager` + `--attention-backend TRITON_ATTN`
+- PostgreSQL `langfuse` 数据库在全新部署时未自动创建
+
 ## [0.1.0] - 2026-03-19
 
 ### 新增
@@ -80,7 +118,6 @@
 ### 修复
 
 - LiteLLM api_base 缺少 `/v1` 后缀（导致所有模型路由失败）
-- Langfuse v3 引入的破坏性变更（已锁定为 v2.95.11）
 - Grafana 仪表盘 PVC 路径冲突
 - Langfuse Next.js 未绑定到 0.0.0.0（导致 port-forward 失败）
 - Langfuse NEXTAUTH_URL 重定向到内部 Kubernetes URL
@@ -89,5 +126,4 @@
 ### 已知问题
 
 - DCGM Exporter 在 WSL2 环境下可能无法正常工作
-- FlashAttention 2 在 Blackwell（SM 12.0）GPU 上会卡住 — 请使用 `--attention-backend TRITON_ATTN`
 - Helm SSA 在升级时可能无法更新 ConfigMap（解决方法：先删除 ConfigMap）

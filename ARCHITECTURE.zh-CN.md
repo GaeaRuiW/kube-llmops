@@ -55,8 +55,8 @@
    ┌──────────────────────────────────────────────────────────────┐
    │  Unified Observability (OpenTelemetry Collector)             │
    │  ┌──────────┐  ┌─────────┐  ┌──────┐                       │
-   │  │Prometheus │  │ Langfuse│  │ Loki │                       │
-   │  │(Metrics)  │  │(Traces) │  │(Logs)│                       │
+   │  │Prometheus │  │Langfuse │  │ Loki │                       │
+   │  │(Metrics)  │  │v3+CH+S3│  │(Logs)│                       │
    │  └────┬─────┘  └────┬────┘  └──┬───┘                       │
    │       └──────────────┴──────────┘                           │
    │                Grafana (Dashboards)                          │
@@ -484,7 +484,7 @@ Client -> LiteLLM -> (Envoy) -> vLLM -> Response
 | Prompt 版本管理与 A/B 测试 | **否** | 是 | **Langfuse** |
 | 评估评分（LLM-as-judge） | **否** | 是 | **Langfuse** |
 | RAG 管线分解 | **否** | 是 | **Langfuse** |
-| 需要额外维护的基础设施 | Collector + Query + Storage | 单服务 + PG | **Langfuse**（更简单） |
+| 需要额外维护的基础设施 | Collector + Query + Storage | PG + ClickHouse + Redis + S3 | **Langfuse**（专为 LLM 设计，无需额外查询 UI） |
 
 **结论**：Langfuse 在 LLM 追踪方面严格优于 Jaeger。引入 Jaeger 意味着需要额外维护一个有状态服务，却毫无附加价值。如果用户已有 Jaeger 集群并希望同时发送追踪数据，OTel Collector 只需一行 exporter 配置即可实现 —— 但我们默认不附带它。
 
@@ -522,13 +522,18 @@ OTel 不是后端 —— 它是**采集管线**。即使没有 Jaeger，OTel 也
 └──────┬──────────────────────────┬──────────────────────┬───────────┘
        │                          │                      │
        v                          v                      v
-  Prometheus                  Langfuse                 Loki
+  Prometheus                  Langfuse (v3)            Loki
   (Metrics store)             (Traces + LLM analytics) (Log store)
   - TTFT, ITL, throughput     - Full prompt/completion  - Engine logs
   - GPU util, VRAM, temp      - Token count & cost      - CUDA errors
   - Request rates             - User sessions           - Routing events
   - KV cache stats            - Evaluation scores       - Audit trail
-       │                          │                      │
+       │                          │
+       │                    ┌─────┼──────┐
+       │                    │     │      │
+       │               ClickHouse Redis  MinIO/S3
+       │               (OLAP)  (Queue) (Blob)
+       │                    │     │      │
        └──────────────────────────┴──────────────────────┘
                                   │
                                   v

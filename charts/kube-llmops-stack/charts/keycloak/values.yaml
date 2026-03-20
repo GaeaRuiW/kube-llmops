@@ -1,0 +1,45 @@
+enabled: false
+
+image:
+  repository: quay.io/keycloak/keycloak
+  tag: "26.0"
+  pullPolicy: IfNotPresent
+
+# Keycloak admin credentials
+admin:
+  username: admin
+  password: admin123!
+
+# Realm to auto-import on first startup
+realm:
+  name: kube-llmops
+  # OIDC clients (secret = <clientId>-oidc-secret)
+  clients:
+    - grafana
+    - langfuse
+    - minio
+    - litellm
+  # Default user created in the realm
+  defaultUser:
+    username: admin
+    email: admin@kube-llmops.local
+    password: admin123!
+    firstName: Admin
+    lastName: User
+    roles:
+      - admin
+
+service:
+  type: ClusterIP
+  port: 8080
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+storage:
+  size: 1Gi

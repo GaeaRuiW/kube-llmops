@@ -55,8 +55,8 @@
    ┌──────────────────────────────────────────────────────────────┐
    │  Unified Observability (OpenTelemetry Collector)             │
    │  ┌──────────┐  ┌─────────┐  ┌──────┐                       │
-   │  │Prometheus │  │ Langfuse│  │ Loki │                       │
-   │  │(Metrics)  │  │(Traces) │  │(Logs)│                       │
+   │  │Prometheus │  │Langfuse │  │ Loki │                       │
+   │  │(Metrics)  │  │v3+CH+S3│  │(Logs)│                       │
    │  └────┬─────┘  └────┬────┘  └──┬───┘                       │
    │       └──────────────┴──────────┘                           │
    │                Grafana (Dashboards)                          │
@@ -484,7 +484,7 @@ Client -> LiteLLM -> (Envoy) -> vLLM -> Response
 | Prompt versioning & A/B test | **No** | Yes | **Langfuse** |
 | Evaluation scoring (LLM-as-judge) | **No** | Yes | **Langfuse** |
 | RAG pipeline decomposition | **No** | Yes | **Langfuse** |
-| Extra infra to maintain | Collector + Query + Storage | Single service + PG | **Langfuse** (simpler) |
+| Extra infra to maintain | Collector + Query + Storage | PG + ClickHouse + Redis + S3 | **Langfuse** (purpose-built, no extra query UI) |
 
 **Conclusion**: Langfuse is strictly superior for LLM tracing. Adding Jaeger would mean maintaining an extra stateful service for zero additional value. If users have an existing Jaeger cluster and want to send traces there too, OTel Collector makes that a one-line exporter config change -- but we don't ship it by default.
 
@@ -522,13 +522,18 @@ OTel is not a backend -- it's the **collection pipeline**. Even without Jaeger, 
 └──────┬──────────────────────────┬──────────────────────┬───────────┘
        │                          │                      │
        v                          v                      v
-  Prometheus                  Langfuse                 Loki
+  Prometheus                  Langfuse (v3)            Loki
   (Metrics store)             (Traces + LLM analytics) (Log store)
   - TTFT, ITL, throughput     - Full prompt/completion  - Engine logs
   - GPU util, VRAM, temp      - Token count & cost      - CUDA errors
   - Request rates             - User sessions           - Routing events
   - KV cache stats            - Evaluation scores       - Audit trail
-       │                          │                      │
+       │                          │
+       │                    ┌─────┼──────┐
+       │                    │     │      │
+       │               ClickHouse Redis  MinIO/S3
+       │               (OLAP)  (Queue) (Blob)
+       │                    │     │      │
        └──────────────────────────┴──────────────────────┘
                                   │
                                   v

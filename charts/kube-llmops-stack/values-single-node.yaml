@@ -28,9 +28,8 @@ vllm:
       engineArgs:
         --gpu-memory-utilization: "0.8"
         --max-model-len: "4096"
-        # Uncomment for Blackwell (SM 12.0) GPUs:
-        # --enforce-eager: ""
-        # --attention-backend: TRITON_ATTN
+        --enforce-eager: ""
+        --attention-backend: TRITON_ATTN
 
 llamacpp:
   enabled: true
@@ -59,6 +58,9 @@ litellm:
       username: litellm
       password: llmops-pg-dev-pw
       database: litellm
+    extraDatabases:
+      - name: langfuse
+        password: langfuse-default-pw
 
 # ========== Observability ==========
 observability:
@@ -96,6 +98,10 @@ langfuse:
       database: langfuse
       username: langfuse
       password: langfuse-default-pw
+
+# ========== Keycloak (SSO) ==========
+keycloak:
+  enabled: true
 
 # ========== Logging ==========
 logging:
