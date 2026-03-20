@@ -1,0 +1,107 @@
+{{- if .Values.enabled }}
+---
+# Langfuse v3 Worker — processes ingestion queue (Redis → ClickHouse)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $.Release.Name }}-langfuse-worker
+  labels:
+    app.kubernetes.io/name: langfuse-worker
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/component: tracing
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: langfuse-worker
+      app.kubernetes.io/instance: {{ $.Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: langfuse-worker
+        app.kubernetes.io/instance: {{ $.Release.Name }}
+        app.kubernetes.io/component: tracing
+        app.kubernetes.io/part-of: kube-llmops
+    spec:
+      containers:
+        - name: langfuse-worker
+          image: "langfuse/langfuse-worker:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 3030
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: SALT
+              value: {{ .Values.auth.salt | quote }}
+            - name: ENCRYPTION_KEY
+              value: {{ .Values.auth.encryptionKey | quote }}
+            - name: DATABASE_URL
+              {{- if .Values.postgresql.enabled }}
+              value: "postgresql://{{ .Values.postgresql.auth.username }}:{{ .Values.postgresql.auth.password }}@{{ $.Release.Name }}-langfuse-pg:5432/{{ .Values.postgresql.auth.database }}"
+              {{- else }}
+              value: "postgresql://{{ .Values.postgresql.auth.username }}:{{ .Values.postgresql.auth.password }}@{{ $.Release.Name }}-litellm-pg:5432/{{ .Values.postgresql.auth.database }}"
+              {{- end }}
+            - name: TELEMETRY_ENABLED
+              value: "false"
+            - name: CLICKHOUSE_URL
+              value: "http://{{ $.Release.Name }}-langfuse-clickhouse:8123"
+            - name: CLICKHOUSE_MIGRATION_URL
+              value: "clickhouse://{{ $.Release.Name }}-langfuse-clickhouse:9000"
+            - name: CLICKHOUSE_USER
+              value: "default"
+            - name: CLICKHOUSE_PASSWORD
+              value: {{ .Values.clickhouse.password | default "clickhouse123!" | quote }}
+            - name: CLICKHOUSE_CLUSTER_ENABLED
+              value: "false"
+            - name: REDIS_HOST
+              value: "{{ $.Release.Name }}-langfuse-redis"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_AUTH
+              value: {{ .Values.redis.password | default "redis-langfuse-pw" | quote }}
+            - name: LANGFUSE_S3_EVENT_UPLOAD_BUCKET
+              value: {{ .Values.s3.bucket | default "langfuse" | quote }}
+            - name: LANGFUSE_S3_EVENT_UPLOAD_REGION
+              value: {{ .Values.s3.region | default "auto" | quote }}
+            - name: LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID
+              value: {{ .Values.s3.accessKeyId | default "minioadmin" | quote }}
+            - name: LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY
+              value: {{ .Values.s3.secretAccessKey | default "minioadmin" | quote }}
+            - name: LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT
+              value: {{ .Values.s3.endpoint | default (printf "http://%s-minio:9000" $.Release.Name) | quote }}
+            - name: LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE
+              value: "true"
+            - name: LANGFUSE_S3_EVENT_UPLOAD_PREFIX
+              value: "events/"
+            - name: LANGFUSE_S3_MEDIA_UPLOAD_BUCKET
+              value: {{ .Values.s3.bucket | default "langfuse" | quote }}
+            - name: LANGFUSE_S3_MEDIA_UPLOAD_REGION
+              value: {{ .Values.s3.region | default "auto" | quote }}
+            - name: LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID
+              value: {{ .Values.s3.accessKeyId | default "minioadmin" | quote }}
+            - name: LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY
+              value: {{ .Values.s3.secretAccessKey | default "minioadmin" | quote }}
+            - name: LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT
+              value: {{ .Values.s3.endpoint | default (printf "http://%s-minio:9000" $.Release.Name) | quote }}
+            - name: LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE
+              value: "true"
+            - name: LANGFUSE_S3_MEDIA_UPLOAD_PREFIX
+              value: "media/"
+          readinessProbe:
+            httpGet:
+              path: /api/public/health
+              port: 3030
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+{{- end }}
