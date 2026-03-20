@@ -84,8 +84,6 @@ observability:
 # ========== Langfuse ==========
 langfuse:
   enabled: true
-  image:
-    tag: "2.95.11"
   externalUrl: "http://langfuse.llmops.local"
   oidc:
     enabled: true

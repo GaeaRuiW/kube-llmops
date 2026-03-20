@@ -50,6 +50,52 @@ spec:
               {{- end }}
             - name: TELEMETRY_ENABLED
               value: "false"
+            - name: ENCRYPTION_KEY
+              value: {{ .Values.auth.encryptionKey | quote }}
+            - name: CLICKHOUSE_URL
+              value: "http://{{ $.Release.Name }}-langfuse-clickhouse:8123"
+            - name: CLICKHOUSE_MIGRATION_URL
+              value: "clickhouse://{{ $.Release.Name }}-langfuse-clickhouse:9000"
+            - name: CLICKHOUSE_USER
+              value: "default"
+            - name: CLICKHOUSE_PASSWORD
+              value: {{ .Values.clickhouse.password | default "clickhouse123!" | quote }}
+            - name: CLICKHOUSE_CLUSTER_ENABLED
+              value: "false"
+            - name: REDIS_HOST
+              value: "{{ $.Release.Name }}-langfuse-redis"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_AUTH
+              value: {{ .Values.redis.password | default "redis-langfuse-pw" | quote }}
+            - name: LANGFUSE_S3_EVENT_UPLOAD_BUCKET
+              value: {{ .Values.s3.bucket | default "langfuse" | quote }}
+            - name: LANGFUSE_S3_EVENT_UPLOAD_REGION
+              value: {{ .Values.s3.region | default "auto" | quote }}
+            - name: LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID
+              value: {{ .Values.s3.accessKeyId | default "minioadmin" | quote }}
+            - name: LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY
+              value: {{ .Values.s3.secretAccessKey | default "minioadmin" | quote }}
+            - name: LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT
+              value: {{ .Values.s3.endpoint | default (printf "http://%s-minio:9000" $.Release.Name) | quote }}
+            - name: LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE
+              value: "true"
+            - name: LANGFUSE_S3_EVENT_UPLOAD_PREFIX
+              value: "events/"
+            - name: LANGFUSE_S3_MEDIA_UPLOAD_BUCKET
+              value: {{ .Values.s3.bucket | default "langfuse" | quote }}
+            - name: LANGFUSE_S3_MEDIA_UPLOAD_REGION
+              value: {{ .Values.s3.region | default "auto" | quote }}
+            - name: LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID
+              value: {{ .Values.s3.accessKeyId | default "minioadmin" | quote }}
+            - name: LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY
+              value: {{ .Values.s3.secretAccessKey | default "minioadmin" | quote }}
+            - name: LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT
+              value: {{ .Values.s3.endpoint | default (printf "http://%s-minio:9000" $.Release.Name) | quote }}
+            - name: LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE
+              value: "true"
+            - name: LANGFUSE_S3_MEDIA_UPLOAD_PREFIX
+              value: "media/"
             {{- if .Values.init.enabled }}
             - name: LANGFUSE_INIT_ORG_ID
               value: {{ .Values.init.orgId | default "kube-llmops" | quote }}

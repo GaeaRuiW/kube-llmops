@@ -1,0 +1,94 @@
+{{- if .Values.enabled }}
+---
+# ClickHouse for Langfuse v3 trace/analytics storage
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-langfuse-clickhouse
+  labels:
+    app.kubernetes.io/name: langfuse-clickhouse
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: tracing
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: langfuse-clickhouse
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: langfuse-clickhouse
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: tracing
+        app.kubernetes.io/part-of: kube-llmops
+    spec:
+      containers:
+        - name: clickhouse
+          image: "{{ .Values.clickhouse.image.repository }}:{{ .Values.clickhouse.image.tag }}"
+          imagePullPolicy: {{ .Values.clickhouse.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8123
+            - name: native
+              containerPort: 9000
+          env:
+            - name: CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT
+              value: "1"
+            - name: CLICKHOUSE_PASSWORD
+              value: {{ .Values.clickhouse.password | default "clickhouse123!" | quote }}
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 8123
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.clickhouse.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/clickhouse
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-langfuse-clickhouse-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-langfuse-clickhouse-data
+  labels:
+    app.kubernetes.io/name: langfuse-clickhouse
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.clickhouse.storage.size }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-langfuse-clickhouse
+  labels:
+    app.kubernetes.io/name: langfuse-clickhouse
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8123
+      targetPort: http
+    - name: native
+      port: 9000
+      targetPort: native
+  selector:
+    app.kubernetes.io/name: langfuse-clickhouse
+    app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}

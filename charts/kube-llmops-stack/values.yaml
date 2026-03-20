@@ -222,7 +222,7 @@ langfuse:
   enabled: false              # Off in minimal, on in standard+
   image:
     repository: langfuse/langfuse
-    tag: latest
+    tag: "3.160.0"
     pullPolicy: IfNotPresent
   replicas: 1
   service:

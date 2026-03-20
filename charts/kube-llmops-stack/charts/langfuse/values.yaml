@@ -2,8 +2,7 @@ enabled: false
 
 image:
   repository: langfuse/langfuse
-  # Pin to v2 — v3 requires ClickHouse which we don't deploy
-  tag: "2.95.11"
+  tag: "3.160.0"
   pullPolicy: IfNotPresent
 
 replicas: 1
@@ -29,6 +28,7 @@ postgresql:
 auth:
   nextAuthSecret: kube-llmops-langfuse-secret
   salt: kube-llmops-langfuse-salt
+  encryptionKey: "0000000000000000000000000000000000000000000000000000000000000000"
 
 # Auto-provisioning: creates org, project, user, and API keys on first startup
 # API keys (projectPublicKey/projectSecretKey) must match LiteLLM's langfusePublicKey/langfuseSecretKey
@@ -77,3 +77,43 @@ livenessProbe:
   periodSeconds: 30
   timeoutSeconds: 5
   failureThreshold: 3
+
+# ClickHouse for Langfuse v3 trace storage
+clickhouse:
+  image:
+    repository: clickhouse/clickhouse-server
+    tag: "24.12-alpine"
+    pullPolicy: IfNotPresent
+  password: "clickhouse123!"
+  storage:
+    size: 5Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+
+# Redis for Langfuse v3 async worker queue
+redis:
+  image:
+    repository: redis
+    tag: "7-alpine"
+    pullPolicy: IfNotPresent
+  password: "redis-langfuse-pw"
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+# S3/MinIO blob storage for Langfuse v3 events and media
+s3:
+  bucket: langfuse
+  region: auto
+  accessKeyId: minioadmin
+  secretAccessKey: minioadmin
+  # endpoint defaults to http://<release>-minio:9000
