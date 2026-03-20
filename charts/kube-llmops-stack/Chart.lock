@@ -32,5 +32,8 @@ dependencies:
 - name: security
   repository: file://charts/security
   version: 0.1.0
-digest: sha256:0289499039949c2689487a693aa044dd8d6361b22e256348328402ff42705047
-generated: "2026-03-19T15:59:03.638402285+08:00"
+- name: milvus
+  repository: file://charts/milvus
+  version: 0.1.0
+digest: sha256:27fc163f4bb78cf7780fd8372f406eaef195870a1b66802fd73b06369a39b968
+generated: "2026-03-20T11:36:55.559160183+08:00"

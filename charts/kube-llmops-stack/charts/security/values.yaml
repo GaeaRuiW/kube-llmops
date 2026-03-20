@@ -26,3 +26,11 @@ multiTenant:
   #     namespace: llm-team-a
   #     gpuQuota: 2
   #     memoryQuota: 32Gi
+  #     cpuQuota: 16
+  #     maxPods: 20
+  #   - name: team-b
+  #     namespace: llm-team-b
+  #     gpuQuota: 4
+  #     memoryQuota: 64Gi
+  #     cpuQuota: 32
+  #     maxPods: 40

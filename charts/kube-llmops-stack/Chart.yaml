@@ -85,3 +85,9 @@ dependencies:
     condition: security.enabled
     tags:
       - security
+  - name: milvus
+    version: 0.1.0
+    repository: "file://charts/milvus"
+    condition: milvus.enabled
+    tags:
+      - vectordb

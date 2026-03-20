@@ -45,8 +45,8 @@ service:
 postgresql:
   enabled: true
   image:
-    repository: postgres
-    tag: "16-alpine"
+    repository: pgvector/pgvector
+    tag: "pg16"                   # pgvector-enabled PostgreSQL 16
   auth:
     database: litellm
     username: litellm

@@ -1,0 +1,43 @@
+{{- if and .Values.enabled .Values.multiTenant.enabled }}
+{{- range .Values.multiTenant.teams }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .namespace }}
+  labels:
+    kube-llmops/team: {{ .name }}
+    app.kubernetes.io/part-of: kube-llmops
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: {{ .name }}-quota
+  namespace: {{ .namespace }}
+spec:
+  hard:
+    requests.nvidia.com/gpu: {{ .gpuQuota | default "0" | quote }}
+    requests.memory: {{ .memoryQuota | default "32Gi" }}
+    requests.cpu: {{ .cpuQuota | default "16" | quote }}
+    pods: {{ .maxPods | default "20" | quote }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .name }}-isolation
+  namespace: {{ .namespace }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kube-llmops/team: {{ .name }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: default
+  egress:
+    - {}
+{{- end }}
+{{- end }}

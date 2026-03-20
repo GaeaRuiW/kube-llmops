@@ -1006,15 +1006,15 @@ kube-llmops/
 - [x] Keycloak SSO（Grafana OIDC 已验证）+ NetworkPolicy 模板
 
 ### 第三阶段：RAG 与推理优化 —— "构建 RAG 应用，优化路由"
-- [ ] pgvector（复用 LiteLLM PG）
-- [ ] Milvus Helm 子 Chart（单机 + 集群）
-- [ ] TEI embedding/reranking 服务
-- [ ] RAG 数据摄取 Worker + 示例应用
-- [ ] **Envoy AI Gateway + IGW**（第二层，KV cache 感知路由）
+- [x] pgvector（PostgreSQL 镜像切换为 pgvector/pgvector:pg16）
+- [x] Milvus Helm 子 Chart（单机模式）
+- [x] TEI 嵌入/重排序服务 —— Chart 模板已就绪
+- [ ] RAG 数据摄入 Worker + 示例应用
+- [ ] **Envoy AI Gateway + IGW**（Tier 2，KV-Cache 感知路由）
 - [ ] **LoRA 适配器路由**（通过 IGW InferenceModel CRD）
-- [ ] 多租户（LiteLLM Teams + K8s Namespace + ResourceQuota）
-- [ ] `values-production.yaml`
-- [ ] 备份/恢复自动化
+- [x] 多租户（Namespace + ResourceQuota + NetworkPolicy 按团队隔离）
+- [x] `values-production.yaml`
+- [x] 备份/恢复自动化（scripts/backup.sh + restore.sh）
 
 ### 第四阶段：ML 平台 —— "ML 工程师的最爱"
 - [ ] 带 GPU 配置的 JupyterHub

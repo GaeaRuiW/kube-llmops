@@ -140,7 +140,7 @@ kubectl port-forward svc/kube-llmops-minio 9001:9001 &      # Object Storage (op
 
 - [x] **v0.1.0 (MVP)** -- Model serving + Gateway + Metrics + Tracing
 - [x] **v0.2.0** -- Logging + Autoscaling + Model cache + Security
-- [ ] **v0.3.0** -- RAG + Vector DB + Inference Gateway (IGW)
+- [x] **v0.3.0** -- RAG infra (pgvector + Milvus + multi-tenancy + backup/restore)
 - [ ] **v0.4.0** -- Fine-tuning + ML platform
 - [ ] **v0.5.0** -- Disaggregated serving (llm-d)
 - [ ] **v1.0.0** -- Operator + CLI + Dashboard

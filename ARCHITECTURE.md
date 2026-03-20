@@ -1006,15 +1006,15 @@ kube-llmops/
 - [x] Keycloak SSO (Grafana OIDC verified) + NetworkPolicy templates
 
 ### Phase 3: RAG & Inference Optimization -- "Build RAG apps, optimize routing"
-- [ ] pgvector (reuse LiteLLM PG)
-- [ ] Milvus Helm sub-chart (standalone + cluster)
-- [ ] TEI embedding/reranking serving
+- [x] pgvector (PostgreSQL image switched to pgvector/pgvector:pg16)
+- [x] Milvus Helm sub-chart (standalone mode)
+- [x] TEI embedding/reranking serving -- chart template ready
 - [ ] RAG ingestion worker + example app
 - [ ] **Envoy AI Gateway + IGW** (Tier 2, KV-cache-aware routing)
 - [ ] **LoRA adapter routing** via IGW InferenceModel CRD
-- [ ] Multi-tenancy (LiteLLM Teams + K8s Namespace + ResourceQuota)
-- [ ] `values-production.yaml`
-- [ ] Backup/restore automation
+- [x] Multi-tenancy (Namespace + ResourceQuota + NetworkPolicy per team)
+- [x] `values-production.yaml`
+- [x] Backup/restore automation (scripts/backup.sh + restore.sh)
 
 ### Phase 4: ML Platform -- "ML engineers love it"
 - [ ] JupyterHub with GPU profiles

@@ -1,0 +1,152 @@
+{{- if .Values.enabled }}
+---
+# ── etcd for Milvus metadata ────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "milvus.fullname" . }}-etcd
+  labels:
+    app.kubernetes.io/component: etcd
+    {{- include "milvus.labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  ports:
+    - name: client
+      port: 2379
+      targetPort: 2379
+    - name: peer
+      port: 2380
+      targetPort: 2380
+  selector:
+    app.kubernetes.io/component: etcd
+    {{- include "milvus.selectorLabels" . | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "milvus.fullname" . }}-etcd
+  labels:
+    app.kubernetes.io/component: etcd
+    {{- include "milvus.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "milvus.fullname" . }}-etcd
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: etcd
+      {{- include "milvus.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: etcd
+        {{- include "milvus.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: etcd
+          image: "{{ .Values.etcd.image.repository }}:{{ .Values.etcd.image.tag }}"
+          command:
+            - etcd
+            - --listen-client-urls=http://0.0.0.0:2379
+            - --advertise-client-urls=http://{{ include "milvus.fullname" . }}-etcd:2379
+            - --listen-peer-urls=http://0.0.0.0:2380
+            - --data-dir=/etcd-data
+          ports:
+            - containerPort: 2379
+              name: client
+            - containerPort: 2380
+              name: peer
+          volumeMounts:
+            - name: etcd-data
+              mountPath: /etcd-data
+  volumeClaimTemplates:
+    - metadata:
+        name: etcd-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.etcd.storage.storageClass }}
+        storageClassName: {{ .Values.etcd.storage.storageClass }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.etcd.storage.size }}
+---
+# ── Milvus data PVC ─────────────────────────────────────────────────
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "milvus.fullname" . }}-data
+  labels:
+    {{- include "milvus.labels" . | nindent 4 }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  {{- if .Values.storage.storageClass }}
+  storageClassName: {{ .Values.storage.storageClass }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.storage.size }}
+---
+# ── Milvus Standalone Deployment ────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "milvus.fullname" . }}
+  labels:
+    app.kubernetes.io/component: milvus
+    {{- include "milvus.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: milvus
+      {{- include "milvus.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: milvus
+        {{- include "milvus.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: milvus
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["milvus", "run", "standalone"]
+          env:
+            - name: ETCD_ENDPOINTS
+              value: "{{ include "milvus.fullname" . }}-etcd:2379"
+          ports:
+            - containerPort: 19530
+              name: grpc
+            - containerPort: 9091
+              name: http
+          volumeMounts:
+            - name: milvus-data
+              mountPath: /var/lib/milvus
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: milvus-data
+          persistentVolumeClaim:
+            claimName: {{ include "milvus.fullname" . }}-data
+---
+# ── Milvus Service ──────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "milvus.fullname" . }}
+  labels:
+    app.kubernetes.io/component: milvus
+    {{- include "milvus.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - name: grpc
+      port: {{ .Values.service.port }}
+      targetPort: 19530
+    - name: http
+      port: {{ .Values.service.httpPort }}
+      targetPort: 9091
+  selector:
+    app.kubernetes.io/component: milvus
+    {{- include "milvus.selectorLabels" . | nindent 4 }}
+{{- end }}

@@ -140,7 +140,7 @@ kubectl port-forward svc/kube-llmops-minio 9001:9001 &      # 对象存储（可
 
 - [x] **v0.1.0（MVP）** -- 模型推理服务 + 网关 + 指标监控 + 调用追踪
 - [x] **v0.2.0** -- 日志 + 自动扩缩容 + 模型缓存 + 安全加固
-- [ ] **v0.3.0** -- RAG + 向量数据库 + Inference Gateway（IGW，推理网关）
+- [x] **v0.3.0** -- RAG 基础设施（pgvector + Milvus + 多租户 + 备份/恢复）
 - [ ] **v0.4.0** -- 微调 + ML 平台
 - [ ] **v0.5.0** -- 解耦式推理服务（llm-d）
 - [ ] **v1.0.0** -- Operator + CLI + 可视化面板
