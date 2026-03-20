@@ -88,6 +88,26 @@ spec:
         app.kubernetes.io/component: api
         app.kubernetes.io/part-of: kube-llmops
     spec:
+      initContainers:
+        - name: db-migrate
+          image: "{{ .Values.image.api.repository }}:{{ .Values.image.api.tag }}"
+          imagePullPolicy: {{ .Values.image.api.pullPolicy }}
+          command: ["flask", "db", "upgrade"]
+          env:
+            - name: MODE
+              value: api
+            - name: DB_HOST
+              value: {{ .Values.postgresql.host | default (printf "%s-litellm-pg" .Release.Name) | quote }}
+            - name: DB_PORT
+              value: {{ .Values.postgresql.port | quote }}
+            - name: DB_DATABASE
+              value: {{ .Values.postgresql.database | quote }}
+            - name: DB_USERNAME
+              value: {{ .Values.postgresql.username | quote }}
+            - name: DB_PASSWORD
+              value: {{ .Values.postgresql.password | quote }}
+            - name: SECRET_KEY
+              value: {{ .Values.secretKey | quote }}
       containers:
         - name: dify-api
           image: "{{ .Values.image.api.repository }}:{{ .Values.image.api.tag }}"
