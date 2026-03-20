@@ -1,0 +1,90 @@
+# Complete single-node deployment values
+# Usage: helm install kube-llmops charts/kube-llmops-stack -f values-single-node.yaml
+
+ingress:
+  enabled: true
+  className: traefik
+  host: llmops.local
+
+vllm:
+  enabled: true
+  modelLoader:
+    enabled: false
+  models:
+    - name: qwen2-5-0-5b
+      source: Qwen/Qwen2.5-0.5B-Instruct
+      engine: vllm
+      replicas: 1
+      resources:
+        gpu: 1
+        memory: 8Gi
+      engineArgs:
+        --gpu-memory-utilization: "0.8"
+        --max-model-len: "4096"
+        --enforce-eager: ""
+        --attention-backend: TRITON_ATTN
+
+llamacpp:
+  enabled: true
+  models: []
+
+tei:
+  enabled: true
+  models: []
+
+litellm:
+  enabled: true
+  masterKey: sk-kube-llmops-dev
+  langfuseEnabled: true
+  langfusePublicKey: "pk-lf-kube-llmops"
+  langfuseSecretKey: "sk-lf-kube-llmops"
+  rateLimiting:
+    enabled: true
+  models:
+    - name: qwen2-5-0-5b
+      source: Qwen/Qwen2.5-0.5B-Instruct
+      engine: vllm
+  postgresql:
+    enabled: true
+    auth:
+      username: litellm
+      password: llmops-pg-dev-pw
+      database: litellm
+
+observability:
+  enabled: true
+  dcgmExporter:
+    enabled: false
+  prometheus:
+    enabled: true
+    storage:
+      size: 5Gi
+  grafana:
+    enabled: true
+    adminPassword: admin123!
+    storage:
+      size: 2Gi
+
+langfuse:
+  enabled: true
+  image:
+    tag: "2.95.11"
+  externalUrl: "http://langfuse.llmops.local"
+  postgresql:
+    enabled: false
+    auth:
+      database: langfuse
+      username: langfuse
+      password: langfuse-default-pw
+
+logging:
+  enabled: true
+  loki:
+    storage:
+      size: 2Gi
+
+keda:
+  enabled: false
+
+dify:
+  enabled: false
