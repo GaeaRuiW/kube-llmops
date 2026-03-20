@@ -56,10 +56,12 @@ api:
 web:
   replicas: 1
   # Browser-accessible URLs for Dify API (set when using port-forward or ingress)
-  # For port-forward: http://localhost:5001
-  # For ingress: https://dify-api.your-domain.com
+  # For port-forward: consoleApiUrl=http://localhost:5001, consoleWebUrl=http://localhost:3002
+  # For ingress: consoleApiUrl=https://dify-api.example.com, consoleWebUrl=https://dify.example.com
   consoleApiUrl: ""
+  consoleWebUrl: ""
   appApiUrl: ""
+  corsAllowOrigins: "*"
   resources:
     requests:
       cpu: 100m

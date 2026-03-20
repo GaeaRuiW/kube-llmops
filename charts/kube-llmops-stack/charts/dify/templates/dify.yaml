@@ -142,13 +142,21 @@ spec:
               value: {{ .Values.postgresql.username | quote }}
             - name: PGVECTOR_PASSWORD
               value: {{ .Values.postgresql.password | quote }}
-            # ---- URLs (empty = auto-detect from request headers) ----
+            # ---- URLs (for browser access via port-forward or ingress) ----
             - name: CONSOLE_API_URL
-              value: ""
+              value: {{ .Values.web.consoleApiUrl | default "" | quote }}
+            - name: CONSOLE_WEB_URL
+              value: {{ .Values.web.consoleWebUrl | default "" | quote }}
             - name: SERVICE_API_URL
-              value: ""
+              value: {{ .Values.web.consoleApiUrl | default "" | quote }}
+            - name: APP_API_URL
+              value: {{ .Values.web.appApiUrl | default "" | quote }}
             - name: APP_WEB_URL
-              value: ""
+              value: {{ .Values.web.consoleWebUrl | default "" | quote }}
+            - name: WEB_API_CORS_ALLOW_ORIGINS
+              value: {{ .Values.web.corsAllowOrigins | default "*" | quote }}
+            - name: CONSOLE_CORS_ALLOW_ORIGINS
+              value: {{ .Values.web.corsAllowOrigins | default "*" | quote }}
             # ---- Log level ----
             - name: LOG_LEVEL
               value: INFO
@@ -272,6 +280,11 @@ spec:
               value: {{ .Values.postgresql.username | quote }}
             - name: PGVECTOR_PASSWORD
               value: {{ .Values.postgresql.password | quote }}
+            # ---- URLs ----
+            - name: CONSOLE_API_URL
+              value: {{ .Values.web.consoleApiUrl | default "" | quote }}
+            - name: CONSOLE_WEB_URL
+              value: {{ .Values.web.consoleWebUrl | default "" | quote }}
             # ---- Log level ----
             - name: LOG_LEVEL
               value: INFO
