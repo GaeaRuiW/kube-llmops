@@ -93,7 +93,7 @@ spec:
               value: "media/"
           readinessProbe:
             httpGet:
-              path: /api/public/health
+              path: /
               port: 3030
             initialDelaySeconds: 15
             periodSeconds: 10
