@@ -85,7 +85,7 @@
 | **服务代理 / AI Gateway 第二层** | Envoy (AI Gateway + IGW) | **毕业级** | - |
 | **可观测性管线** | OpenTelemetry | **毕业级** | - |
 | **指标** | Prometheus | **毕业级** | - |
-| **链路追踪（LLM 专用）** | Langfuse（通过 OTel OTLP） | 社区开源 | 没有 CNCF 工具能处理 Prompt/Token/成本追踪 |
+| **链路追踪（LLM 专用）** | Langfuse v3 + ClickHouse + Redis（通过 OTel OTLP） | 社区开源 | 没有 CNCF 工具能处理 Prompt/Token/成本追踪；ClickHouse 隶属 LF AI & Data 基金会 |
 | **日志采集** | Fluentbit | **毕业级**（Fluentd 项目） | Promtail（非 CNCF） |
 | **Pod 自动扩缩** | KEDA | **毕业级** | 自定义指标 HPA |
 | **GitOps** | Argo CD | **毕业级** | Flux（CNCF 毕业级） |

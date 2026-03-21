@@ -14,7 +14,7 @@ oidc:
   grafana:
     enabled: false
     roleAttributePath: "contains(groups[*], 'admin') && 'Admin' || 'Viewer'"
-  # Langfuse OIDC settings (Langfuse v2 supports generic OIDC)
+  # Langfuse OIDC settings (Langfuse v3 supports Keycloak OIDC natively)
   langfuse:
     enabled: false
 

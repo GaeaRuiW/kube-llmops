@@ -94,7 +94,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Grafana OIDC auto-configuration
 
 #### Infrastructure
-- Umbrella Helm chart with 12 sub-charts
+- Umbrella Helm chart with 14 sub-charts
 - 4 deployment profiles: ci, minimal, standard, production
 - One-liner install script (`scripts/install.sh`)
 - 3 CI workflows: lint, test, build

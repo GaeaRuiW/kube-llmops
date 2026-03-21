@@ -258,7 +258,7 @@ kubectl port-forward svc/kube-llmops-minio 9001:9001 &     # Object Storage
 | Service | URL | Username | Password |
 |---|---|---|---|
 | **LiteLLM** (AI Gateway) | [http://localhost:4000/ui](http://localhost:4000/ui) | any username | `sk-kube-llmops-dev` |
-| **Grafana** (Dashboards) | [http://localhost:3000](http://localhost:3000) | `admin` | `admin` |
+| **Grafana** (Dashboards) | [http://localhost:3000](http://localhost:3000) | `admin` | `admin123!` |
 | **Langfuse** (LLM Tracing) | [http://localhost:3001](http://localhost:3001) | `admin@kube-llmops.local` | `admin123!` |
 | **Keycloak** (SSO Admin) | [http://localhost:8080](http://localhost:8080) | `admin` | `admin123!` |
 | **MinIO** (Object Storage) | [http://localhost:9001](http://localhost:9001) | `minioadmin` | `minioadmin` |

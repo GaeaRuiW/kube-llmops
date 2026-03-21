@@ -64,7 +64,7 @@
 
 ### Pillar 3: Prompt Management & Versioning
 
-Langfuse v2 has native prompt management. We wire it, not rebuild it.
+Langfuse v3 has native prompt management. We wire it, not rebuild it.
 
 | Item | Status | What "done" means |
 |---|---|---|

@@ -109,7 +109,7 @@
 
 #### 基础设施
 
-- Umbrella Helm chart，包含 12 个子 chart
+- Umbrella Helm chart，包含 14 个子 chart
 - 4 种部署配置：ci、minimal、standard、production
 - 一键安装脚本（`scripts/install.sh`）
 - 3 个 CI 工作流：lint、test、build

@@ -13,7 +13,7 @@
 
 - **模型推理服务** -- vLLM、llama.cpp 或 TEI，根据模型格式自动选择推理引擎
 - **AI 网关** -- LiteLLM 提供统一的 OpenAI 兼容 API、Key 管理、速率限制、预算控制
-- **可观测性** -- Prometheus + Grafana（3 个仪表盘 + 4 条告警规则）+ Langfuse LLM 调用追踪
+- **可观测性** -- Prometheus + Grafana（3 个仪表盘 + 4 条告警规则）+ Langfuse v3 LLM 调用追踪（ClickHouse + Redis + Worker）
 - **日志** -- Fluent Bit + Loki，在 Grafana Explore 中查询
 - **自动扩缩** -- KEDA 根据队列深度和延迟自动扩缩 vLLM Pod
 - **安全** -- Keycloak SSO 登录 Grafana/Langfuse，NetworkPolicy 网络隔离

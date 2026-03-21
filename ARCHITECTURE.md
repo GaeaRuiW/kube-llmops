@@ -85,7 +85,7 @@ Every technology choice with its CNCF status:
 | **Service Proxy / AI Gateway Tier 2** | Envoy (AI Gateway + IGW) | **Graduated** | - |
 | **Observability Pipeline** | OpenTelemetry | **Graduated** | - |
 | **Metrics** | Prometheus | **Graduated** | - |
-| **Tracing (LLM-specific)** | Langfuse (via OTel OTLP) | Community OSS | No CNCF tool handles prompt/token/cost tracing |
+| **Tracing (LLM-specific)** | Langfuse v3 + ClickHouse + Redis (via OTel OTLP) | Community OSS | No CNCF tool handles prompt/token/cost tracing; ClickHouse is LF AI & Data Foundation |
 | **Log Collector** | Fluentbit | **Graduated** (Fluentd project) | Promtail (non-CNCF) |
 | **Pod Autoscaling** | KEDA | **Graduated** | HPA with custom metrics |
 | **GitOps** | Argo CD | **Graduated** | Flux (CNCF Graduated) |

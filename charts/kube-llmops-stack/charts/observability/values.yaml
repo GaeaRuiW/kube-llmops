@@ -58,7 +58,8 @@ grafana:
     name: Keycloak
     clientId: grafana
     clientSecret: ""
-    issuerUrl: ""         # e.g. http://kube-llmops-keycloak:8080/realms/kube-llmops
+    issuerUrl: ""              # External (browser redirect): e.g. http://keycloak.llmops.local/realms/kube-llmops
+    internalIssuerUrl: ""      # Internal (server-side token exchange): e.g. http://kube-llmops-keycloak:8080/realms/kube-llmops
     grafanaRootUrl: ""    # e.g. http://localhost:3000
     roleAttributePath: "contains(realm_access.roles[*], 'admin') && 'Admin' || 'Viewer'"
   resources:

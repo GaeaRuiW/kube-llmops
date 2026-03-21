@@ -258,7 +258,7 @@ kubectl port-forward svc/kube-llmops-minio 9001:9001 &     # Object Storage
 | 服务 | URL | 用户名 | 密码 |
 |---|---|---|---|
 | **LiteLLM**（AI 网关） | [http://localhost:4000/ui](http://localhost:4000/ui) | 任意用户名 | `sk-kube-llmops-dev` |
-| **Grafana**（监控仪表盘） | [http://localhost:3000](http://localhost:3000) | `admin` | `admin` |
+| **Grafana**（监控仪表盘） | [http://localhost:3000](http://localhost:3000) | `admin` | `admin123!` |
 | **Langfuse**（LLM 追踪） | [http://localhost:3001](http://localhost:3001) | `admin@kube-llmops.local` | `admin123!` |
 | **Keycloak**（SSO 管理） | [http://localhost:8080](http://localhost:8080) | `admin` | `admin123!` |
 | **MinIO**（对象存储） | [http://localhost:9001](http://localhost:9001) | `minioadmin` | `minioadmin` |
