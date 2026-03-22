@@ -3,7 +3,6 @@
 Hardware probe: detect available GPU resources.
 """
 
-import json
 import logging
 import subprocess
 from dataclasses import dataclass

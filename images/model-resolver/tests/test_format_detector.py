@@ -10,7 +10,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from format_detector import (
-    ModelMeta,
     detect_from_files,
     detect_quant_method,
     detect_model_type,

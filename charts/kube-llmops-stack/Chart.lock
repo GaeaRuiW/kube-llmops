@@ -38,5 +38,8 @@ dependencies:
 - name: dify
   repository: file://charts/dify
   version: 0.1.0
-digest: sha256:24e420802ed9419a96f28cfe55e4385bf83b25ede4ca89a371b4a4c66de827cb
-generated: "2026-03-20T15:39:18.785162216+08:00"
+- name: keycloak
+  repository: file://charts/keycloak
+  version: 0.1.0
+digest: sha256:544e434da8395141520eb28e5be801942852851b0a8748867db9a701b32438d3
+generated: "2026-03-22T12:54:57.544745371+08:00"

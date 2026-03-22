@@ -40,3 +40,4 @@ build/
 # Temporary
 tmp/
 .tmp/
+charts/kube-llmops-stack/charts/*.tgz

@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import yaml
 from format_detector import ModelMeta
 from hardware_probe import HardwareInfo, GPUInfo
-from resolver import resolve_engine, match_rule
+from resolver import resolve_engine
 
 
 def load_test_engine_map():

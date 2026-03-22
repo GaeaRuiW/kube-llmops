@@ -67,3 +67,12 @@ harbor:
 
 security:
   enabled: false
+
+keycloak:
+  enabled: false
+
+milvus:
+  enabled: false
+
+dify:
+  enabled: false

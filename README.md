@@ -38,6 +38,27 @@ helm install kube-llmops kube-llmops/kube-llmops-stack -f values-minimal.yaml
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the full technical design.
 
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center"><b>API Demo</b><br/><img src="images/demo/api-demo.png" width="400"/></td>
+    <td align="center"><b>Grafana Dashboards</b><br/><img src="images/demo/grafana-dashboards.gif" width="400"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>GPU Monitoring (DCGM)</b><br/><img src="images/demo/grafana-gpu-dashboard.png" width="400"/></td>
+    <td align="center"><b>vLLM Model Serving</b><br/><img src="images/demo/grafana-vllm-dashboard.png" width="400"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Langfuse LLM Tracing</b><br/><img src="images/demo/langfuse-traces.png" width="400"/></td>
+    <td align="center"><b>MinIO Model Storage</b><br/><img src="images/demo/minio-models.png" width="400"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Keycloak SSO</b><br/><img src="images/demo/keycloak-clients.png" width="400"/></td>
+    <td align="center"><b>LiteLLM Gateway</b><br/><img src="images/demo/grafana-litellm-dashboard.png" width="400"/></td>
+  </tr>
+</table>
+
 ## Quick Start
 
 ### Prerequisites

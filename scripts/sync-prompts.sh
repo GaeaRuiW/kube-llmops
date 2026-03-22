@@ -23,8 +23,6 @@ if [ ! -f "$PROMPTS_FILE" ]; then
   exit 1
 fi
 
-AUTH=$(echo -n "${LANGFUSE_PK}:${LANGFUSE_SK}" | base64)
-
 # Read prompts and sync each one
 python3 -c "
 import json, sys, os

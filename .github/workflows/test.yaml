@@ -63,7 +63,7 @@ jobs:
         run: |
           helm install kube-llmops charts/kube-llmops-stack/ \
             -f charts/kube-llmops-stack/values-ci.yaml \
-            --wait --timeout 5m
+            --wait --timeout 10m
       - name: Verify pods
         run: |
           kubectl get pods

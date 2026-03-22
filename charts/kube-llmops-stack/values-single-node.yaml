@@ -1,5 +1,5 @@
 # Single-node deployment — core features + SSO + observability
-# Usage: 
+# Usage:
 #   helm install kube-llmops charts/kube-llmops-stack -f values-single-node.yaml
 #   ./scripts/init-keycloak.sh
 #

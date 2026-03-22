@@ -38,6 +38,27 @@ helm install kube-llmops kube-llmops/kube-llmops-stack -f values-minimal.yaml
 
 详细技术设计请参阅 [ARCHITECTURE.md](ARCHITECTURE.md)。
 
+## 截图演示
+
+<table>
+  <tr>
+    <td align="center"><b>API 调用</b><br/><img src="images/demo/api-demo.png" width="400"/></td>
+    <td align="center"><b>Grafana 仪表盘</b><br/><img src="images/demo/grafana-dashboards.gif" width="400"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>GPU 监控 (DCGM)</b><br/><img src="images/demo/grafana-gpu-dashboard.png" width="400"/></td>
+    <td align="center"><b>vLLM 模型服务</b><br/><img src="images/demo/grafana-vllm-dashboard.png" width="400"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Langfuse 调用追踪</b><br/><img src="images/demo/langfuse-traces.png" width="400"/></td>
+    <td align="center"><b>MinIO 模型存储</b><br/><img src="images/demo/minio-models.png" width="400"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Keycloak SSO</b><br/><img src="images/demo/keycloak-clients.png" width="400"/></td>
+    <td align="center"><b>LiteLLM 网关</b><br/><img src="images/demo/grafana-litellm-dashboard.png" width="400"/></td>
+  </tr>
+</table>
+
 ## 快速开始
 
 ### 前置条件

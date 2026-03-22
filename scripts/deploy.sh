@@ -49,7 +49,9 @@ echo ""
 
 # Step 1: Delete conflicting ConfigMaps (Helm SSA workaround)
 echo "[1/5] Cleaning up stale ConfigMaps..."
-kubectl delete cm "${RELEASE_NAME}-litellm-config" -n "${NAMESPACE}" 2>/dev/null && echo "  Deleted litellm-config" || true
+if kubectl delete cm "${RELEASE_NAME}-litellm-config" -n "${NAMESPACE}" 2>/dev/null; then
+  echo "  Deleted litellm-config"
+fi
 
 # Step 2: Helm upgrade
 echo "[2/5] Running helm upgrade..."
@@ -96,7 +98,8 @@ if [ -n "$INGRESS_HOST" ]; then
       KC_HOSTNAME_PORT="" \
       KC_HOSTNAME_STRICT=true \
       KC_HOSTNAME_STRICT_HTTPS=false \
-      2>/dev/null && echo "  Keycloak hostname set to keycloak.${INGRESS_HOST}" || true
+      2>/dev/null
+    echo "  Keycloak hostname set to keycloak.${INGRESS_HOST}"
   fi
 else
   echo "[5/5] No Ingress host — skipping Keycloak config"
