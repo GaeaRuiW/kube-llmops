@@ -48,10 +48,21 @@ spec:
           command: ["sh", "-c"]
           args:
             - |
-              echo "Dropping page cache for unified-memory GPU..."
-              echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
-              echo "Done. Free memory:"
-              cat /proc/meminfo | head -3
+              # Unified memory GPU: model file reads fill page cache, which CUDA
+              # reports as "used" GPU memory. Drop it to reclaim space for vLLM.
+              # Auto-verify: only act if GPU driver confirms unified memory.
+              UNIFIED=false
+              for f in /proc/driver/nvidia/gpus/*/information; do
+                [ -f "$f" ] && grep -qi "blackwell\|gb[0-9]\|grace" "$f" 2>/dev/null && UNIFIED=true
+              done
+              if [ "$UNIFIED" = "true" ]; then
+                echo "[drop-cache] Unified memory GPU confirmed, dropping page cache..."
+                echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
+                cat /proc/meminfo | head -3
+              else
+                echo "[drop-cache] WARNING: unifiedMemory.enabled=true but no unified GPU detected. Dropping cache anyway."
+                echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
+              fi
           securityContext:
             privileged: true
         {{- end }}
