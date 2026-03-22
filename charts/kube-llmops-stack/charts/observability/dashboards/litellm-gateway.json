@@ -15,7 +15,7 @@
       }
     ]
   },
-  "description": "AI Gateway monitoring dashboard for LiteLLM proxy \u2014 request routing, latency, and model traffic",
+  "description": "AI Gateway monitoring dashboard for LiteLLM proxy — request routing, latency, and model traffic",
   "editable": false,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -25,12 +25,7 @@
   "panels": [
     {
       "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 0
-      },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
       "id": 100,
       "panels": [],
       "title": "Overview",
@@ -39,7 +34,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Total request rate across all models routed through the gateway (requests per second)",
       "fieldConfig": {
@@ -51,30 +46,16 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 50
-              },
-              {
-                "color": "red",
-                "value": 100
-              }
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 50 },
+              { "color": "red", "value": 100 }
             ]
           },
           "unit": "reqps"
         },
         "overrides": []
       },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 0,
-        "y": 1
-      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
       "id": 1,
       "options": {
         "colorMode": "background",
@@ -82,9 +63,7 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
@@ -95,7 +74,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "editorMode": "code",
           "expr": "sum(rate(vllm_request_success_total[5m]))",
@@ -111,7 +90,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Total number of successful requests processed through the gateway",
       "fieldConfig": {
@@ -123,30 +102,16 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 10000
-              },
-              {
-                "color": "red",
-                "value": 100000
-              }
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 10000 },
+              { "color": "red", "value": 100000 }
             ]
           },
           "unit": "none"
         },
         "overrides": []
       },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 6,
-        "y": 1
-      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
       "id": 2,
       "options": {
         "colorMode": "background",
@@ -154,9 +119,7 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
@@ -167,7 +130,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "editorMode": "code",
           "expr": "sum(vllm_request_success_total)",
@@ -183,9 +146,9 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
-      "description": "vLLM models (from Prometheus) + 2 Ollama models (gemma3-4b, mistral-small-24b)",
+      "description": "Number of unique models currently serving traffic through the gateway",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -195,30 +158,16 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "blue",
-                "value": 2
-              },
-              {
-                "color": "purple",
-                "value": 5
-              }
+              { "color": "green", "value": null },
+              { "color": "blue", "value": 2 },
+              { "color": "purple", "value": 5 }
             ]
           },
           "unit": "none"
         },
         "overrides": []
       },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 12,
-        "y": 1
-      },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
       "id": 3,
       "options": {
         "colorMode": "background",
@@ -226,9 +175,7 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
@@ -237,13 +184,16 @@
       "pluginVersion": "10.2.0",
       "targets": [
         {
-          "expr": "count(count by (model_name)(vllm_request_success_total)) + 2",
-          "legendFormat": "",
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          }
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "count(count by (model_name)(vllm_request_success_total))",
+          "instant": false,
+          "legendFormat": "Active Models",
+          "range": true,
+          "refId": "A"
         }
       ],
       "title": "Active Models",
@@ -252,7 +202,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Average end-to-end request latency across all models",
       "fieldConfig": {
@@ -264,34 +214,17 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 2
-              },
-              {
-                "color": "orange",
-                "value": 5
-              },
-              {
-                "color": "red",
-                "value": 10
-              }
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 2 },
+              { "color": "orange", "value": 5 },
+              { "color": "red", "value": 10 }
             ]
           },
           "unit": "s"
         },
         "overrides": []
       },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 18,
-        "y": 1
-      },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
       "id": 4,
       "options": {
         "colorMode": "background",
@@ -299,9 +232,7 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
@@ -312,7 +243,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "editorMode": "code",
           "expr": "sum(rate(vllm_e2e_request_latency_seconds_sum[5m])) / sum(rate(vllm_e2e_request_latency_seconds_count[5m]))",
@@ -327,12 +258,7 @@
     },
     {
       "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 5
-      },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
       "id": 101,
       "panels": [],
       "title": "Traffic",
@@ -341,7 +267,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Request rate broken down by model routed through the gateway",
       "fieldConfig": {
@@ -367,47 +293,28 @@
             "lineInterpolation": "smooth",
             "lineWidth": 2,
             "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
+            "scaleDistribution": { "type": "linear" },
             "showPoints": "never",
             "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
+              { "color": "green", "value": null }
             ]
           },
           "unit": "reqps"
         },
         "overrides": []
       },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 6
-      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
       "id": 5,
       "options": {
         "legend": {
-          "calcs": [
-            "lastNotNull",
-            "mean",
-            "max"
-          ],
+          "calcs": ["lastNotNull", "mean", "max"],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -420,13 +327,16 @@
       "pluginVersion": "10.2.0",
       "targets": [
         {
-          "expr": "sum by (model_name)(rate(vllm_request_success_total{model_name=~\"$model\"}[5m]))",
-          "legendFormat": "{{model_name}}",
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          }
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (model_name)(rate(vllm_request_success_total[5m]))",
+          "instant": false,
+          "legendFormat": "{{model_name}}",
+          "range": true,
+          "refId": "A"
         }
       ],
       "title": "Request Rate by Model",
@@ -435,7 +345,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Token throughput rate: prompt tokens ingested and generation tokens produced per second",
       "fieldConfig": {
@@ -461,78 +371,41 @@
             "lineInterpolation": "smooth",
             "lineWidth": 2,
             "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
+            "scaleDistribution": { "type": "linear" },
             "showPoints": "never",
             "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
+              { "color": "green", "value": null }
             ]
           },
           "unit": "short"
         },
         "overrides": [
           {
-            "matcher": {
-              "id": "byName",
-              "options": "Prompt Tokens/s"
-            },
+            "matcher": { "id": "byName", "options": "Prompt Tokens/s" },
             "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "blue",
-                  "mode": "fixed"
-                }
-              }
+              { "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }
             ]
           },
           {
-            "matcher": {
-              "id": "byName",
-              "options": "Generation Tokens/s"
-            },
+            "matcher": { "id": "byName", "options": "Generation Tokens/s" },
             "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "purple",
-                  "mode": "fixed"
-                }
-              }
+              { "id": "color", "value": { "fixedColor": "purple", "mode": "fixed" } }
             ]
           }
         ]
       },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 6
-      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
       "id": 6,
       "options": {
         "legend": {
-          "calcs": [
-            "lastNotNull",
-            "mean",
-            "max"
-          ],
+          "calcs": ["lastNotNull", "mean", "max"],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -547,7 +420,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "editorMode": "code",
           "expr": "sum(rate(vllm_prompt_tokens_total[5m]))",
@@ -559,7 +432,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "editorMode": "code",
           "expr": "sum(rate(vllm_generation_tokens_total[5m]))",
@@ -574,12 +447,7 @@
     },
     {
       "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 14
-      },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
       "id": 102,
       "panels": [],
       "title": "Latency & Errors",
@@ -588,7 +456,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "End-to-end request latency distribution through the gateway (p50, p95, p99)",
       "fieldConfig": {
@@ -614,97 +482,48 @@
             "lineInterpolation": "smooth",
             "lineWidth": 2,
             "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
+            "scaleDistribution": { "type": "linear" },
             "showPoints": "never",
             "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
+              { "color": "green", "value": null },
+              { "color": "red", "value": 80 }
             ]
           },
           "unit": "s"
         },
         "overrides": [
           {
-            "matcher": {
-              "id": "byName",
-              "options": "p99"
-            },
+            "matcher": { "id": "byName", "options": "p99" },
             "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "red",
-                  "mode": "fixed"
-                }
-              }
+              { "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }
             ]
           },
           {
-            "matcher": {
-              "id": "byName",
-              "options": "p95"
-            },
+            "matcher": { "id": "byName", "options": "p95" },
             "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "orange",
-                  "mode": "fixed"
-                }
-              }
+              { "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }
             ]
           },
           {
-            "matcher": {
-              "id": "byName",
-              "options": "p50"
-            },
+            "matcher": { "id": "byName", "options": "p50" },
             "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "green",
-                  "mode": "fixed"
-                }
-              }
+              { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }
             ]
           }
         ]
       },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 15
-      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
       "id": 7,
       "options": {
         "legend": {
-          "calcs": [
-            "lastNotNull",
-            "mean",
-            "max"
-          ],
+          "calcs": ["lastNotNull", "mean", "max"],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -719,7 +538,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.50, sum(rate(vllm_e2e_request_latency_seconds_bucket[5m])) by (le))",
@@ -731,7 +550,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.95, sum(rate(vllm_e2e_request_latency_seconds_bucket[5m])) by (le))",
@@ -743,7 +562,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.99, sum(rate(vllm_e2e_request_latency_seconds_bucket[5m])) by (le))",
@@ -759,7 +578,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Rate of errored or abnormally finished requests through the gateway",
       "fieldConfig": {
@@ -785,67 +604,36 @@
             "lineInterpolation": "smooth",
             "lineWidth": 2,
             "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
+            "scaleDistribution": { "type": "linear" },
             "showPoints": "never",
             "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 1
-              }
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
             ]
           },
           "unit": "reqps"
         },
         "overrides": [
           {
-            "matcher": {
-              "id": "byName",
-              "options": "Error Rate"
-            },
+            "matcher": { "id": "byName", "options": "Error Rate" },
             "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "red",
-                  "mode": "fixed"
-                }
-              }
+              { "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }
             ]
           }
         ]
       },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 15
-      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 },
       "id": 8,
       "options": {
         "legend": {
-          "calcs": [
-            "lastNotNull",
-            "mean",
-            "max"
-          ],
+          "calcs": ["lastNotNull", "mean", "max"],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -860,7 +648,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "editorMode": "code",
           "expr": "sum(rate(vllm_request_success_total{finished_reason=\"error\"}[5m]))",
@@ -877,63 +665,17 @@
   "refresh": "10s",
   "schemaVersion": 39,
   "style": "dark",
-  "tags": [
-    "litellm",
-    "gateway",
-    "ai"
-  ],
+  "tags": ["litellm", "gateway", "ai"],
   "templating": {
-    "list": [
-      {
-        "current": {
-          "selected": true,
-          "text": "All",
-          "value": "$__all"
-        },
-        "definition": "label_values(vllm_request_success_total, model_name)",
-        "hide": 0,
-        "includeAll": true,
-        "multi": true,
-        "name": "model",
-        "options": [],
-        "query": {
-          "query": "label_values(vllm_request_success_total, model_name)",
-          "refId": "A"
-        },
-        "refresh": 2,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 1,
-        "type": "query"
-      }
-    ]
+    "list": []
   },
   "time": {
     "from": "now-1h",
     "to": "now"
   },
   "timepicker": {
-    "refresh_intervals": [
-      "5s",
-      "10s",
-      "30s",
-      "1m",
-      "5m",
-      "15m",
-      "30m",
-      "1h"
-    ],
-    "time_options": [
-      "5m",
-      "15m",
-      "1h",
-      "6h",
-      "12h",
-      "24h",
-      "2d",
-      "7d",
-      "30d"
-    ]
+    "refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h"],
+    "time_options": ["5m", "15m", "1h", "6h", "12h", "24h", "2d", "7d", "30d"]
   },
   "timezone": "browser",
   "title": "LiteLLM AI Gateway",
