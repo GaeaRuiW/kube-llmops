@@ -1,135 +1,111 @@
-# RAG 未完成事项 & 差距分析
+# RAG Infrastructure — Status Tracker
 
-**English** | [中文](RAG-TODO.zh-CN.md)
-
-> 基于 LazyLLM 企业级 RAG 方案 + 我们的 RAG-PLAN.md + 实际集群状态的交叉对比。
-> 分三类：已完成、未完成（可做）、差距（需要新设计）。
+> Tracks actual implementation status of all RAG infrastructure components.
+> Updated per Phase completion. See [RAG-PLAN.md](RAG-PLAN.md) for full plan.
 
 ---
 
-## 一、LazyLLM 企业级 RAG 提出的 6 大能力 vs kube-llmops 现状
+## Status Summary
 
-| LazyLLM 能力 | 描述 | kube-llmops 现状 | 差距 |
-|---|---|---|---|
-| **1. 权限隔离** | 按部门/标签隔离知识库访问 | Keycloak SSO + NetworkPolicy 多租户模板 | **缺**：知识库级别的 RBAC（Dify 开源版不支持，需要在网关层做） |
-| **2. 标签权限** | 文档级别 permission_level 过滤 | pgvector 有 metadata jsonb 字段 | **缺**：检索时 metadata filter 的集成示例 |
-| **3. 算法共享** | 同一 embedding/LLM 算法服务多个知识库 | LiteLLM 统一网关 ✓ | **已有**：LiteLLM 天然支持多知识库共用同一模型 |
-| **4. 召回解耦** | 知识库与 RAG 召回服务分离，多对多 | Dify 的知识库管理 ✓ | **部分**：Dify 支持，但不如 LazyLLM 灵活 |
-| **5. 对话管理** | 历史对话、多用户并发、流式输出 | LiteLLM + Dify 都支持 ✓ | **已有** |
-| **6. 内容安全** | 敏感词过滤、全链路加密、私有化部署 | 私有化部署 ✓，NetworkPolicy ✓ | **缺**：敏感词过滤、内容审核 |
+| Phase | Target | Status | Key Blocker |
+|-------|--------|--------|------------|
+| **Phase 1** | RAG 能跑通 | ❌ Not started | TEI embedding 未配默认模型 |
+| **Phase 2** | 质量可衡量 | ❌ Not started | 依赖 Phase 1 |
+| **Phase 3** | 可上生产 | ❌ Not started | 依赖 Phase 2 |
+| **Phase 4** | 企业级 | ❌ Not started | 按需 |
 
 ---
 
-## 二、RAG 应用平台集成 — 未完成清单
+## Phase 1: RAG 能跑通
 
-### 已完成
-- [x] **Dify** — sub-chart 部署，接了 pgvector + MinIO + LiteLLM（但 embedding 断了）
+| # | 任务 | 状态 | 验收标准 |
+|---|------|------|---------|
+| 1 | TEI 配默认 embedding 模型 (bge-m3) | ❌ | `/v1/embeddings` 返回 1024 维向量 |
+| 2 | LiteLLM 配 embedding route 到 TEI | ❌ | 通过 LiteLLM 代理调用 embedding |
+| 3 | Dify embedding 指向 LiteLLM | ❌ | Dify 不再直连 HuggingFace |
+| 4 | 端到端验证：上传文档 → RAG 回答 | ❌ | 回答包含文档中的信息 |
+| 5 | Smoke Test Job (L1) | ❌ | 8 个 step 全部 PASS |
 
-### 未完成
-
-| # | 平台 | 类型 | 优先级 | 工作量 | 描述 |
-|---|---|---|---|---|---|
-| R1 | **Dify embedding 修复** | Bug fix | P0 | 小 | 当前 Dify 无法使用 embedding（企业 SSL 阻断模型下载），需提供离线 embedding 方案或 API 配置文档 |
-| R2 | **LazyLLM** | Python 框架 | P1 | 中 | K8s deployment 模板 + 配置连接 LiteLLM + pgvector 的示例项目 |
-| R3 | **n8n** | Workflow | P2 | 中 | Helm sub-chart，预配置 LiteLLM HTTP 节点 |
-| R4 | **Coze (open source)** | Agent 平台 | P2 | 中 | 如果开源版可用，提供集成模板 |
-| R5 | **LangChain 示例** | 代码框架 | P2 | 小 | Python 示例：ingest → pgvector → query → LiteLLM → answer |
-| R6 | **LlamaIndex 示例** | 代码框架 | P2 | 小 | 同上 |
+**Phase 1 Exit Criteria**:
+- [ ] Smoke Test Job 通过
+- [ ] Dify 上传 PDF → 提问 → 得到基于文档的回答
 
 ---
 
-## 三、RAG 基础设施 — 未完成清单
+## Phase 2: 质量可衡量
 
-### Embedding 服务
+| # | 任务 | 状态 | 验收标准 |
+|---|------|------|---------|
+| 6 | TEI reranking 服务 | ❌ | `/rerank` 返回重排序结果 |
+| 7 | Hybrid 检索 (pgvector + tsvector) | ❌ | SQL 返回 dense + sparse 双分数 |
+| 8 | 评估数据集 (35 样本) | ❌ | 6 类问题，人工验证的标准答案 |
+| 9 | Ragas CronJob | ❌ | 5 个指标每日计算，推 Prometheus |
+| 10 | Grafana RAG dashboard | ❌ | 6 个 panel 全有数据 |
+| 11 | RAG trace spans | ❌ | Langfuse 显示 embed→retrieve→rerank→generate |
+| 12 | Smoke Test Job (L2) | ❌ | 包含 rerank + hybrid 验证 |
 
-| # | 项 | 状态 | 说明 |
-|---|---|---|---|
-| E1 | LiteLLM embedding routing 模板 | ✅ Done | `embeddingModels[]` 配置 |
-| E2 | 本地 embedding 服务部署 | ❌ 未完成 | TEI/infinity 因 SSL 失败。需要：a) CA cert 注入方案，b) 离线模型加载方案，c) 外部 API fallback |
-| E3 | Embedding API 集成（OpenAI/Cohere/etc） | ✅ 模板有 | `embeddingModels[].apiBase` 指向外部 API |
-| E4 | Embedding 版本追踪 | ❌ 未完成 | Langfuse metadata 记录 embedding model + version |
-
-### 向量数据库
-
-| # | 项 | 状态 | 说明 |
-|---|---|---|---|
-| V1 | pgvector | ✅ Done | 0.8.2 已启用 |
-| V2 | Milvus | ✅ 模板有 | Helm chart 存在，未部署验证 |
-| V3 | 集合初始化脚本 | ❌ 未完成 | 首次部署自动创建 collection + index |
-| V4 | 数据版本标签 | ❌ 未完成 | ingestion batch 带 version metadata |
-| V5 | 向量 DB 监控 | ❌ 未完成 | Grafana dashboard: query latency, index size |
-
-### 质量评估
-
-| # | 项 | 状态 | 说明 |
-|---|---|---|---|
-| Q1 | Eval 脚本 | ✅ Done | `rag-eval.sh` + eval dataset |
-| Q2 | K8s Job 模板 | ✅ Done | `k8s-eval-job.yaml` |
-| Q3 | LLM-as-judge scoring | ❌ 未完成 | 用 LLM 评估回答的 faithfulness/relevance（prompt 模板 `rag-eval-judge` 已有，runner 未实现） |
-| Q4 | Ragas/DeepEval 集成 | ❌ 未完成 | 专业 RAG eval 框架集成 |
-| Q5 | 回归测试门控 | ❌ 未完成 | 数据更新 → 自动 eval → 质量下降则阻断部署 |
-
-### Prompt 管理
-
-| # | 项 | 状态 | 说明 |
-|---|---|---|---|
-| P1 | Prompt 模板 | ✅ Done | 5 个模板 (default/strict/conversational/chinese/judge) |
-| P2 | Prompt → Langfuse 同步 | ✅ Done | `sync-prompts.sh` |
-| P3 | Prompt CI/CD | ✅ Done | `prompt-sync.yaml` workflow |
-| P4 | Prompt A/B 测试指标 | ❌ 未完成 | Grafana panel: 按 prompt version 对比质量 |
-
-### CI/CD
-
-| # | 项 | 状态 | 说明 |
-|---|---|---|---|
-| C1 | RAG eval workflow | ✅ Done | `rag-eval.yaml` |
-| C2 | Prompt sync workflow | ✅ Done | `prompt-sync.yaml` |
-| C3 | 数据更新触发 eval | ❌ 未完成 | 新文档 ingest → 自动跑 eval |
-| C4 | 模型切换触发 eval | ❌ 未完成 | Helm upgrade model → pre-hook eval |
-
-### 可观测性
-
-| # | 项 | 状态 | 说明 |
-|---|---|---|---|
-| O1 | RAG Grafana dashboard | ✅ Done | `rag-quality.json` |
-| O2 | RAG Prometheus alerts | ✅ Done | 6 条 rules |
-| O3 | RAG trace 结构 (embed→retrieve→generate spans) | ❌ 未完成 | 当前只有 LLM generation span，缺 embedding + retrieval 独立 span |
-| O4 | E2E latency breakdown | ❌ 未完成 | Langfuse 里看 "这 3s 花在哪了" |
-
-### 企业级安全（来自 LazyLLM 文章的启发）
-
-| # | 项 | 状态 | 说明 |
-|---|---|---|---|
-| S1 | 知识库级别 RBAC | ❌ 未完成 | 不同团队只能访问自己的知识库 |
-| S2 | 敏感词过滤 | ❌ 全新 | 问答过程中自动检测+阻断敏感内容输出 |
-| S3 | 文档级权限标签 | ❌ 全新 | 上传文档时标记 permission_level，检索时过滤 |
-| S4 | 全链路加密 | ❌ 全新 | 文档上传/存储/传输/生成全程加密 |
+**Phase 2 Exit Criteria**:
+- [ ] Ragas Faithfulness ≥ 0.7
+- [ ] Ragas Answer Relevancy ≥ 0.7
+- [ ] Grafana RAG Quality dashboard 6 panel 有数据
+- [ ] Langfuse 中看到 4 段式 RAG trace span
 
 ---
 
-## 四、优先级排序
+## Phase 3: 可上生产
 
-### P0 — 不做完 RAG 就不能用
-| # | 说明 |
-|---|---|
-| R1 | Dify embedding 修复（或提供替代方案） |
-| E2 | 本地 embedding 服务可用 |
+| # | 任务 | 状态 | 验收标准 |
+|---|------|------|---------|
+| 13 | LLM-Guard sidecar | ❌ | prompt injection 被拦截 |
+| 14 | Quality gate (Helm hook) | ❌ | 质量不达标时 helm upgrade 被阻断 |
+| 15 | 回归检测 + 告警 | ❌ | 质量下降 >5% 时 Prometheus 告警 |
+| 16 | Ragas 生产阈值 | ❌ | Faithfulness ≥ 0.85, Hallucination ≤ 0.15 |
+| 17 | 评估数据集扩展 (100+) | ❌ | 加入 Langfuse 导出的真实 query |
 
-### P1 — 核心差异化
-| # | 说明 |
-|---|---|
-| R2 | LazyLLM 集成模板 |
-| Q3 | LLM-as-judge scoring |
-| O3 | RAG trace 结构 (embed/retrieve/generate spans) |
-| S1 | 知识库级别 RBAC |
-| S2 | 敏感词过滤 |
+**Phase 3 Exit Criteria**:
+- [ ] LLM-Guard 阻断测试攻击
+- [ ] Quality gate 在质量低时阻断 helm upgrade
+- [ ] 回归告警触发
 
-### P2 — 生态完善
-| # | 说明 |
-|---|---|
-| R3-R6 | n8n, Coze, LangChain, LlamaIndex 模板 |
-| V3-V5 | 向量 DB 初始化、版本、监控 |
-| Q4-Q5 | Ragas 集成、回归门控 |
-| C3-C4 | 数据/模型更新触发 eval |
-| P4 | Prompt A/B 指标 |
-| S3-S4 | 文档权限标签、全链路加密 |
+---
+
+## Phase 4: 企业级（按需）
+
+| # | 任务 | 状态 | 说明 |
+|---|------|------|------|
+| 18 | LightRAG 知识图谱 | ❌ | 可选子 chart |
+| 19 | 多租户隔离 | ❌ | pgvector metadata filter + Keycloak org |
+| 20 | Milvus 生产就绪 | ❌ | 验证 + 监控 |
+| 21 | Presidio PII 脱敏 | ❌ | sidecar 部署 |
+
+---
+
+## Already Done (Foundation)
+
+以下基础设施已完成，是 RAG 开发的前置条件：
+
+| 组件 | 状态 | 说明 |
+|------|------|------|
+| pgvector 扩展 | ✅ | PostgreSQL 17 with vector extension |
+| LiteLLM 网关 | ✅ | OpenAI 兼容 API，embedding route 结构已有 |
+| Langfuse v3 追踪 | ✅ | ClickHouse + Redis + Worker，trace 链路通 |
+| MinIO 存储 | ✅ | S3 兼容，langfuse bucket 自动创建 |
+| Prometheus + Grafana | ✅ | 指标 + 告警 + dashboard 框架 |
+| Keycloak SSO | ✅ | OIDC 认证，多租户基础 |
+| TEI 模板 | ✅ | sub-chart 骨架有，缺默认模型 |
+| Dify 模板 | ✅ | sub-chart 骨架有，embedding 断 |
+| Milvus 模板 | ✅ | sub-chart 骨架有，未验证 |
+| Prompt 模板 | ✅ | 5 个 RAG prompt + sync 脚本 |
+| Eval 脚本骨架 | ✅ | rag-eval.sh + k8s-eval-job.yaml（仅关键词匹配） |
+
+---
+
+## Related Documents
+
+| 文档 | 内容 |
+|------|------|
+| [RAG-PLAN.md](RAG-PLAN.md) | 架构设计 + 完整任务列表 |
+| [RAG-DIRECTION.md](RAG-DIRECTION.md) | 开发方向建议 + Smoke Test 设计 |
+| [RAG-TEST-PLAN.md](RAG-TEST-PLAN.md) | 测试数据设计 + 验收标准 + Ragas 集成 |
+| [RAG-ASSESSMENT.md](RAG-ASSESSMENT.md) | 现状评估 + 竞品对比 |
+| [docs/rag-tech/](docs/rag-tech/README.md) | 47 项 RAG 技术百科（论文 + 开源 + 企业方案） |

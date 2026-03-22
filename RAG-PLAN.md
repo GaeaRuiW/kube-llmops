@@ -2,178 +2,211 @@
 
 **English** | [中文](RAG-PLAN.zh-CN.md)
 
-> AI Infra perspective: we don't build a RAG app — we provide the infrastructure
-> to **deploy, manage, test, observe, and continuously improve** any RAG system on Kubernetes.
+> We don't build a RAG app — we provide the Kubernetes infrastructure
+> for any RAG system to deploy, run, evaluate, and improve.
 
 ---
 
-## Core Philosophy
+## Positioning
 
-1. **We are infra, not application** — RAG app is user's choice (Dify, n8n, LazyLLM, LangChain...), we provide everything below it
-2. **If it doesn't work out of the box, it doesn't count** — every feature must be `helm install` → works, not "template ready"
-3. **Quality is a first-class citizen** — eval pipeline, hallucination detection, regression testing are not optional add-ons, they are core features
-4. **CI/CD for AI** — prompt changes, data updates, model swaps all go through a validation pipeline before reaching production
+kube-llmops is the **private-deployment equivalent of AWS Bedrock Knowledge Bases**.
+
+We provide infrastructure services that RAG applications (Dify, RAGFlow, LangChain, custom) consume:
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│  RAG Application Layer (user's choice, we provide templates)     │
-│  Dify / n8n / LazyLLM / LangChain / LlamaIndex / Coze          │
-├──────────────────────────────────────────────────────────────────┤
-│  CI/CD & Quality Gate                                            │
-│  ┌─────────────┐ ┌──────────────┐ ┌───────────────────────────┐ │
-│  │ Prompt CI/CD│ │ Data Pipeline│ │ RAG Eval Pipeline         │ │
-│  │ Git→Langfuse│ │ Ingest→VecDB │ │ Hallucination Detection   │ │
-│  │ A/B Deploy  │ │ Versioning   │ │ Regression Test on Update │ │
-│  └─────────────┘ └──────────────┘ └───────────────────────────┘ │
-├──────────────────────────────────────────────────────────────────┤
-│  Core Infrastructure                                             │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────────────────┐ │
-│  │ Vector DB│ │ Embedding│ │ LLM GW   │ │ Observability      │ │
-│  │ pgvector │ │ TEI      │ │ LiteLLM  │ │ Langfuse (traces)  │ │
-│  │ Milvus   │ │ (+ LiteLLM│ │          │ │ Prometheus (metrics)│ │
-│  │          │ │  routing) │ │          │ │ Grafana (dashboard) │ │
-│  └──────────┘ └──────────┘ └──────────┘ └────────────────────┘ │
-│  ┌──────────────────────────────────────────────────────────────┐│
-│  │ Model Serving: vLLM / llama.cpp / TEI                       ││
-│  └──────────────────────────────────────────────────────────────┘│
-└──────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│  RAG Application (user's choice — NOT our scope)      │
+│  Dify │ RAGFlow │ LangChain │ n8n │ custom           │
+├──────────────────────────────────────────────────────┤
+│  kube-llmops RAG Infrastructure                       │
+│                                                       │
+│  Embedding     Retrieval    Reranking    LLM Gateway  │
+│  Service       Backend      Service      (LiteLLM)   │
+│  (TEI)         (pgvector)   (TEI)                     │
+│                                                       │
+│  Evaluation    Guardrails   Observability  Storage    │
+│  (Ragas)       (LLM-Guard)  (Langfuse)    (MinIO)    │
+└──────────────────────────────────────────────────────┘
 ```
+
+**What we build**: Helm charts, K8s Jobs/CronJobs, Prometheus exporters, Grafana dashboards.
+**What we don't build**: Document parsers, chunking logic, RAG UIs, agent workflows.
 
 ---
 
-## 7 Pillars
+## Infrastructure Components
 
-### Pillar 1: Vector Database Infrastructure
+### 1. Embedding Service
 
-| Item | Status | What "done" means |
-|---|---|---|
-| pgvector enabled | **Done** | `CREATE EXTENSION vector` works, 0.8.2 verified |
-| Milvus standalone chart | **Done** | `helm install --set milvus.enabled=true` → Milvus running |
-| Init script: auto-create collections | **Done** | On first deploy, create default collection with proper index |
-| Data versioning | **Done** | Each ingestion batch tagged with version ID in metadata |
-| Grafana dashboard: vector DB metrics | **Done** | Query latency, index size, row count, connection pool |
+| Item | Status | Detail |
+|------|--------|--------|
+| TEI sub-chart | ✅ Template exists | `charts/tei/` with deployment, service, PVC |
+| Default embedding model | ❌ Not configured | Need `BAAI/bge-m3` as default |
+| LiteLLM embedding route | ❌ Not configured | LiteLLM config needs `/v1/embeddings` route to TEI |
+| Health check | ✅ Template exists | readinessProbe on TEI |
+| Model preloading | ❌ Not implemented | TEI pulls model on first start (slow) |
 
-### Pillar 2: Embedding Service
+### 2. Reranking Service
 
-| Item | Status | What "done" means |
-|---|---|---|
-| TEI chart | **Done** | Template exists |
-| LiteLLM as embedding gateway | **Done** | `POST /v1/embeddings` routes to TEI, same auth + tracing |
-| Embedding model presets | **Done** | values.yaml: `embedding.model: bge-large-zh-v1.5` → TEI deploys it |
-| Embedding version tracking | **Done** | Langfuse metadata records embedding model + version per request |
+| Item | Status | Detail |
+|------|--------|--------|
+| TEI rerank mode | ❌ Not implemented | TEI supports `--model bge-reranker-v2-m3` but no chart |
+| Rerank API endpoint | ❌ Not implemented | Need `/rerank` endpoint |
+| LiteLLM integration | ❌ Not implemented | Route rerank requests through LiteLLM |
 
-### Pillar 3: Prompt Management & Versioning
+### 3. Vector & Retrieval Backend
 
-Langfuse v3 has native prompt management. We wire it, not rebuild it.
+| Item | Status | Detail |
+|------|--------|--------|
+| pgvector extension | ✅ Enabled | `CREATE EXTENSION vector` works |
+| tsvector full-text | ❌ Not configured | PostgreSQL has it but no index/function setup |
+| Hybrid search function | ❌ Not implemented | Need SQL function for dense+sparse+RRF |
+| Milvus chart | ✅ Template exists | Not tested in cluster |
+| pg_trgm extension | ❌ Not enabled | Needed for fuzzy text matching |
 
-| Item | Status | What "done" means |
-|---|---|---|
-| Langfuse prompt management | **Done** | UI: create prompt → version → deploy, already works |
-| RAG prompt templates | **Done** | Ship 3-5 battle-tested RAG system prompts in Langfuse via init |
-| Prompt CI/CD | **Done** | GitHub Action: on prompt file change → validate → push to Langfuse API |
-| Prompt A/B metrics in Grafana | **Done** | Dashboard panel: response quality by prompt version |
+### 4. RAG Application Platform
 
-### Pillar 4: RAG Evaluation & Quality (Key Differentiator)
+| Item | Status | Detail |
+|------|--------|--------|
+| Dify sub-chart | ✅ Template exists | Disabled by default, embedding broken |
+| Dify → LiteLLM embedding | ❌ Not configured | Dify tries to download models directly |
+| Dify → LiteLLM LLM | ✅ Configured | Dify uses LiteLLM as LLM provider |
+| Dify → pgvector | ✅ Configured | Vector store set to pgvector |
+| End-to-end: upload → answer | ❌ Not verified | Embedding service must work first |
 
-This is what separates "toy" from "production". No other K8s LLM platform does this.
+### 5. RAG Evaluation (Differentiator)
 
-| Item | Status | What "done" means |
-|---|---|---|
-| Eval dataset schema | **Done** | PostgreSQL table: `eval_dataset(question, expected_answer, context, tags)` |
-| Eval runner (CronJob/Job) | **Done** | K8s Job: load dataset → query RAG → score → push to Langfuse + Prometheus |
-| Faithfulness scorer | **Done** | Does the answer only use info from retrieved context? Score 0-1 |
-| Relevance scorer | **Done** | Is the retrieved context relevant to the question? Score 0-1 |
-| Hallucination detector | **Done** | Claims in answer not supported by context → flagged |
-| Regression gate | **Done** | On data update: auto-run eval, block deploy if quality drops >5% |
-| Grafana quality dashboard | **Done** | Faithfulness/relevance/hallucination trends over time |
-| Prometheus alerts | **Done** | `rag_hallucination_rate > 0.1` → alert |
+| Item | Status | Detail |
+|------|--------|--------|
+| Eval script | ⚠️ Keyword-only | `rag-eval.sh` exists but only does string matching |
+| Eval dataset | ⚠️ Minimal | 3 samples, need 35+ |
+| K8s eval Job | ✅ Template exists | `k8s-eval-job.yaml` |
+| Ragas integration | ❌ Not implemented | Need to replace keyword matching with Ragas |
+| Ragas CronJob | ❌ Not implemented | Need scheduled eval with Prometheus export |
+| Ragas metrics → Prometheus | ❌ Not implemented | faithfulness, relevancy, precision gauges |
+| Grafana RAG dashboard | ⚠️ Wrong metrics | `rag-quality.json` shows vLLM metrics, not RAG |
+| Prometheus alert rules | ⚠️ No data source | Rules exist but metric source doesn't |
+| Quality gate (Helm hook) | ❌ Not implemented | Block upgrade on quality regression |
 
-**Eval tools considered:**
-- [Ragas](https://github.com/explodinggradients/ragas) — most mature RAG eval framework
-- [DeepEval](https://github.com/confident-ai/deepeval) — alternative with more metrics
-- LLM-as-judge via LiteLLM (use a model to evaluate another model's output)
+### 6. RAG Observability
 
-### Pillar 5: CI/CD for RAG (AI-native CI/CD)
+| Item | Status | Detail |
+|------|--------|--------|
+| Langfuse LLM traces | ✅ Working | Every LiteLLM request traced |
+| RAG trace spans | ❌ Not implemented | Need embed → retrieve → rerank → generate spans |
+| E2E latency breakdown | ❌ Not implemented | "Where did 3s go?" in Langfuse |
+| Retrieval metrics | ❌ Not implemented | retrieval_latency, documents_retrieved |
+| Embedding metrics | ❌ Not implemented | embedding_latency, embedding_throughput |
 
-Traditional CI/CD tests code. RAG CI/CD tests **data + prompts + models**.
+### 7. RAG Safety
 
-| Item | Status | What "done" means |
-|---|---|---|
-| Prompt change pipeline | **Done** | Git push prompt → CI runs eval → pass → deploy to Langfuse |
-| Data update pipeline | **Done** | New docs ingested → CI runs regression eval → pass → serve |
-| Model swap pipeline | **Done** | Switch vLLM model → CI verifies RAG quality maintained → rollout |
-| GitHub Actions workflow | **Done** | `.github/workflows/rag-eval.yaml` |
-| Quality gate in Helm upgrade | **Done** | Pre-upgrade hook: run eval, abort if fail |
+| Item | Status | Detail |
+|------|--------|--------|
+| LLM-Guard sidecar | ❌ Not implemented | Input/output scanning for LiteLLM |
+| Prompt injection defense | ❌ Not implemented | Part of LLM-Guard |
+| PII detection | ❌ Not implemented | Presidio sidecar |
+| Content filtering | ❌ Not implemented | Toxicity, ban topics |
 
-**CI/CD flow:**
-```
-Developer pushes:
-  prompt change   → rag-eval.yaml → eval suite → pass? → Langfuse deploy
-  new documents   → rag-eval.yaml → eval suite → pass? → vector DB update
-  model change    → rag-eval.yaml → eval suite → pass? → helm upgrade
-  
-  Any failure → block deploy + alert + Langfuse annotation
-```
+### 8. RAG Testing
 
-### Pillar 6: RAG Observability
+| Item | Status | Detail |
+|------|--------|--------|
+| Smoke Test Job | ❌ Not implemented | 8-step infra connectivity validation |
+| Eval dataset (35 samples) | ❌ Not created | Need human-written + auto-generated |
+| CI RAG integration test | ❌ Not implemented | GitHub Actions with kind cluster |
+| Regression detection | ❌ Not implemented | Compare eval scores across versions |
 
-| Item | Status | What "done" means |
-|---|---|---|
-| Langfuse traces LLM calls | **Done** | Every LiteLLM request traced |
-| RAG trace structure | **Done** | Trace spans: embed → retrieve → generate (not just generate) |
-| Grafana RAG dashboard | **Done** | Retrieval latency, embedding throughput, quality score trend |
-| End-to-end latency breakdown | **Done** | "Where did this 3s request spend its time?" visible in Langfuse |
-| Prometheus RAG metrics | **Done** | Custom metrics: retrieval_latency, embedding_latency, quality_score |
+### 9. Prompt Management
 
-### Pillar 7: RAG App Templates
-
-Templates that ACTUALLY WORK — not "template ready, requires X".
-
-| Platform | Type | Priority | What "done" means |
-|---|---|---|---|
-| **Dify** | Full RAG platform + UI | P0 | `helm install --set dify.enabled=true` → Dify UI works, pre-wired to LiteLLM + pgvector |
-| **LazyLLM** | Chinese LLM app framework | P1 | Example project + K8s deployment, connected to our infra |
-| **n8n** | Workflow automation | P2 | `--set n8n.enabled=true` → n8n with LiteLLM node pre-configured |
-| **LangChain** | Python framework | P2 | Working example: ingest docs → query → answer, using our endpoints |
-| **LlamaIndex** | Python framework | P2 | Working example, same as LangChain |
-
-"Done" criteria for each template:
-- [ ] `helm install` one command, everything runs
-- [ ] Send a document → get it back via RAG query → within 5 minutes of install
-- [ ] Traces visible in Langfuse
-- [ ] Metrics visible in Grafana
-- [ ] No manual steps, no hidden requirements, no SSL cert surprises
+| Item | Status | Detail |
+|------|--------|--------|
+| Langfuse prompt management | ✅ Working | Langfuse v3 native feature |
+| RAG prompt templates | ✅ Created | 5 templates in examples/prompts/ |
+| Prompt sync script | ✅ Working | sync-prompts.sh + GitHub Action |
+| Prompt A/B metrics | ❌ Not implemented | Grafana panel by prompt version |
 
 ---
 
-## Implementation Order
+## Implementation Phases
 
-### Phase 3a: Make RAG Actually Work (immediate)
-1. Dify sub-chart (real deployment, pre-wired)
-2. RAG Grafana dashboard
-3. Embed endpoint through LiteLLM
+### Phase 1: RAG Works (2-3 weeks)
 
-### Phase 3b: Quality & CI/CD (next)
-4. Eval dataset schema + runner Job
-5. Ragas integration for faithfulness/relevance scoring
-6. GitHub Actions rag-eval.yaml workflow
-7. Quality gate Grafana dashboard
+**Goal**: `helm install` → upload document → RAG answer. Zero manual steps.
 
-### Phase 3c: Ecosystem (later)
-8. LazyLLM template
-9. n8n sub-chart
-10. LangChain/LlamaIndex working examples
-11. Prompt CI/CD pipeline
-12. Data versioning
+| # | Task | Depends on | Acceptance |
+|---|------|-----------|------------|
+| 1 | TEI default model (bge-m3) | - | `/v1/embeddings` returns 1024-dim vector |
+| 2 | LiteLLM embedding route | #1 | Embedding through LiteLLM proxy |
+| 3 | Dify embedding → LiteLLM | #2 | Dify uses LiteLLM for embedding |
+| 4 | End-to-end validation | #3 | Upload PDF → ask question → get answer with context |
+| 5 | Smoke Test Job (L1) | #1,#2 | All 8 steps PASS |
+
+**Exit criteria**: Smoke Test Job passes. Dify RAG e2e demo works.
+
+### Phase 2: RAG Quality Measurable (3-4 weeks)
+
+**Goal**: Automated quality evaluation with Grafana visibility.
+
+| # | Task | Depends on | Acceptance |
+|---|------|-----------|------------|
+| 6 | TEI reranking service | - | `/rerank` endpoint returns reordered results |
+| 7 | Hybrid retrieval (pgvector+tsvector) | - | SQL returns dense+sparse scores |
+| 8 | Eval dataset (35 samples) | Phase 1 | 6 categories, human-verified ground truth |
+| 9 | Ragas CronJob | #8 | 5 metrics computed daily, pushed to Prometheus |
+| 10 | Grafana RAG dashboard | #9 | 6 panels with real RAG data |
+| 11 | RAG trace spans | Phase 1 | embed→retrieve→rerank→generate in Langfuse |
+| 12 | Smoke Test Job (L2) | #6,#7 | Rerank + hybrid steps PASS |
+
+**Exit criteria**: Ragas Faithfulness ≥ 0.7, Answer Relevancy ≥ 0.7. Dashboard has data.
+
+### Phase 3: RAG Production Ready (3-4 weeks)
+
+**Goal**: Safety, quality gates, production-grade monitoring.
+
+| # | Task | Depends on | Acceptance |
+|---|------|-----------|------------|
+| 13 | LLM-Guard sidecar | - | Prompt injection blocked, PII detected |
+| 14 | Quality gate (Helm hook) | Phase 2 | helm upgrade blocked on quality regression |
+| 15 | Regression detection | #9 | Alert fires when score drops >5% |
+| 16 | Ragas production thresholds | #9 | Faithfulness ≥ 0.85, Hallucination ≤ 0.15 |
+| 17 | Eval dataset expansion (100+) | #8 | Ragas TestsetGenerator + real queries from Langfuse |
+
+**Exit criteria**: LLM-Guard blocks test attack. Quality gate blocks bad upgrade.
+
+### Phase 4: Enterprise Features (on demand)
+
+| # | Task | Detail |
+|---|------|--------|
+| 18 | LightRAG knowledge graph | Optional sub-chart |
+| 19 | Multi-tenant RBAC | pgvector metadata filter + Keycloak org |
+| 20 | Milvus production-ready | Verify chart, add monitoring |
+| 21 | Presidio PII anonymization | Sidecar deployment |
 
 ---
 
-## Anti-patterns to Avoid
+## What We Don't Build
 
-| Don't | Do |
-|---|---|
-| "Template ready, requires X operator" | Ship it working or don't ship it |
-| Custom Python RAG app as demo | Integrate real tools people already use |
-| Eval as optional afterthought | Eval pipeline runs on every deploy |
-| Manual prompt management | GitOps: prompts in Git → CI validates → Langfuse deploys |
-| "Works on my cluster" | Test on fresh cluster, document every prereq |
+| Capability | Why not | Who does it |
+|-----------|---------|-------------|
+| Document parsing | Application layer | Dify, RAGFlow, Unstructured.io |
+| Chunking strategies | Application layer | Dify (4 strategies), LangChain |
+| Query rewriting / HyDE | Application layer | Dify Workflow, LangChain |
+| RAG conversation UI | Application layer | Dify, RAGFlow, custom |
+| Agent / workflow orchestration | Application layer | Dify, LangGraph, n8n |
+| Citation / source attribution | Application layer | RAGFlow, application |
+
+We provide the **infrastructure** these features need:
+- Parsing needs S3 → we provide MinIO
+- Chunking needs embedding → we provide TEI
+- Query rewriting needs retrieval → we provide pgvector + tsvector
+- UI needs LLM → we provide LiteLLM + vLLM
+- Citations need traces → we provide Langfuse
+
+---
+
+## Related Documents
+
+- [RAG Development Direction](RAG-DIRECTION.md) — Strategic positioning and architecture
+- [RAG Test Plan](RAG-TEST-PLAN.md) — Test data design, acceptance criteria, Ragas integration
+- [RAG Technology Encyclopedia](docs/rag-tech/README.md) — 47 techniques with papers and implementations
+- [RAG Capability Assessment](RAG-ASSESSMENT.md) — Current state vs enterprise solutions
