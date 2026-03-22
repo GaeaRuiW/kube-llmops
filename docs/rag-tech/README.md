@@ -14,7 +14,8 @@
 | 3 | **Retrieval（检索）** | [03-retrieval.md](03-retrieval.md) | 6 | 1065 |
 | 4 | **Post-Retrieval + Generation + Advanced Patterns** | [04-post-retrieval-and-generation.md](04-post-retrieval-and-generation.md) | 16 | 1059 |
 | 5 | **Quality & Safety（质量评估与安全防护）** | [05-quality-and-safety.md](05-quality-and-safety.md) | 13 | 1636 |
-| | **合计** | | **47** | **5117** |
+| 6 | **Production Patterns（生产方案：叠加组合与选型）** | [06-production-patterns.md](06-production-patterns.md) | - | 340 |
+| | **合计** | | **47** | **5457** |
 
 ---
 
