@@ -77,10 +77,7 @@ def write_output(result: dict, output_dir: str = "/resolve"):
     output_path.mkdir(parents=True, exist_ok=True)
 
     env_file = output_path / "engine.env"
-    args_str = " ".join(
-        f"{k} {v}" if v else k
-        for k, v in result["args"].items()
-    )
+    args_str = " ".join(f"{k} {v}" if v else k for k, v in result["args"].items())
 
     with open(env_file, "w") as f:
         f.write(f"ENGINE={result['engine']}\n")
@@ -113,11 +110,14 @@ def main():
             if rule["engine"] == engine_override:
                 image = rule["image"]
                 break
-        write_output({
-            "engine": engine_override,
-            "image": image,
-            "args": {},
-        }, output_dir)
+        write_output(
+            {
+                "engine": engine_override,
+                "image": image,
+                "args": {},
+            },
+            output_dir,
+        )
         return
 
     # Auto-detect
@@ -130,12 +130,19 @@ def main():
         log.warning("HF API detection failed (%s), falling back to ID heuristics", e)
         meta = _detect_from_model_id(model_source)
 
-    log.info("Detected: format=%s, quant=%s, type=%s, size=%.1fGB",
-             meta.format, meta.quant_method, meta.model_type, meta.estimated_size_gb)
+    log.info(
+        "Detected: format=%s, quant=%s, type=%s, size=%.1fGB",
+        meta.format,
+        meta.quant_method,
+        meta.model_type,
+        meta.estimated_size_gb,
+    )
 
     # Detect hardware
     hardware = probe_hardware()
-    log.info("Hardware: %d GPUs, %dMB total VRAM", hardware.gpu_count, hardware.total_vram_mb)
+    log.info(
+        "Hardware: %d GPUs, %dMB total VRAM", hardware.gpu_count, hardware.total_vram_mb
+    )
 
     # Resolve engine
     engine_map = load_engine_map(engine_map_path)

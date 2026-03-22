@@ -38,7 +38,9 @@ def probe_hardware() -> HardwareInfo:
                 "--query-gpu=index,name,memory.total",
                 "--format=csv,noheader,nounits",
             ],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         if result.returncode == 0:
             for line in result.stdout.strip().split("\n"):
@@ -46,11 +48,13 @@ def probe_hardware() -> HardwareInfo:
                     continue
                 parts = [p.strip() for p in line.split(",")]
                 if len(parts) >= 3:
-                    gpus.append(GPUInfo(
-                        index=int(parts[0]),
-                        name=parts[1],
-                        vram_mb=int(float(parts[2])),
-                    ))
+                    gpus.append(
+                        GPUInfo(
+                            index=int(parts[0]),
+                            name=parts[1],
+                            vram_mb=int(float(parts[2])),
+                        )
+                    )
     except (FileNotFoundError, subprocess.TimeoutExpired):
         log.info("nvidia-smi not found or timed out, assuming CPU-only environment")
 

@@ -7,8 +7,8 @@ set -euo pipefail
 #   LANGFUSE_HOST=http://localhost:3001 ./scripts/sync-prompts.sh  # Custom host
 
 LANGFUSE_HOST="${LANGFUSE_HOST:-http://kube-llmops-langfuse:3000}"
-LANGFUSE_PK="${LANGFUSE_PUBLIC_KEY:-pk-lf-kube-llmops}"
-LANGFUSE_SK="${LANGFUSE_SECRET_KEY:-sk-lf-kube-llmops}"
+export LANGFUSE_PK="${LANGFUSE_PUBLIC_KEY:-pk-lf-kube-llmops}"
+export LANGFUSE_SK="${LANGFUSE_SECRET_KEY:-sk-lf-kube-llmops}"
 PROMPTS_FILE="${1:-$(dirname "$0")/../examples/prompts/rag-system-prompts.json}"
 
 echo "============================================="

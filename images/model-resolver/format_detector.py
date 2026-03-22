@@ -18,11 +18,12 @@ log = logging.getLogger("model-resolver")
 @dataclass
 class ModelMeta:
     """Detected model metadata."""
+
     model_id: str
-    format: str             # safetensors | gguf | bin | onnx | unknown
-    quant_method: str       # awq | gptq | fp8 | bitsandbytes | none
-    model_type: str         # text-generation | embedding | reranker | unknown
-    files: list[str]        # List of files in the repo
+    format: str  # safetensors | gguf | bin | onnx | unknown
+    quant_method: str  # awq | gptq | fp8 | bitsandbytes | none
+    model_type: str  # text-generation | embedding | reranker | unknown
+    files: list[str]  # List of files in the repo
     estimated_size_gb: float  # Rough model size estimate
 
 
@@ -54,8 +55,12 @@ def detect_quant_method(config: dict) -> str:
 
 
 EMBEDDING_ARCHITECTURES = {
-    "BertModel", "XLMRobertaModel", "DistilBertModel",
-    "SentenceTransformer", "E5Model", "BGEModel",
+    "BertModel",
+    "XLMRobertaModel",
+    "DistilBertModel",
+    "SentenceTransformer",
+    "E5Model",
+    "BGEModel",
     "XLMRobertaForSequenceClassification",
     "BertForSequenceClassification",
 }
@@ -86,7 +91,16 @@ def detect_model_type(config: dict, model_id: str) -> str:
 
     # Check model_type field
     model_type = config.get("model_type", "").lower()
-    if model_type in ("llama", "qwen2", "qwen2_moe", "mistral", "gemma", "gpt2", "phi", "deepseek_v2"):
+    if model_type in (
+        "llama",
+        "qwen2",
+        "qwen2_moe",
+        "mistral",
+        "gemma",
+        "gpt2",
+        "phi",
+        "deepseek_v2",
+    ):
         return "text-generation"
 
     # Check by model_id heuristics
@@ -105,7 +119,7 @@ def estimate_size_gb(config: dict, files: list[str]) -> float:
     num_params = config.get("num_parameters", 0)
     if num_params > 0:
         # FP16: 2 bytes per param, FP32: 4 bytes, INT4: 0.5 bytes
-        return num_params * 2 / (1024 ** 3)  # assume FP16
+        return num_params * 2 / (1024**3)  # assume FP16
 
     # Count safetensors/bin files as rough proxy
     model_files = [f for f in files if f.endswith((".safetensors", ".bin", ".gguf"))]
@@ -116,6 +130,7 @@ def fetch_model_meta(model_id: str) -> ModelMeta:
     """Fetch model metadata from HuggingFace Hub API (no full download)."""
     try:
         from huggingface_hub import HfApi
+
         api = HfApi()
         model_info = api.model_info(model_id)
 
@@ -132,7 +147,9 @@ def fetch_model_meta(model_id: str) -> ModelMeta:
             with open(config_path) as f:
                 config = json.load(f)
         except Exception:
-            log.warning("Could not fetch config.json for %s, using heuristics", model_id)
+            log.warning(
+                "Could not fetch config.json for %s, using heuristics", model_id
+            )
 
         file_format = detect_from_files(files)
         quant_method = detect_quant_method(config)

@@ -76,11 +76,15 @@ def is_already_cached(model_id: str, target_dir: Path) -> bool:
     model_dir = target_dir / model_id.replace("/", "--")
     if model_dir.exists():
         # Check for at least one model file
-        model_files = list(model_dir.glob("*.safetensors")) + \
-                      list(model_dir.glob("*.bin")) + \
-                      list(model_dir.glob("*.gguf"))
+        model_files = (
+            list(model_dir.glob("*.safetensors"))
+            + list(model_dir.glob("*.bin"))
+            + list(model_dir.glob("*.gguf"))
+        )
         if model_files:
-            log.info("Model already cached at %s (%d files)", model_dir, len(model_files))
+            log.info(
+                "Model already cached at %s (%d files)", model_dir, len(model_files)
+            )
             return True
     return False
 
@@ -96,7 +100,9 @@ def main():
     model_dir.mkdir(parents=True, exist_ok=True)
 
     source_type = detect_source_type(model_source)
-    log.info("Source type: %s, Model: %s, Target: %s", source_type, model_source, model_dir)
+    log.info(
+        "Source type: %s, Model: %s, Target: %s", source_type, model_source, model_dir
+    )
 
     # Check cache first
     if source_type == "huggingface" and is_already_cached(model_source, model_dir):

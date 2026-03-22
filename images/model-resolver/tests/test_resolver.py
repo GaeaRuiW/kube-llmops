@@ -21,7 +21,12 @@ def load_test_engine_map():
         return yaml.safe_load(f)
 
 
-def make_meta(format="safetensors", quant="none", model_type="text-generation", model_id="test/model"):
+def make_meta(
+    format="safetensors",
+    quant="none",
+    model_type="text-generation",
+    model_id="test/model",
+):
     return ModelMeta(
         model_id=model_id,
         format=format,

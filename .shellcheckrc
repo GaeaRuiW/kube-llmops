@@ -1,0 +1,3 @@
+# Ignore info-level hints that are false positives for our patterns
+# SC2015: A && B || C pattern (we use it intentionally for fallbacks)
+disable=SC2015
