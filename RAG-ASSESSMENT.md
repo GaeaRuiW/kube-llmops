@@ -108,7 +108,126 @@ RAG-PLAN.md 定义了 7 大支柱，全部标记为 "Done"。但实际状态如�
 
 ---
 
-## 四、与竞品的差距分析
+## 四、现代 RAG 技术全景图 vs kube-llmops
+
+> 基于 RAG Survey（arXiv:2312.10997）定义的 Naive RAG → Advanced RAG → Modular RAG 演进路径。
+
+### 4.0 RAG 全技术栈覆盖度
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│                    Pre-Retrieval (查询优化)                         │
+│  Query Rewriting │ HyDE │ Multi-Query │ Sub-Query │ Query Routing  │
+├────────────────────────────────────────────────────────────────────┤
+│                    Indexing (索引构建)                              │
+│  Chunking策略 │ 元数据标注 │ 层级索引 │ 知识图谱(GraphRAG)          │
+├────────────────────────────────────────────────────────────────────┤
+│                    Retrieval (检索)                                 │
+│  Dense(向量) │ Sparse(BM25) │ Hybrid(混合) │ Multi-vector(ColBERT) │
+├────────────────────────────────────────────────────────────────────┤
+│                    Post-Retrieval (后处理)                          │
+│  Reranking │ Context Compression │ Lost-in-the-middle │ 去重/过滤   │
+├────────────────────────────────────────────────────────────────────┤
+│                    Generation (生成)                                │
+│  Faithful生成 │ 引用溯源 │ 流式输出 │ 结构化输出                    │
+├────────────────────────────────────────────────────────────────────┤
+│                    Advanced Patterns (高级模式)                     │
+│  Self-RAG │ Corrective RAG │ Agentic RAG │ Iterative/Recursive     │
+├────────────────────────────────────────────────────────────────────┤
+│                    Quality & Safety (质量与安全)                    │
+│  Evaluation │ Guardrails │ Hallucination Detection │ Content Filter │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+### 4.0.1 Pre-Retrieval（查询优化层）
+
+| 技术 | 说明 | 业界实现 | kube-llmops | 差距 |
+|------|------|---------|------------|------|
+| **Query Rewriting** | LLM 改写用户原始 query 提高检索命中率 | Dify(内置), LangChain(MultiQueryRetriever) | ❌ 无 | P1 |
+| **HyDE** | 让 LLM 生成假设性答案文档，用它去检索 | LlamaIndex(HyDEQueryTransform) | ❌ 无 | P2 |
+| **Multi-Query** | 将一个 query 拆成多个子查询并行检索 | LangChain(MultiQueryRetriever), Dify | ❌ 无 | P1 |
+| **Sub-Question** | 复杂问题分解为多个简单子问题逐个回答 | LlamaIndex(SubQuestionQueryEngine) | ❌ 无 | P2 |
+| **Query Routing** | 根据 query 类型路由到不同知识源/策略 | LangChain(RouterChain), Dify(条件分支) | ❌ 无 | P2 |
+| **Step-back Prompting** | 先问一个更通用的问题获取背景知识 | Google Research | ❌ 无 | P2 |
+
+### 4.0.2 Indexing（索引构建层）
+
+| 技术 | 说明 | 业界实现 | kube-llmops | 差距 |
+|------|------|---------|------------|------|
+| **文档解析** | PDF/Word/PPT/Excel/扫描件 → 纯文本 | RAGFlow(DeepDoc), Dify(Unstructured) | ❌ 无（依赖 Dify） | P0 |
+| **Chunking 策略** | 固定长度/语义分割/递归/文档结构感知 | Dify(4种), RAGFlow(模板化), LangChain(RecursiveTextSplitter) | ❌ 无 | P0 |
+| **元数据标注** | chunk 附加来源、页码、日期、标签 | 所有框架都支持 | ❌ 无 | P1 |
+| **层级索引** | 文档→章节→段落 多层索引,先粗后精 | LlamaIndex(TreeIndex), RAGFlow | ❌ 无 | P2 |
+| **知识图谱 (GraphRAG)** | 文档实体关系抽取→图谱→图检索 | Microsoft GraphRAG, Neo4j+LangChain | ❌ 无 | P2 |
+| **Parent Document Retriever** | 检索小 chunk 但返回其父文档完整上下文 | LangChain(ParentDocumentRetriever) | ❌ 无 | P2 |
+
+### 4.0.3 Retrieval（检索层）
+
+| 技术 | 说明 | 业界实现 | kube-llmops | 差距 |
+|------|------|---------|------------|------|
+| **Dense Retrieval** | 向量相似度检索 (cosine/IP) | 所有向量 DB | ⚠️ pgvector 有 | P0 已有 |
+| **Sparse Retrieval (BM25)** | 传统全文检索 | Elasticsearch, PostgreSQL tsvector | ❌ 未配置 | P1 |
+| **Hybrid Retrieval** | Dense + Sparse 融合得分 | RAGFlow, Dify, Milvus(内置) | ❌ 无 | P1 |
+| **Multi-vector (ColBERT)** | 每个 token 一个向量,延迟交互 | RAGatouille, Jina ColBERT | ❌ 无 | P2 |
+| **Embedding Fine-tuning** | 用领域数据微调 embedding 模型 | Sentence-Transformers, TEI | ❌ 无 | P2 |
+
+### 4.0.4 Post-Retrieval（后处理层）
+
+| 技术 | 说明 | 业界实现 | kube-llmops | 差距 |
+|------|------|---------|------------|------|
+| **Reranking** | Cross-encoder 对检索结果重排序 | Cohere Rerank, bge-reranker, TEI rerank mode | ❌ 无 | P1 |
+| **Context Compression** | 压缩检索到的文档,只保留相关部分 | LangChain(ContextualCompressionRetriever) | ❌ 无 | P2 |
+| **Lost-in-the-middle** | 重排文档顺序避免 LLM 忽略中间内容 | LangChain(LongContextReorder) | ❌ 无 | P2 |
+| **去重/过滤** | 去除重复或低相关度的检索结果 | 所有框架 | ❌ 无 | P1 |
+
+### 4.0.5 Generation（生成层）
+
+| 技术 | 说明 | 业界实现 | kube-llmops | 差距 |
+|------|------|---------|------------|------|
+| **Faithful 生成** | 约束 LLM 只基于检索到的上下文回答 | RAG prompt engineering | ⚠️ 有 strict prompt 模板 | 部分有 |
+| **引用溯源 (Citation)** | 生成答案时标注来自哪个文档哪个段落 | RAGFlow(核心功能), Perplexity | ❌ 无 | P1 |
+| **流式输出 (Streaming)** | SSE/WebSocket 实时返回 token | LiteLLM 支持 | ⚠️ LiteLLM 层面支持 | 部分有 |
+| **结构化输出** | 强制输出 JSON/表格/固定 schema | LiteLLM(response_format) | ⚠️ 可通过参数实现 | 部分有 |
+
+### 4.0.6 Advanced Patterns（高级 RAG 模式）
+
+| 模式 | 说明 | 业界实现 | kube-llmops | 差距 |
+|------|------|---------|------------|------|
+| **Self-RAG** | LLM 自己决定是否需要检索、何时检索 | Self-RAG 论文, LangGraph | ❌ 无 | P2 |
+| **Corrective RAG (CRAG)** | 检索后评估文档质量,不合格则重新检索或用网络搜索 | CRAG 论文, LangGraph | ❌ 无 | P2 |
+| **Agentic RAG** | Agent 动态规划检索策略、选择工具、多步推理 | LangGraph, Dify(Workflow), CrewAI | ❌ 无 | P2 |
+| **Iterative Retrieval** | 多轮检索,每轮基于上轮结果细化 | LlamaIndex(IterativeRetrieval) | ❌ 无 | P2 |
+| **Recursive Retrieval** | 递归分解问题+检索,适合多跳推理 | LlamaIndex(RecursiveRetriever) | ❌ 无 | P2 |
+| **Multi-modal RAG** | 处理图片/表格/音频等非文本内容 | RAGFlow(图片理解), GPT-4V | ❌ 无 | P2 |
+
+### 4.0.7 Quality & Safety（质量与安全层）
+
+| 技术 | 说明 | 业界实现 | kube-llmops | 差距 |
+|------|------|---------|------------|------|
+| **Faithfulness 评估** | 答案是否忠于检索上下文 | Ragas, DeepEval, TruLens | ⚠️ 仅关键词匹配 | P1 |
+| **Relevance 评估** | 检索结果是否与问题相关 | Ragas(Context Precision/Recall) | ⚠️ 同上 | P1 |
+| **Hallucination Detection** | 识别答案中无上下文支撑的声称 | Ragas(Faithfulness), NVIDIA NeMo | ❌ 无 | P1 |
+| **Guardrails** | 输入/输出安全防护(注入攻击/敏感内容) | NVIDIA NeMo Guardrails, Guardrails AI, LLM-Guard | ❌ 无 | P2 |
+| **Regression Testing** | 数据/模型/prompt 变更后自动回归测试 | Ragas + CI/CD | ❌ 无 | P1 |
+| **知识库级别 RBAC** | 不同用户/部门只能访问授权的知识库 | LazyLLM, Dify(企业版) | ❌ 无 | P2 |
+| **敏感词过滤** | 检测并阻断输出中的敏感/违规内容 | NVIDIA NeMo, Azure AI Content Safety | ❌ 无 | P2 |
+
+### 4.0.8 技术覆盖度汇总
+
+| 层 | 技术项总数 | kube-llmops 已有 | 覆盖率 |
+|----|----------|-----------------|--------|
+| Pre-Retrieval | 6 | 0 | **0%** |
+| Indexing | 6 | 0 | **0%** |
+| Retrieval | 5 | 1 (pgvector) | **20%** |
+| Post-Retrieval | 4 | 0 | **0%** |
+| Generation | 4 | 2 (prompt+streaming) | **50%** |
+| Advanced Patterns | 6 | 0 | **0%** |
+| Quality & Safety | 7 | 0.5 (keyword eval) | **7%** |
+| **总计** | **38** | **3.5** | **9%** |
+
+---
+
+## 五、与竞品的差距分析
 
 ### 4.1 vs Dify (内置 RAG)
 
