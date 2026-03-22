@@ -37,16 +37,13 @@ litellm:
 observability:
   enabled: true
   otelCollector:
-    enabled: true
+    enabled: false     # Keep CI minimal
   prometheus:
     enabled: true
     storage:
       size: 1Gi
   grafana:
-    enabled: true
-    adminPassword: admin
-    storage:
-      size: 1Gi
+    enabled: false     # Keep CI minimal
   dcgmExporter:
     enabled: false    # No GPU
 
