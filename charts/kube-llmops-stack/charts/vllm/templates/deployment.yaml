@@ -220,7 +220,7 @@ spec:
 
               # 3. Get available memory
               free, total = torch.cuda.mem_get_info()
-              gpu_util = {{ $model.engineArgs | dig "--gpu-memory-utilization" "0.8" }}
+              gpu_util = {{ (default dict $model.engineArgs) | dig "--gpu-memory-utilization" "0.8" }}
               budget = total * gpu_util
 
               # 4. Estimate model weight size from files
