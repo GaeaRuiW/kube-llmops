@@ -224,7 +224,101 @@ rag:
 
 ---
 
-## 三、明确不做什么
+## 三、RAG Smoke Test：infra 层的 e2e 验证
+
+### 问题
+
+如果我们完全不碰应用层，怎么证明 infra 是通的？
+
+- TEI 部署了，向量对不对？不知道
+- pgvector + tsvector 混合检索配了，能跑通吗？不知道
+- Ragas CronJob 跑了，eval LLM 能通过 LiteLLM 调通吗？不知道
+- LLM-Guard sidecar 挂了之后 LiteLLM 还能不能正常工作？不知道
+
+**纯 infra 项目也需要 e2e 验证，但我们的验证方式不是做一个 RAG 产品，而是做一个 smoke test Job。**
+
+### 类比
+
+| 项目 | 产品 | 验证工具 |
+|------|------|---------|
+| PostgreSQL | 数据库引擎 | `pg_bench`（不是产品，是基准测试） |
+| Kubernetes | 容器编排 | `sonobuoy`（不是应用，是一致性测试） |
+| Prometheus | 监控系统 | `promtool check` + `prometheus --test` |
+| **kube-llmops** | **LLMOps 平台** | **`rag-smoke-test` Job** |
+
+### 设计：rag-smoke-test Job
+
+一个 K8s Job，在 `helm install` 后自动（或手动）运行，验证 RAG 基础设施链路：
+
+```
+rag-smoke-test Job (Python 镜像, ~50 行代码)
+  │
+  ├─ Step 1: Embedding 验证
+  │  POST LiteLLM /v1/embeddings {"input":"test","model":"bge-m3"}
+  │  断言: 返回 1024 维向量
+  │
+  ├─ Step 2: 向量写入验证
+  │  INSERT INTO vectors (embedding, content, metadata)
+  │  断言: 写入成功
+  │
+  ├─ Step 3: 混合检索验证
+  │  SELECT * FROM hybrid_search('test query')
+  │  断言: 返回结果, dense score + sparse score 都有值
+  │
+  ├─ Step 4: Reranking 验证 (如果 reranking.enabled)
+  │  POST /rerank {"query":"...", "documents":[...]}
+  │  断言: 返回重排序结果
+  │
+  ├─ Step 5: LLM Generation 验证
+  │  POST LiteLLM /v1/chat/completions (带 context)
+  │  断言: 返回基于 context 的回答
+  │
+  ├─ Step 6: Langfuse Trace 验证
+  │  GET Langfuse /api/public/traces?limit=1
+  │  断言: trace 存在, 有 embed + retrieve + generate spans
+  │
+  ├─ Step 7: Guardrails 验证 (如果 guardrails.enabled)
+  │  POST LiteLLM (包含 prompt injection payload)
+  │  断言: 被拦截, 返回 4xx
+  │
+  └─ Step 8: 推 Prometheus 指标
+     rag_smoke_test_success{step="all"} 1
+     rag_smoke_test_latency_seconds{step="embedding"} 0.15
+```
+
+### 交付形态
+
+```yaml
+# values.yaml
+rag:
+  smokeTest:
+    enabled: true           # helm install 后自动跑
+    schedule: ""            # 空=一次性 Job，非空=CronJob（如 "0 6 * * *"）
+    image: python:3.11-slim # 内联脚本，不依赖自建镜像
+```
+
+### 关键原则
+
+1. **这不是 RAG 产品**——没有 UI、没有知识库管理、没有对话接口
+2. **这是基础设施测试**——和 `pg_bench` 一样，验证组件能力，不提供用户功能
+3. **自包含**——Job 自带测试数据（3 段短文本），不依赖外部数据源
+4. **幂等**——多次运行不互相影响，用固定 namespace/collection 隔离
+5. **结果可观测**——Prometheus 指标 + Grafana panel（"RAG Infra Health"）
+
+### 与 Ragas Eval 的区别
+
+| | rag-smoke-test | Ragas Eval CronJob |
+|---|---|---|
+| **验证什么** | infra 组件能不能连通 | RAG 回答质量好不好 |
+| **运行频率** | 部署后一次 / 每日 | 每日 / 每次数据更新 |
+| **需要 LLM** | 是（生成验证） | 是（LLM-as-judge） |
+| **需要真实数据** | 否（自带 3 条测试文本） | 是（eval dataset） |
+| **失败含义** | "基础设施坏了" | "RAG 质量下降了" |
+| **类比** | `kubectl get componentstatus` | `stress test / benchmark` |
+
+---
+
+## 四、明确不做什么
 
 以下能力属于 RAG 应用层，**不是 kube-llmops 的范围**：
 
@@ -246,7 +340,7 @@ rag:
 
 ---
 
-## 四、交付形态
+## 五、交付形态
 
 每个 RAG 能力的交付标准：
 
@@ -263,7 +357,7 @@ rag:
 
 ---
 
-## 五、排期建议
+## 六、排期建议
 
 | Phase | 内容 | 时间 | 效果 |
 |-------|------|------|------|
