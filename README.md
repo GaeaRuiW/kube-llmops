@@ -106,7 +106,7 @@ helm install kube-llmops kube-llmops/kube-llmops-stack \
 
 # If no real domain, add to /etc/hosts:
 NODE_IP=$(kubectl get node -o jsonpath='{.items[0].status.addresses[0].address}')
-echo "$NODE_IP litellm.llmops.local grafana.llmops.local langfuse.llmops.local dify.llmops.local keycloak.llmops.local minio.llmops.local prometheus.llmops.local" | sudo tee -a /etc/hosts
+echo "$NODE_IP litellm.llmops.local grafana.llmops.local langfuse.llmops.local keycloak.llmops.local minio.llmops.local prometheus.llmops.local" | sudo tee -a /etc/hosts
 ```
 
 | Service | Ingress URL | Default Credentials |
@@ -114,7 +114,6 @@ echo "$NODE_IP litellm.llmops.local grafana.llmops.local langfuse.llmops.local d
 | **LiteLLM** (AI Gateway) | `http://litellm.llmops.local` | any username / `sk-kube-llmops-dev` |
 | **Grafana** (Dashboards) | `http://grafana.llmops.local` | `admin` / `admin123!` |
 | **Langfuse** (LLM Tracing) | `http://langfuse.llmops.local` | `admin@kube-llmops.local` / `admin123!` |
-| **Dify** (RAG Platform) | `http://dify.llmops.local` | First-time registration |
 | **Keycloak** (SSO) | `http://keycloak.llmops.local` | `admin` / `admin123!` |
 | **MinIO** (Object Storage) | `http://minio.llmops.local` | `minioadmin` / `minioadmin` |
 | **Prometheus** (Metrics) | `http://prometheus.llmops.local` | No auth |
@@ -177,8 +176,8 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &
 ## Roadmap
 
 - [x] **v0.1.0 (MVP)** -- Model serving + Gateway + Metrics + Tracing
-- [x] **v0.2.0** -- Logging + Autoscaling + Model cache + Security
-- [x] **v0.3.0** -- RAG infra (pgvector + Milvus + multi-tenancy + backup/restore)
+- [x] **v0.2.0** -- Langfuse v3 + Keycloak SSO + Infra automation + NodePort
+- [ ] **v0.3.0** -- RAG infra (Dify + pgvector + embedding service + eval pipeline)
 - [ ] **v0.4.0** -- Fine-tuning + ML platform
 - [ ] **v0.5.0** -- Disaggregated serving (llm-d)
 - [ ] **v1.0.0** -- Operator + CLI + Dashboard

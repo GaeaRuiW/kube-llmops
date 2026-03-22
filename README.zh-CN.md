@@ -106,7 +106,7 @@ helm install kube-llmops kube-llmops/kube-llmops-stack \
 
 # 如果没有真实域名，添加 hosts 映射：
 NODE_IP=$(kubectl get node -o jsonpath='{.items[0].status.addresses[0].address}')
-echo "$NODE_IP litellm.llmops.local grafana.llmops.local langfuse.llmops.local dify.llmops.local keycloak.llmops.local minio.llmops.local prometheus.llmops.local" | sudo tee -a /etc/hosts
+echo "$NODE_IP litellm.llmops.local grafana.llmops.local langfuse.llmops.local keycloak.llmops.local minio.llmops.local prometheus.llmops.local" | sudo tee -a /etc/hosts
 ```
 
 | 服务 | Ingress 地址 | 默认凭据 |
@@ -114,7 +114,6 @@ echo "$NODE_IP litellm.llmops.local grafana.llmops.local langfuse.llmops.local d
 | **LiteLLM**（AI 网关） | `http://litellm.llmops.local` | 任意用户名 / `sk-kube-llmops-dev` |
 | **Grafana**（监控仪表盘） | `http://grafana.llmops.local` | `admin` / `admin123!` |
 | **Langfuse**（LLM 调用追踪） | `http://langfuse.llmops.local` | `admin@kube-llmops.local` / `admin123!` |
-| **Dify**（RAG 平台） | `http://dify.llmops.local` | 首次注册 |
 | **Keycloak**（SSO 管理） | `http://keycloak.llmops.local` | `admin` / `admin123!` |
 | **MinIO**（对象存储） | `http://minio.llmops.local` | `minioadmin` / `minioadmin` |
 | **Prometheus**（指标） | `http://prometheus.llmops.local` | 无需认证 |
@@ -177,8 +176,8 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &
 ## 路线图
 
 - [x] **v0.1.0（MVP）** -- 模型推理服务 + 网关 + 指标监控 + 调用追踪
-- [x] **v0.2.0** -- 日志 + 自动扩缩容 + 模型缓存 + 安全加固
-- [x] **v0.3.0** -- RAG 基础设施（pgvector + Milvus + 多租户 + 备份/恢复）
+- [x] **v0.2.0** -- Langfuse v3 + Keycloak SSO + 基础设施自动化 + NodePort
+- [ ] **v0.3.0** -- RAG 基础设施（Dify + pgvector + embedding 服务 + 评估流水线）
 - [ ] **v0.4.0** -- 微调 + ML 平台
 - [ ] **v0.5.0** -- 解耦式推理服务（llm-d）
 - [ ] **v1.0.0** -- Operator + CLI + 可视化面板
