@@ -227,6 +227,97 @@ RAG-PLAN.md 定义了 7 大支柱，全部标记为 "Done"。但实际状态如�
 
 ---
 
+### 4.0.9 企业级解决方案选型指南
+
+每个技术层不是"要不要做"的问题，而是"用什么方案做"的问题。以下是各层的主流企业级方案：
+
+#### Pre-Retrieval（查询优化）
+
+| 技术 | 开源可私有化方案 | 云端 SaaS 方案 | kube-llmops 建议路径 |
+|------|-----------------|---------------|---------------------|
+| Query Rewriting | Dify（内置 Query Rewrite 节点）, LangChain MultiQueryRetriever | Azure AI Search (semantic) | **通过 Dify Workflow 或 LiteLLM 前置 prompt 实现** |
+| HyDE | LlamaIndex HyDEQueryTransform | N/A (自建) | 作为 RAG example 的高级选项提供 |
+| Multi-Query | LangChain, Dify 并行分支 | AWS Bedrock KB (自动) | Dify Workflow 并行节点 |
+| Query Routing | LangChain RouterChain, Dify 条件分支 | Azure AI Search (多索引) | LiteLLM model routing 已有基础，扩展到检索路由 |
+
+#### Indexing（索引构建）
+
+| 技术 | 开源可私有化方案 | 云端 SaaS 方案 | kube-llmops 建议路径 |
+|------|-----------------|---------------|---------------------|
+| 文档解析 | **Unstructured.io**（Apache 2.0）, RAGFlow DeepDoc, Apache Tika | AWS Textract, Azure Document Intelligence, Google Document AI | **Unstructured.io 作为 sidecar 或 Job 集成** |
+| Chunking | Dify（4 种策略）, LangChain RecursiveTextSplitter, **Chonkie**（新锐轻量库） | 各云端 KB 内置 | **Dify 内置已覆盖，或独立 Chonkie Job** |
+| 元数据标注 | 所有框架原生支持 | 所有云端 KB 内置 | pgvector JSONB 已支持，需模板化 |
+| 知识图谱 (GraphRAG) | **Microsoft GraphRAG**（MIT）, Neo4j + LangChain, **LightRAG** | AWS Neptune Analytics, Azure AI Search (graph) | P2：GraphRAG 作为可选子 chart |
+| 层级索引 | LlamaIndex TreeIndex | LlamaCloud | P2 |
+
+#### Retrieval（检索）
+
+| 技术 | 开源可私有化方案 | 云端 SaaS 方案 | kube-llmops 建议路径 |
+|------|-----------------|---------------|---------------------|
+| Dense Retrieval | **pgvector**（已有）, Milvus, Qdrant, Weaviate, Chroma | Pinecone, Zilliz Cloud | **pgvector 已有 ✅** |
+| Sparse (BM25) | PostgreSQL `tsvector`/`tsquery`（已有 PG）, Elasticsearch, **Tantivy** | Azure AI Search, Elastic Cloud | **PostgreSQL tsvector，零额外依赖** |
+| Hybrid Retrieval | pgvector + tsvector（同一 PG 实例）, Milvus（内置混合检索）| Pinecone (hybrid), Weaviate (BM25F) | **P1：同一 PG 实例内 dense+sparse 融合** |
+| Reranking | **Cohere Rerank**（API）, **bge-reranker**（本地）, TEI rerank mode, **Jina Reranker** | Cohere Rerank API, AWS Bedrock Rerank | **P1：TEI rerank 模式或 bge-reranker 独立服务** |
+| Multi-vector (ColBERT) | RAGatouille, Jina ColBERT v2 | Jina Search API | P2 |
+
+#### Post-Retrieval（后处理）
+
+| 技术 | 开源可私有化方案 | 云端 SaaS 方案 | kube-llmops 建议路径 |
+|------|-----------------|---------------|---------------------|
+| Context Compression | LangChain ContextualCompression, LLMLingua | N/A | 通过 LiteLLM prompt 中间件实现 |
+| Lost-in-the-middle | LangChain LongContextReorder | N/A | prompt 模板层面处理 |
+| 去重/过滤 | 自定义逻辑 | 各云端 KB 内置 | pgvector 查询时加 metadata filter |
+
+#### Quality & Evaluation（质量评估）
+
+| 技术 | 开源可私有化方案 | 云端 SaaS 方案 | kube-llmops 建议路径 |
+|------|-----------------|---------------|---------------------|
+| RAG 评估框架 | **Ragas**（最成熟）, DeepEval, TruLens | LangSmith Eval, Arize Phoenix | **P1：Ragas 集成为 K8s CronJob** |
+| Faithfulness | Ragas Faithfulness metric | LangSmith | Ragas |
+| Context Precision/Recall | Ragas 两大核心指标 | LangSmith | Ragas |
+| Hallucination Detection | Ragas + **Vectara HHEM**（hallucination model）| NVIDIA NeMo Guardrails | **Ragas + HHEM 模型做 Prometheus 指标** |
+| Regression Testing | Ragas + GitHub Actions | LangSmith Datasets | **已有 rag-eval.yaml workflow，升级评分逻辑即可** |
+
+#### Guardrails（安全防护）
+
+| 技术 | 开源可私有化方案 | 云端 SaaS 方案 | kube-llmops 建议路径 |
+|------|-----------------|---------------|---------------------|
+| Input/Output Guardrails | **NVIDIA NeMo Guardrails**（Apache 2.0）, **Guardrails AI**, **LLM-Guard**（MIT） | Azure AI Content Safety, AWS Bedrock Guardrails | **P2：LLM-Guard 作为 LiteLLM 中间件** |
+| Prompt Injection 防护 | LLM-Guard, Rebuff | Azure AI | 同上 |
+| PII 检测/脱敏 | Microsoft Presidio（MIT）, LLM-Guard | AWS Macie, Azure AI | Presidio sidecar |
+| 敏感词过滤 | 自定义词表 + LLM-Guard | 各云厂商 | LLM-Guard |
+
+#### 可观测性
+
+| 技术 | 开源可私有化方案 | 云端 SaaS 方案 | kube-llmops 建议路径 |
+|------|-----------------|---------------|---------------------|
+| LLM Tracing | **Langfuse**（已有 ✅）, Arize Phoenix, OpenLLMetry | LangSmith, Datadog LLM | Langfuse ✅ |
+| RAG Trace Spans | Langfuse manual spans, OpenTelemetry semantic conventions | LangSmith | **P1：RAG example 中增加 embed/retrieve/generate spans** |
+| 质量监控 Dashboard | **Grafana**（已有 ✅）+ Ragas metrics | LangSmith Dashboard | **P1：Ragas → Prometheus → Grafana** |
+
+---
+
+### 4.1 云端 RAG 全托管方案对比
+
+kube-llmops 的定位是**私有化部署**，以下是它对标的云端全托管方案：
+
+| 能力 | AWS Bedrock KB | Azure AI Search | Google Vertex AI Search | kube-llmops 目标 |
+|------|---------------|-----------------|------------------------|-----------------|
+| 文档上传→RAG 问答 | ✅ 全自动 | ✅ 全自动 | ✅ 全自动 | **通过 Dify + LiteLLM 实现** |
+| 向量存储 | OpenSearch Serverless | Azure AI Search | Vertex Vector Search | pgvector + Milvus |
+| Embedding | Titan/Cohere | OpenAI/Cohere | Gecko | TEI (本地) / LiteLLM (路由) |
+| Reranking | ✅ 内置 | ✅ Semantic Ranker | ✅ 内置 | TEI rerank / Cohere API |
+| 知识图谱 | Neptune Analytics | ❌ | ❌ | GraphRAG (P2) |
+| Guardrails | ✅ Bedrock Guardrails | ✅ Content Safety | ❌ | LLM-Guard (P2) |
+| 引用溯源 | ✅ 内置 | ✅ 内置 | ✅ 内置 | RAGFlow / Dify |
+| 多模态 RAG | ✅ 图片+文档 | ❌ | ✅ 多模态 | ❌ (P2) |
+| 私有化部署 | ❌ 纯云 | ❌ 纯云 | ❌ 纯云 | **✅ 核心优势** |
+| 成本 | 按用量计费 | 按用量计费 | 按用量计费 | 自有硬件零边际成本 |
+
+**kube-llmops 的差异化价值**：这些云方案都做不了私有化。金融、医疗、政府、军工等数据不能出境的场景，需要我们提供同等能力的私有化方案。
+
+---
+
 ## 五、与竞品的差距分析
 
 ### 4.1 vs Dify (内置 RAG)
