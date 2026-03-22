@@ -25,7 +25,12 @@
   "panels": [
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "id": 100,
       "panels": [],
       "title": "Overview",
@@ -34,7 +39,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "PBFA97CFB590B2093"
       },
       "description": "Total request rate across all vLLM instances (requests per second)",
       "fieldConfig": {
@@ -46,16 +51,30 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 50 },
-              { "color": "red", "value": 100 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
             ]
           },
           "unit": "reqps"
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 1
+      },
       "id": 1,
       "options": {
         "colorMode": "background",
@@ -63,7 +82,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -72,16 +93,13 @@
       "pluginVersion": "10.2.0",
       "targets": [
         {
+          "expr": "sum(rate(vllm_request_success_total{model_name=~\"$model\"}[5m]))",
+          "legendFormat": "",
+          "refId": "A",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(vllm_request_success_total[5m]))",
-          "instant": false,
-          "legendFormat": "Request Rate",
-          "range": true,
-          "refId": "A"
+            "uid": "PBFA97CFB590B2093"
+          }
         }
       ],
       "title": "Request Rate",
@@ -90,7 +108,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "PBFA97CFB590B2093"
       },
       "description": "Number of requests currently being processed",
       "fieldConfig": {
@@ -102,16 +120,30 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 20 },
-              { "color": "red", "value": 50 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 20
+              },
+              {
+                "color": "red",
+                "value": 50
+              }
             ]
           },
           "unit": "none"
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 1
+      },
       "id": 2,
       "options": {
         "colorMode": "background",
@@ -119,7 +151,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -128,16 +162,13 @@
       "pluginVersion": "10.2.0",
       "targets": [
         {
+          "expr": "sum(vllm_num_requests_running{model_name=~\"$model\"})",
+          "legendFormat": "",
+          "refId": "A",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum(vllm_num_requests_running)",
-          "instant": false,
-          "legendFormat": "Running",
-          "range": true,
-          "refId": "A"
+            "uid": "PBFA97CFB590B2093"
+          }
         }
       ],
       "title": "Running Requests",
@@ -146,7 +177,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "PBFA97CFB590B2093"
       },
       "description": "Number of requests waiting in the queue to be processed",
       "fieldConfig": {
@@ -158,16 +189,30 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "orange", "value": 5 },
-              { "color": "red", "value": 20 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 5
+              },
+              {
+                "color": "red",
+                "value": 20
+              }
             ]
           },
           "unit": "none"
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 1
+      },
       "id": 3,
       "options": {
         "colorMode": "background",
@@ -175,7 +220,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -184,16 +231,13 @@
       "pluginVersion": "10.2.0",
       "targets": [
         {
+          "expr": "sum(vllm_num_requests_waiting{model_name=~\"$model\"})",
+          "legendFormat": "",
+          "refId": "A",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum(vllm_num_requests_waiting)",
-          "instant": false,
-          "legendFormat": "Waiting",
-          "range": true,
-          "refId": "A"
+            "uid": "PBFA97CFB590B2093"
+          }
         }
       ],
       "title": "Waiting Requests",
@@ -202,7 +246,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "PBFA97CFB590B2093"
       },
       "description": "Percentage of KV cache memory currently in use. High usage may cause request queuing.",
       "fieldConfig": {
@@ -216,17 +260,34 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 0.7 },
-              { "color": "orange", "value": 0.85 },
-              { "color": "red", "value": 0.95 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.7
+              },
+              {
+                "color": "orange",
+                "value": 0.85
+              },
+              {
+                "color": "red",
+                "value": 0.95
+              }
             ]
           },
           "unit": "percentunit"
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 1
+      },
       "id": 4,
       "options": {
         "colorMode": "background",
@@ -234,7 +295,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -243,16 +306,13 @@
       "pluginVersion": "10.2.0",
       "targets": [
         {
+          "expr": "avg(vllm_kv_cache_usage_perc{model_name=~\"$model\"})",
+          "legendFormat": "",
+          "refId": "A",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "avg(vllm_kv_cache_usage_perc)",
-          "instant": false,
-          "legendFormat": "KV Cache Usage",
-          "range": true,
-          "refId": "A"
+            "uid": "PBFA97CFB590B2093"
+          }
         }
       ],
       "title": "KV Cache Usage",
@@ -260,7 +320,12 @@
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
       "id": 101,
       "panels": [],
       "title": "Latency",
@@ -269,7 +334,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "PBFA97CFB590B2093"
       },
       "description": "End-to-end request latency percentiles (p50, p95, p99)",
       "fieldConfig": {
@@ -295,48 +360,97 @@
             "lineInterpolation": "smooth",
             "lineWidth": 2,
             "pointSize": 5,
-            "scaleDistribution": { "type": "linear" },
+            "scaleDistribution": {
+              "type": "linear"
+            },
             "showPoints": "never",
             "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "red", "value": 80 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
             ]
           },
           "unit": "s"
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "p99" },
+            "matcher": {
+              "id": "byName",
+              "options": "p99"
+            },
             "properties": [
-              { "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "p95" },
+            "matcher": {
+              "id": "byName",
+              "options": "p95"
+            },
             "properties": [
-              { "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "p50" },
+            "matcher": {
+              "id": "byName",
+              "options": "p50"
+            },
             "properties": [
-              { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
             ]
           }
         ]
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 6
+      },
       "id": 5,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -349,40 +463,31 @@
       "pluginVersion": "10.2.0",
       "targets": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.50, sum(rate(vllm_e2e_request_latency_seconds_bucket[5m])) by (le))",
-          "instant": false,
+          "expr": "histogram_quantile(0.50, sum(rate(vllm_e2e_request_latency_seconds_bucket{model_name=~\"$model\"}[5m])) by (le))",
           "legendFormat": "p50",
-          "range": true,
-          "refId": "A"
-        },
-        {
+          "refId": "A",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(vllm_e2e_request_latency_seconds_bucket[5m])) by (le))",
-          "instant": false,
+            "uid": "PBFA97CFB590B2093"
+          }
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(vllm_e2e_request_latency_seconds_bucket{model_name=~\"$model\"}[5m])) by (le))",
           "legendFormat": "p95",
-          "range": true,
-          "refId": "B"
-        },
-        {
+          "refId": "B",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum(rate(vllm_e2e_request_latency_seconds_bucket[5m])) by (le))",
-          "instant": false,
+            "uid": "PBFA97CFB590B2093"
+          }
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(vllm_e2e_request_latency_seconds_bucket{model_name=~\"$model\"}[5m])) by (le))",
           "legendFormat": "p99",
-          "range": true,
-          "refId": "C"
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
         }
       ],
       "title": "E2E Request Latency",
@@ -391,7 +496,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "PBFA97CFB590B2093"
       },
       "description": "Time to first token percentiles (p50, p95, p99). Measures how quickly the model starts generating output.",
       "fieldConfig": {
@@ -417,48 +522,97 @@
             "lineInterpolation": "smooth",
             "lineWidth": 2,
             "pointSize": 5,
-            "scaleDistribution": { "type": "linear" },
+            "scaleDistribution": {
+              "type": "linear"
+            },
             "showPoints": "never",
             "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "red", "value": 80 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
             ]
           },
           "unit": "s"
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "p99" },
+            "matcher": {
+              "id": "byName",
+              "options": "p99"
+            },
             "properties": [
-              { "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "p95" },
+            "matcher": {
+              "id": "byName",
+              "options": "p95"
+            },
             "properties": [
-              { "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "p50" },
+            "matcher": {
+              "id": "byName",
+              "options": "p50"
+            },
             "properties": [
-              { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
             ]
           }
         ]
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 6
+      },
       "id": 6,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -471,40 +625,31 @@
       "pluginVersion": "10.2.0",
       "targets": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.50, sum(rate(vllm_time_to_first_token_seconds_bucket[5m])) by (le))",
-          "instant": false,
+          "expr": "histogram_quantile(0.50, sum(rate(vllm_time_to_first_token_seconds_bucket{model_name=~\"$model\"}[5m])) by (le))",
           "legendFormat": "p50",
-          "range": true,
-          "refId": "A"
-        },
-        {
+          "refId": "A",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(vllm_time_to_first_token_seconds_bucket[5m])) by (le))",
-          "instant": false,
+            "uid": "PBFA97CFB590B2093"
+          }
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(vllm_time_to_first_token_seconds_bucket{model_name=~\"$model\"}[5m])) by (le))",
           "legendFormat": "p95",
-          "range": true,
-          "refId": "B"
-        },
-        {
+          "refId": "B",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum(rate(vllm_time_to_first_token_seconds_bucket[5m])) by (le))",
-          "instant": false,
+            "uid": "PBFA97CFB590B2093"
+          }
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(vllm_time_to_first_token_seconds_bucket{model_name=~\"$model\"}[5m])) by (le))",
           "legendFormat": "p99",
-          "range": true,
-          "refId": "C"
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
         }
       ],
       "title": "Time to First Token (TTFT)",
@@ -512,7 +657,12 @@
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 14
+      },
       "id": 102,
       "panels": [],
       "title": "Throughput",
@@ -521,7 +671,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "PBFA97CFB590B2093"
       },
       "description": "Token throughput rate: prompt tokens ingested and generation tokens produced per second",
       "fieldConfig": {
@@ -547,41 +697,78 @@
             "lineInterpolation": "smooth",
             "lineWidth": 2,
             "pointSize": 5,
-            "scaleDistribution": { "type": "linear" },
+            "scaleDistribution": {
+              "type": "linear"
+            },
             "showPoints": "never",
             "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           },
           "unit": "short"
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Prompt Tokens/s" },
+            "matcher": {
+              "id": "byName",
+              "options": "Prompt Tokens/s"
+            },
             "properties": [
-              { "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "Generation Tokens/s" },
+            "matcher": {
+              "id": "byName",
+              "options": "Generation Tokens/s"
+            },
             "properties": [
-              { "id": "color", "value": { "fixedColor": "purple", "mode": "fixed" } }
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "purple",
+                  "mode": "fixed"
+                }
+              }
             ]
           }
         ]
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 15
+      },
       "id": 7,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -594,28 +781,22 @@
       "pluginVersion": "10.2.0",
       "targets": [
         {
+          "expr": "sum(rate(vllm_prompt_tokens_total{model_name=~\"$model\"}[5m]))",
+          "legendFormat": "Prompt Tokens/s",
+          "refId": "A",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(vllm_prompt_tokens_total[5m]))",
-          "instant": false,
-          "legendFormat": "Prompt Tokens/s",
-          "range": true,
-          "refId": "A"
+            "uid": "PBFA97CFB590B2093"
+          }
         },
         {
+          "expr": "sum(rate(vllm_generation_tokens_total{model_name=~\"$model\"}[5m]))",
+          "legendFormat": "Generation Tokens/s",
+          "refId": "B",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(vllm_generation_tokens_total[5m]))",
-          "instant": false,
-          "legendFormat": "Generation Tokens/s",
-          "range": true,
-          "refId": "B"
+            "uid": "PBFA97CFB590B2093"
+          }
         }
       ],
       "title": "Token Throughput",
@@ -624,7 +805,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "PBFA97CFB590B2093"
       },
       "description": "Average number of tokens per request for both prompt (input) and generation (output)",
       "fieldConfig": {
@@ -650,41 +831,78 @@
             "lineInterpolation": "smooth",
             "lineWidth": 2,
             "pointSize": 5,
-            "scaleDistribution": { "type": "linear" },
+            "scaleDistribution": {
+              "type": "linear"
+            },
             "showPoints": "never",
             "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           },
           "unit": "short"
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Avg Prompt Tokens" },
+            "matcher": {
+              "id": "byName",
+              "options": "Avg Prompt Tokens"
+            },
             "properties": [
-              { "id": "color", "value": { "fixedColor": "semi-dark-blue", "mode": "fixed" } }
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "semi-dark-blue",
+                  "mode": "fixed"
+                }
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "Avg Generation Tokens" },
+            "matcher": {
+              "id": "byName",
+              "options": "Avg Generation Tokens"
+            },
             "properties": [
-              { "id": "color", "value": { "fixedColor": "semi-dark-purple", "mode": "fixed" } }
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "semi-dark-purple",
+                  "mode": "fixed"
+                }
+              }
             ]
           }
         ]
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 15
+      },
       "id": 8,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -697,28 +915,22 @@
       "pluginVersion": "10.2.0",
       "targets": [
         {
+          "expr": "sum(rate(vllm_request_prompt_tokens_sum{model_name=~\"$model\"}[5m])) / sum(rate(vllm_request_prompt_tokens_count{model_name=~\"$model\"}[5m]))",
+          "legendFormat": "Avg Prompt Tokens",
+          "refId": "A",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(vllm_request_prompt_tokens_sum[5m])) / sum(rate(vllm_request_prompt_tokens_count[5m]))",
-          "instant": false,
-          "legendFormat": "Avg Prompt Tokens",
-          "range": true,
-          "refId": "A"
+            "uid": "PBFA97CFB590B2093"
+          }
         },
         {
+          "expr": "sum(rate(vllm_request_generation_tokens_sum{model_name=~\"$model\"}[5m])) / sum(rate(vllm_request_generation_tokens_count{model_name=~\"$model\"}[5m]))",
+          "legendFormat": "Avg Generation Tokens",
+          "refId": "B",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(vllm_request_generation_tokens_sum[5m])) / sum(rate(vllm_request_generation_tokens_count[5m]))",
-          "instant": false,
-          "legendFormat": "Avg Generation Tokens",
-          "range": true,
-          "refId": "B"
+            "uid": "PBFA97CFB590B2093"
+          }
         }
       ],
       "title": "Tokens per Request",
@@ -728,17 +940,64 @@
   "refresh": "10s",
   "schemaVersion": 39,
   "style": "dark",
-  "tags": ["vllm", "llm", "inference", "model-serving"],
+  "tags": [
+    "vllm",
+    "llm",
+    "inference",
+    "model-serving"
+  ],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "definition": "label_values(vllm_request_success_total, model_name)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "model",
+        "options": [],
+        "query": {
+          "query": "label_values(vllm_request_success_total, model_name)",
+          "refId": "A"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
   },
   "time": {
     "from": "now-1h",
     "to": "now"
   },
   "timepicker": {
-    "refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h"],
-    "time_options": ["5m", "15m", "1h", "6h", "12h", "24h", "2d", "7d", "30d"]
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h"
+    ],
+    "time_options": [
+      "5m",
+      "15m",
+      "1h",
+      "6h",
+      "12h",
+      "24h",
+      "2d",
+      "7d",
+      "30d"
+    ]
   },
   "timezone": "browser",
   "title": "vLLM Model Serving Overview",
