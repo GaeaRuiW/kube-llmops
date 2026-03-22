@@ -68,6 +68,14 @@ gpuToleration:
   operator: Exists
   effect: NoSchedule
 
+# Unified memory GPU support (NVIDIA GB10, Grace Blackwell)
+# When enabled:
+#   - Runs drop-cache init container (privileged) to free page cache before model load
+#   - Omits container memory limit (cgroup must not restrict unified memory)
+# Leave DISABLED for discrete GPU systems (A100, H100, RTX, etc.)
+unifiedMemory:
+  enabled: false
+
 # Custom CA certificates (for corporate proxies / self-signed certs)
 # Mount a ConfigMap containing CA certs into containers
 customCACert:

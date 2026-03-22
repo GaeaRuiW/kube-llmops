@@ -42,6 +42,7 @@ spec:
         kube-llmops/engine: vllm
     spec:
       initContainers:
+        {{- if $.Values.unifiedMemory.enabled }}
         - name: drop-cache
           image: busybox:latest
           command: ["sh", "-c"]
@@ -53,6 +54,7 @@ spec:
               cat /proc/meminfo | head -3
           securityContext:
             privileged: true
+        {{- end }}
         {{- if $.Values.customCACert.enabled }}
         - name: ca-cert-installer
           image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag }}"
@@ -293,8 +295,8 @@ spec:
               nvidia.com/gpu: {{ $gpu | quote }}
               {{- end }}
             limits:
-              {{- if $memoryLimit }}
-              memory: {{ $memoryLimit }}
+              {{- if not $.Values.unifiedMemory.enabled }}
+              memory: {{ $memoryLimit | default $memory }}
               {{- end }}
               {{- if gt (int $gpu) 0 }}
               nvidia.com/gpu: {{ $gpu | quote }}
