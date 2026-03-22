@@ -1,690 +1,163 @@
 {
-  "annotations": {
-    "list": [
-      {
-        "builtIn": 1,
-        "datasource": {
-          "type": "grafana",
-          "uid": "-- Grafana --"
-        },
-        "enable": true,
-        "hide": true,
-        "iconColor": "rgba(0, 211, 255, 1)",
-        "name": "Annotations & Alerts",
-        "type": "dashboard"
-      }
-    ]
-  },
-  "description": "GPU and infrastructure health monitoring — KV cache, request queues, and inference performance",
+  "annotations": { "list": [] },
+  "description": "GPU hardware monitoring via DCGM Exporter — utilization, memory, temperature, power",
   "editable": false,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": null,
   "links": [],
-  "liveNow": false,
   "panels": [
     {
       "collapsed": false,
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
       "id": 100,
-      "panels": [],
       "title": "GPU Status",
       "type": "row"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "description": "Average KV cache usage across all vLLM instances (proxy for GPU memory pressure)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "max": 1,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 0.7 },
-              { "color": "orange", "value": 0.85 },
-              { "color": "red", "value": 0.95 }
-            ]
-          },
-          "unit": "percentunit"
-        },
-        "overrides": []
+          "thresholds": { "steps": [ {"color":"green","value":null}, {"color":"yellow","value":60}, {"color":"orange","value":80}, {"color":"red","value":95} ] },
+          "unit": "percent", "min": 0, "max": 100
+        }
       },
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 1 },
       "id": 1,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.2.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "avg(vllm_kv_cache_usage_perc)",
-          "instant": false,
-          "legendFormat": "KV Cache Usage",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "GPU Memory Used",
-      "type": "stat"
+      "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "GPU Utilization",
+      "description": "Current GPU compute utilization percentage",
+      "type": "stat",
+      "targets": [{ "expr": "DCGM_FI_DEV_GPU_UTIL", "legendFormat": "GPU {{gpu}}" }]
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "description": "Total number of requests currently being processed across all instances",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 20 },
-              { "color": "red", "value": 50 }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": []
+          "thresholds": { "steps": [ {"color":"green","value":null}, {"color":"yellow","value":40}, {"color":"red","value":55} ] },
+          "unit": "celsius"
+        }
       },
-      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 1 },
       "id": 2,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.2.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "sum(vllm_num_requests_running)",
-          "instant": false,
-          "legendFormat": "Running",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Running Requests",
-      "type": "stat"
+      "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "GPU Temperature",
+      "description": "GPU core temperature",
+      "type": "stat",
+      "targets": [{ "expr": "DCGM_FI_DEV_GPU_TEMP", "legendFormat": "GPU {{gpu}}" }]
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "description": "Total number of requests waiting in queue across all instances",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "orange", "value": 5 },
-              { "color": "red", "value": 20 }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": []
+          "thresholds": { "steps": [ {"color":"green","value":null}, {"color":"yellow","value":150}, {"color":"red","value":200} ] },
+          "unit": "watt"
+        }
       },
-      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 1 },
       "id": 3,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.2.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "sum(vllm_num_requests_waiting)",
-          "instant": false,
-          "legendFormat": "Waiting",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Waiting Requests",
-      "type": "stat"
+      "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Power Usage",
+      "description": "Current GPU power consumption",
+      "type": "stat",
+      "targets": [{ "expr": "DCGM_FI_DEV_POWER_USAGE", "legendFormat": "GPU {{gpu}}" }]
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "description": "Number of unique models currently deployed and serving traffic",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "blue", "value": 2 },
-              { "color": "purple", "value": 5 }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": []
+          "thresholds": { "steps": [ {"color":"green","value":null}, {"color":"blue","value":500}, {"color":"purple","value":1500} ] },
+          "unit": "MHz"
+        }
       },
-      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 1 },
       "id": 4,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.2.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "count(count by (model_name)(vllm_request_success_total))",
-          "instant": false,
-          "legendFormat": "Models",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Model Count",
-      "type": "stat"
+      "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "SM Clock",
+      "description": "GPU SM clock frequency",
+      "type": "stat",
+      "targets": [{ "expr": "DCGM_FI_DEV_SM_CLOCK", "legendFormat": "GPU {{gpu}}" }]
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 },
       "id": 101,
-      "panels": [],
-      "title": "Resource Usage",
+      "title": "GPU Usage Over Time",
       "type": "row"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "description": "KV cache utilization percentage per vLLM instance over time. High values indicate GPU memory pressure.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 20,
-            "gradientMode": "scheme",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": { "type": "linear" },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
-          },
-          "mappings": [],
-          "max": 1,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "red", "value": 0.95 }
-            ]
-          },
-          "unit": "percentunit"
-        },
-        "overrides": []
+        "defaults": { "unit": "percent", "min": 0, "max": 100, "custom": { "lineWidth": 2, "fillOpacity": 20 } }
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
       "id": 5,
-      "options": {
-        "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "10.2.0",
+      "title": "GPU Utilization Over Time",
+      "description": "GPU compute utilization percentage over time",
+      "type": "timeseries",
       "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "vllm_kv_cache_usage_perc",
-          "instant": false,
-          "legendFormat": "{{instance}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "KV Cache Usage Over Time",
-      "type": "timeseries"
+        { "expr": "DCGM_FI_DEV_GPU_UTIL", "legendFormat": "GPU {{gpu}} Compute" },
+        { "expr": "DCGM_FI_DEV_MEM_COPY_UTIL", "legendFormat": "GPU {{gpu}} Memory Copy" }
+      ]
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "description": "Stacked view of running and waiting requests showing total queue depth over time",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "requests",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 30,
-            "gradientMode": "scheme",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": { "type": "linear" },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": { "group": "A", "mode": "normal" },
-            "thresholdsStyle": { "mode": "off" }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": [
-          {
-            "matcher": { "id": "byName", "options": "Running" },
-            "properties": [
-              { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }
-            ]
-          },
-          {
-            "matcher": { "id": "byName", "options": "Waiting" },
-            "properties": [
-              { "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }
-            ]
-          }
-        ]
+        "defaults": { "unit": "celsius", "custom": { "lineWidth": 2, "fillOpacity": 10 } }
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
       "id": 6,
-      "options": {
-        "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "10.2.0",
+      "title": "Temperature Over Time",
+      "description": "GPU core and memory temperature",
+      "type": "timeseries",
       "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "sum(vllm_num_requests_running)",
-          "instant": false,
-          "legendFormat": "Running",
-          "range": true,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "sum(vllm_num_requests_waiting)",
-          "instant": false,
-          "legendFormat": "Waiting",
-          "range": true,
-          "refId": "B"
-        }
-      ],
-      "title": "Request Queue Depth",
-      "type": "timeseries"
+        { "expr": "DCGM_FI_DEV_GPU_TEMP", "legendFormat": "GPU {{gpu}} Core" },
+        { "expr": "DCGM_FI_DEV_MEMORY_TEMP", "legendFormat": "GPU {{gpu}} Memory" }
+      ]
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 },
       "id": 102,
-      "panels": [],
-      "title": "Performance",
+      "title": "Power & Bandwidth",
       "type": "row"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "description": "Time to first token percentiles (p50, p95). Measures model responsiveness and scheduling latency.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": { "type": "linear" },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "red", "value": 80 }
-            ]
-          },
-          "unit": "s"
-        },
-        "overrides": [
-          {
-            "matcher": { "id": "byName", "options": "p95" },
-            "properties": [
-              { "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }
-            ]
-          },
-          {
-            "matcher": { "id": "byName", "options": "p50" },
-            "properties": [
-              { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }
-            ]
-          }
-        ]
+        "defaults": { "unit": "watt", "custom": { "lineWidth": 2, "fillOpacity": 15 } }
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 17 },
       "id": 7,
-      "options": {
-        "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "10.2.0",
+      "title": "Power Consumption Over Time",
+      "description": "GPU power draw over time",
+      "type": "timeseries",
       "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.50, sum(rate(vllm_time_to_first_token_seconds_bucket[5m])) by (le))",
-          "instant": false,
-          "legendFormat": "p50",
-          "range": true,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(vllm_time_to_first_token_seconds_bucket[5m])) by (le))",
-          "instant": false,
-          "legendFormat": "p95",
-          "range": true,
-          "refId": "B"
-        }
-      ],
-      "title": "TTFT Over Time",
-      "type": "timeseries"
+        { "expr": "DCGM_FI_DEV_POWER_USAGE", "legendFormat": "GPU {{gpu}}" }
+      ]
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "description": "Inter-token latency percentiles (p50, p95). Measures the delay between consecutive generated tokens.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": { "type": "linear" },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "red", "value": 80 }
-            ]
-          },
-          "unit": "s"
-        },
-        "overrides": [
-          {
-            "matcher": { "id": "byName", "options": "p95" },
-            "properties": [
-              { "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }
-            ]
-          },
-          {
-            "matcher": { "id": "byName", "options": "p50" },
-            "properties": [
-              { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }
-            ]
-          }
-        ]
+        "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "lineWidth": 2, "fillOpacity": 20 } }
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 17 },
       "id": 8,
-      "options": {
-        "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "10.2.0",
+      "title": "KV Cache Usage (GPU Memory Pressure)",
+      "description": "vLLM KV cache utilization — proxy for GPU memory pressure in unified memory systems",
+      "type": "timeseries",
       "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.50, sum(rate(vllm_inter_token_latency_seconds_bucket[5m])) by (le))",
-          "instant": false,
-          "legendFormat": "p50",
-          "range": true,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(vllm_inter_token_latency_seconds_bucket[5m])) by (le))",
-          "instant": false,
-          "legendFormat": "p95",
-          "range": true,
-          "refId": "B"
-        }
-      ],
-      "title": "Inter-Token Latency",
-      "type": "timeseries"
+        { "expr": "vllm_kv_cache_usage_perc", "legendFormat": "{{instance}}" }
+      ]
     }
   ],
   "refresh": "10s",
   "schemaVersion": 39,
-  "style": "dark",
   "tags": ["gpu", "infrastructure", "dcgm"],
-  "templating": {
-    "list": []
-  },
-  "time": {
-    "from": "now-1h",
-    "to": "now"
-  },
-  "timepicker": {
-    "refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h"],
-    "time_options": ["5m", "15m", "1h", "6h", "12h", "24h", "2d", "7d", "30d"]
-  },
-  "timezone": "browser",
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
   "title": "GPU & Infrastructure Overview",
   "uid": "gpu-overview",
-  "version": 1,
-  "weekStart": ""
+  "version": 2
 }

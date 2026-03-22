@@ -36,12 +36,16 @@ spec:
             - name: dev
               mountPath: /dev
           resources:
+            {{- if .Values.dcgmExporter.resources }}
+            {{- toYaml .Values.dcgmExporter.resources | nindent 12 }}
+            {{- else }}
             requests:
               cpu: 100m
               memory: 128Mi
             limits:
               cpu: 500m
               memory: 256Mi
+            {{- end }}
       tolerations:
         - key: nvidia.com/gpu
           operator: Exists

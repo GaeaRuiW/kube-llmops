@@ -10,16 +10,22 @@ metadata:
     app.kubernetes.io/part-of: kube-llmops
     app.kubernetes.io/component: model-storage
 spec:
-  type: ClusterIP
+  type: {{ .Values.minio.service.type | default "ClusterIP" }}
   ports:
     - name: api
       port: {{ .Values.minio.service.port }}
       targetPort: 9000
       protocol: TCP
+      {{- if and (eq (.Values.minio.service.type | default "ClusterIP") "NodePort") .Values.minio.service.nodePort }}
+      nodePort: {{ .Values.minio.service.nodePort }}
+      {{- end }}
     - name: console
       port: {{ .Values.minio.service.consolePort }}
       targetPort: 9001
       protocol: TCP
+      {{- if and (eq (.Values.minio.service.type | default "ClusterIP") "NodePort") .Values.minio.service.consoleNodePort }}
+      nodePort: {{ .Values.minio.service.consoleNodePort }}
+      {{- end }}
   selector:
     app.kubernetes.io/name: minio
     app.kubernetes.io/instance: {{ .Release.Name }}

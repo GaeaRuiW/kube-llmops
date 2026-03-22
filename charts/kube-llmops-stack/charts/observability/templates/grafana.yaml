@@ -32,12 +32,14 @@ data:
     datasources:
       - name: Prometheus
         type: prometheus
+        uid: prometheus
         access: proxy
         url: http://{{ $.Release.Name }}-prometheus:9090
         isDefault: true
         editable: false
       - name: Loki
         type: loki
+        uid: loki
         access: proxy
         url: http://{{ $.Release.Name }}-loki:3100
         editable: false
@@ -176,6 +178,9 @@ spec:
     - port: {{ .Values.grafana.service.port }}
       targetPort: http
       name: http
+      {{- if and (eq .Values.grafana.service.type "NodePort") .Values.grafana.service.nodePort }}
+      nodePort: {{ .Values.grafana.service.nodePort }}
+      {{- end }}
   selector:
     app.kubernetes.io/name: grafana
     app.kubernetes.io/instance: {{ $.Release.Name }}

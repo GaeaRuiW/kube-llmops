@@ -37,10 +37,18 @@ rateLimiting:
   maxBudget: 100.0        # Max spend in USD (tracked via LiteLLM cost API)
   budgetDuration: "30d"   # Budget reset period
 
-# SSO/JWT authentication (validate Keycloak tokens on API calls)
+# SSO/JWT authentication (validate Keycloak tokens on API calls + UI login)
+# NOTE: LiteLLM SSO (GENERIC_* and JWT_PUBLIC_KEY_URL) requires an Enterprise license.
+# Without a license, API requests return "JWT Auth is an enterprise only feature".
+# For open-source usage, use master key authentication instead.
 sso:
   enabled: false
   jwksUrl: ""             # e.g. http://kube-llmops-keycloak:8080/realms/kube-llmops/protocol/openid-connect/certs
+  clientId: litellm
+  clientSecret: ""        # e.g. litellm-oidc-secret
+  issuerUrl: ""           # External: e.g. http://keycloak.llmops.local/realms/kube-llmops (browser redirect)
+  internalIssuerUrl: ""   # Internal: e.g. http://kube-llmops-keycloak:8080/realms/kube-llmops (token exchange)
+  proxyBaseUrl: ""        # e.g. http://litellm.llmops.local
 
 image:
   repository: ghcr.io/berriai/litellm
@@ -54,6 +62,7 @@ masterKey: ""
 service:
   type: ClusterIP
   port: 4000
+  nodePort: null              # Set when service.type=NodePort, e.g. 30400
 
 postgresql:
   enabled: true

@@ -7,6 +7,7 @@ It is called from the parent chart with model-specific context.
 {{- $resources := default dict $model.resources }}
 {{- $gpu := ternary (int $resources.gpu) 1 (hasKey $resources "gpu") }}
 {{- $memory := default "16Gi" $resources.memory }}
+{{- $memoryLimit := $resources.memoryLimit }}
 {{- $cpu := default "4" $resources.cpu }}
 {{- $replicas := default 1 $model.replicas }}
 ---
@@ -40,8 +41,18 @@ spec:
         kube-llmops/model: {{ $model.name }}
         kube-llmops/engine: vllm
     spec:
-      {{- if or $.Values.modelLoader.enabled $.Values.customCACert.enabled }}
       initContainers:
+        - name: drop-cache
+          image: busybox:latest
+          command: ["sh", "-c"]
+          args:
+            - |
+              echo "Dropping page cache for unified-memory GPU..."
+              echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
+              echo "Done. Free memory:"
+              cat /proc/meminfo | head -3
+          securityContext:
+            privileged: true
         {{- if $.Values.customCACert.enabled }}
         - name: ca-cert-installer
           image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag }}"
@@ -63,6 +74,48 @@ spec:
         - name: model-loader
           image: "{{ $.Values.modelLoader.image.repository }}:{{ $.Values.modelLoader.image.tag }}"
           imagePullPolicy: {{ $.Values.modelLoader.image.pullPolicy }}
+          command: ["bash", "-c"]
+          args:
+            - |
+              pip install -q minio huggingface_hub 2>/dev/null
+              python3 -c "
+              import os, sys, logging
+              from pathlib import Path
+              logging.basicConfig(level=logging.INFO, format='%(asctime)s [model-loader] %(levelname)s %(message)s')
+              log = logging.getLogger('model-loader')
+              source = os.environ.get('MODEL_SOURCE', '')
+              target = Path(os.environ.get('MODEL_DIR', '/models'))
+              target.mkdir(parents=True, exist_ok=True)
+              if not source:
+                  log.error('MODEL_SOURCE required'); sys.exit(1)
+              if source.startswith('s3://'):
+                  from minio import Minio
+                  parts = source.replace('s3://', '').split('/', 1)
+                  bucket, prefix = parts[0], parts[1] if len(parts)>1 else ''
+                  endpoint = os.environ.get('S3_ENDPOINT', '{{ $.Release.Name }}-minio:9000')
+                  client = Minio(endpoint, access_key=os.environ.get('S3_ACCESS_KEY','minioadmin'), secret_key=os.environ.get('S3_SECRET_KEY','minioadmin'), secure=False)
+                  dest = target / prefix.rstrip('/').split('/')[-1]
+                  dest.mkdir(parents=True, exist_ok=True)
+                  for obj in client.list_objects(bucket, prefix=prefix+'/', recursive=True):
+                      fname = obj.object_name.split('/')[-1]
+                      if not fname: continue
+                      fpath = dest / fname
+                      if fpath.exists() and fpath.stat().st_size == obj.size:
+                          log.info(f'  Cached: {fname}')
+                          continue
+                      log.info(f'  Downloading: {fname} ({obj.size/(1024**3):.2f} GB)')
+                      client.fget_object(bucket, obj.object_name, str(fpath))
+                  log.info(f'S3 sync complete: {dest}')
+              else:
+                  from huggingface_hub import snapshot_download
+                  cached = target / source.replace('/', '--')
+                  if cached.exists() and list(cached.glob('*.safetensors')):
+                      log.info(f'Using cached model at {cached}')
+                  else:
+                      log.info(f'Downloading from HuggingFace: {source}')
+                      snapshot_download(repo_id=source, local_dir=str(cached), local_dir_use_symlinks=False)
+              log.info('Model loader done.')
+              "
           env:
             - name: MODEL_SOURCE
               value: {{ $model.source | quote }}
@@ -101,7 +154,6 @@ spec:
               cpu: "4"
               memory: 8Gi
         {{- end }}
-      {{- end }}
       containers:
         - name: vllm
           image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag }}"
@@ -110,25 +162,91 @@ spec:
             - name: http
               containerPort: 8000
               protocol: TCP
+          command: ["/bin/bash", "-c"]
           args:
-            - "--model"
-            - {{ $model.source | quote }}
-            - "--host"
-            - "0.0.0.0"
-            - "--port"
-            - "8000"
-            - "--served-model-name"
-            - {{ $model.name | quote }}
-            {{- if gt (int $gpu) 1 }}
-            - "--tensor-parallel-size"
-            - {{ $gpu | quote }}
-            {{- end }}
-            {{- range $key, $val := $model.engineArgs }}
-            - {{ $key | quote }}
-            {{- if $val }}
-            - {{ $val | quote }}
-            {{- end }}
-            {{- end }}
+            - |
+              {{- if hasPrefix "s3://" $model.source }}
+              {{- $s3parts := splitList "/" (trimPrefix "s3://" $model.source) }}
+              MODEL_PATH="/models/{{ last $s3parts }}"
+              {{- else }}
+              MODEL_PATH="{{ $model.source }}"
+              {{- end }}
+
+              # ── Auto-compute max-model-len if not explicitly set ──
+              {{- $hasMaxLen := false }}
+              {{- range $key, $val := $model.engineArgs }}
+              {{- if eq $key "--max-model-len" }}{{ $hasMaxLen = true }}{{- end }}
+              {{- end }}
+              {{- if not $hasMaxLen }}
+              MAX_MODEL_LEN=$(python3 -c "
+              import json, os, glob, torch
+
+              # 1. Read model config
+              cfg_candidates = [
+                  os.path.join('$MODEL_PATH', 'config.json'),
+                  glob.glob('/models/huggingface/hub/models--*/snapshots/*/config.json')[0] if glob.glob('/models/huggingface/hub/models--*/snapshots/*/config.json') else ''
+              ]
+              cfg_path = next((p for p in cfg_candidates if p and os.path.exists(p)), None)
+              if not cfg_path:
+                  print(4096); exit()
+              cfg = json.load(open(cfg_path))
+
+              # Model's max supported context
+              model_max = cfg.get('max_position_embeddings') or cfg.get('max_sequence_length') or 32768
+
+              # 2. Estimate KV cache memory per token
+              # For MoE models, check text_config/language_model config
+              tcfg = cfg.get('text_config') or cfg.get('language_model_config') or cfg
+              n_layers = tcfg.get('num_hidden_layers', 32)
+              n_kv_heads = tcfg.get('num_key_value_heads', tcfg.get('num_attention_heads', 32))
+              head_dim = tcfg.get('head_dim', tcfg.get('hidden_size', 4096) // tcfg.get('num_attention_heads', 32))
+              dtype_bytes = 2  # float16/bfloat16
+
+              kv_per_token = 2 * n_layers * n_kv_heads * head_dim * dtype_bytes
+              print(f'KV cache per token: {kv_per_token / 1024:.1f} KB ({n_layers}L, {n_kv_heads}KVH, {head_dim}D)', flush=True, file=__import__('sys').stderr)
+
+              # 3. Get available memory
+              free, total = torch.cuda.mem_get_info()
+              gpu_util = {{ $model.engineArgs | dig "--gpu-memory-utilization" "0.8" }}
+              budget = total * gpu_util
+
+              # 4. Estimate model weight size from files
+              weight_size = 0
+              for pattern in ['$MODEL_PATH/*.safetensors', '$MODEL_PATH/*.bin']:
+                  for f in glob.glob(pattern):
+                      weight_size += os.path.getsize(f)
+              if weight_size == 0:
+                  weight_size = 65 * 1024**3  # fallback 65GB estimate
+
+              # 5. Calculate max context
+              kv_budget = budget - weight_size * 1.1  # 10% overhead
+              if kv_budget < 1024**3:  # less than 1GB
+                  kv_budget = 1024**3
+              max_ctx = int(kv_budget / kv_per_token)
+              max_ctx = min(max_ctx, model_max)
+              max_ctx = max(max_ctx, 1024)  # minimum 1K
+              # Round down to nearest 256
+              max_ctx = (max_ctx // 256) * 256
+              print(f'Auto context: budget={kv_budget/(1024**3):.1f}GB, per_token={kv_per_token}B -> max_model_len={max_ctx} (model_max={model_max})', flush=True, file=__import__('sys').stderr)
+              print(max_ctx)
+              " 2>/dev/null || echo 4096)
+              echo "Auto-computed max-model-len: $MAX_MODEL_LEN"
+              EXTRA_ARGS="--max-model-len $MAX_MODEL_LEN"
+              {{- else }}
+              EXTRA_ARGS=""
+              {{- end }}
+
+              exec vllm serve "$MODEL_PATH" \
+                --host 0.0.0.0 \
+                --port 8000 \
+                --served-model-name {{ $model.name | quote }} \
+                {{- if gt (int $gpu) 1 }}
+                --tensor-parallel-size {{ $gpu | quote }} \
+                {{- end }}
+                {{- range $key, $val := $model.engineArgs }}
+                {{ $key }} {{ if $val }}{{ $val }}{{ end }} \
+                {{- end }}
+                $EXTRA_ARGS
           env:
             - name: HF_HOME
               value: /models/huggingface
@@ -175,7 +293,9 @@ spec:
               nvidia.com/gpu: {{ $gpu | quote }}
               {{- end }}
             limits:
-              memory: {{ $memory }}
+              {{- if $memoryLimit }}
+              memory: {{ $memoryLimit }}
+              {{- end }}
               {{- if gt (int $gpu) 0 }}
               nvidia.com/gpu: {{ $gpu | quote }}
               {{- end }}

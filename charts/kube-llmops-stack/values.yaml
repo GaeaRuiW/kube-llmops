@@ -35,8 +35,8 @@ vllm:
   modelLoader:
     enabled: true
     image:
-      repository: ghcr.io/gaearuiw/kube-llmops/model-loader
-      tag: latest
+      repository: python
+      tag: "3.11-slim"
       pullPolicy: IfNotPresent
     hfToken: ""               # Set via --set vllm.modelLoader.hfToken=xxx
   modelCache:

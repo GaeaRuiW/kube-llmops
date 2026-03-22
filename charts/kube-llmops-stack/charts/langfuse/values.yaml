@@ -14,6 +14,7 @@ externalUrl: ""
 service:
   type: ClusterIP
   port: 3000
+  nodePort: null              # Set when service.type=NodePort, e.g. 30301
 
 # Langfuse needs its own database (can share PG instance but separate DB)
 postgresql:
@@ -90,10 +91,10 @@ clickhouse:
   resources:
     requests:
       cpu: 100m
-      memory: 256Mi
-    limits:
-      cpu: "1"
       memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 1Gi
 
 # Redis for Langfuse v3 async worker queue
 redis:

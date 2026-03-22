@@ -21,6 +21,9 @@ prometheus:
     tag: v3.2.1
     pullPolicy: IfNotPresent
   retention: 15d
+  service:
+    type: ClusterIP
+    nodePort: null
   storage:
     size: 20Gi
     storageClass: ""
@@ -36,8 +39,15 @@ dcgmExporter:
   enabled: true
   image:
     repository: nvcr.io/nvidia/k8s/dcgm-exporter
-    tag: 3.6.0-4.2.0-ubuntu22.04
+    tag: 3.3.8-3.6.0-ubuntu22.04
     pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
 
 grafana:
   enabled: true

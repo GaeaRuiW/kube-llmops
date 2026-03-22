@@ -165,6 +165,9 @@ spec:
     - port: {{ .Values.service.port }}
       targetPort: http
       name: http
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.nodePort }}
+      nodePort: {{ .Values.service.nodePort }}
+      {{- end }}
   selector:
     app.kubernetes.io/name: langfuse
     app.kubernetes.io/instance: {{ $.Release.Name }}

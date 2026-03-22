@@ -24,6 +24,7 @@ image:
 service:
   type: ClusterIP
   port: 8000
+  nodePort: null              # Set when service.type=NodePort, e.g. 30800
 
 # Probes — tuned for LLM model loading (typically 1-10 min)
 # For very large models (70B+), increase via --set vllm.livenessProbe.initialDelaySeconds=600
@@ -49,8 +50,8 @@ livenessProbe:
 modelLoader:
   enabled: true
   image:
-    repository: ghcr.io/gaearuiw/kube-llmops/model-loader
-    tag: latest
+    repository: python
+    tag: "3.11-slim"
     pullPolicy: IfNotPresent
 
 # Model cache volume

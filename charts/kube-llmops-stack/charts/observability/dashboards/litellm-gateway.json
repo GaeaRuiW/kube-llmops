@@ -34,7 +34,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Total request rate across all models routed through the gateway (requests per second)",
       "fieldConfig": {
@@ -74,7 +74,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "editorMode": "code",
           "expr": "sum(rate(vllm_request_success_total[5m]))",
@@ -90,7 +90,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Total number of successful requests processed through the gateway",
       "fieldConfig": {
@@ -130,7 +130,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "editorMode": "code",
           "expr": "sum(vllm_request_success_total)",
@@ -146,7 +146,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Number of unique models currently serving traffic through the gateway",
       "fieldConfig": {
@@ -186,7 +186,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "editorMode": "code",
           "expr": "count(count by (model_name)(vllm_request_success_total))",
@@ -202,7 +202,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Average end-to-end request latency across all models",
       "fieldConfig": {
@@ -243,7 +243,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "editorMode": "code",
           "expr": "sum(rate(vllm_e2e_request_latency_seconds_sum[5m])) / sum(rate(vllm_e2e_request_latency_seconds_count[5m]))",
@@ -267,7 +267,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Request rate broken down by model routed through the gateway",
       "fieldConfig": {
@@ -329,7 +329,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "editorMode": "code",
           "expr": "sum by (model_name)(rate(vllm_request_success_total[5m]))",
@@ -345,7 +345,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Token throughput rate: prompt tokens ingested and generation tokens produced per second",
       "fieldConfig": {
@@ -420,7 +420,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "editorMode": "code",
           "expr": "sum(rate(vllm_prompt_tokens_total[5m]))",
@@ -432,7 +432,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "editorMode": "code",
           "expr": "sum(rate(vllm_generation_tokens_total[5m]))",
@@ -456,7 +456,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "End-to-end request latency distribution through the gateway (p50, p95, p99)",
       "fieldConfig": {
@@ -538,7 +538,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.50, sum(rate(vllm_e2e_request_latency_seconds_bucket[5m])) by (le))",
@@ -550,7 +550,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.95, sum(rate(vllm_e2e_request_latency_seconds_bucket[5m])) by (le))",
@@ -562,7 +562,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.99, sum(rate(vllm_e2e_request_latency_seconds_bucket[5m])) by (le))",
@@ -578,7 +578,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "prometheus"
       },
       "description": "Rate of errored or abnormally finished requests through the gateway",
       "fieldConfig": {
@@ -648,7 +648,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "prometheus"
           },
           "editorMode": "code",
           "expr": "sum(rate(vllm_request_success_total{finished_reason=\"error\"}[5m]))",

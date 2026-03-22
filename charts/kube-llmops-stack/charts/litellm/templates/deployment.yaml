@@ -54,8 +54,18 @@ spec:
               value: "http://{{ $.Release.Name }}-langfuse:3000"
             {{- end }}
             {{- if .Values.sso.enabled }}
-            - name: JWT_PUBLIC_KEY_URL
-              value: {{ .Values.sso.jwksUrl | quote }}
+            - name: GENERIC_CLIENT_ID
+              value: {{ .Values.sso.clientId | default "litellm" | quote }}
+            - name: GENERIC_CLIENT_SECRET
+              value: {{ .Values.sso.clientSecret | default "" | quote }}
+            - name: GENERIC_AUTHORIZATION_ENDPOINT
+              value: "{{ .Values.sso.issuerUrl }}/protocol/openid-connect/auth"
+            - name: GENERIC_TOKEN_ENDPOINT
+              value: "{{ .Values.sso.internalIssuerUrl | default .Values.sso.issuerUrl }}/protocol/openid-connect/token"
+            - name: GENERIC_USERINFO_ENDPOINT
+              value: "{{ .Values.sso.internalIssuerUrl | default .Values.sso.issuerUrl }}/protocol/openid-connect/userinfo"
+            - name: PROXY_BASE_URL
+              value: {{ .Values.sso.proxyBaseUrl | default "http://litellm.llmops.local" | quote }}
             {{- end }}
           readinessProbe:
             httpGet:
@@ -106,6 +116,9 @@ spec:
       targetPort: http
       protocol: TCP
       name: http
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.nodePort }}
+      nodePort: {{ .Values.service.nodePort }}
+      {{- end }}
   selector:
     app.kubernetes.io/name: litellm
     app.kubernetes.io/instance: {{ $.Release.Name }}
