@@ -903,7 +903,6 @@ kube-llmops/
 │   │   ├── format_detector.py
 │   │   ├── hardware_probe.py
 │   │   └── engine_map.yaml            # Format -> engine mapping rules
-│   ├── model-loader/
 │   │   ├── Dockerfile
 │   │   └── loader.py
 │   └── rag-worker/

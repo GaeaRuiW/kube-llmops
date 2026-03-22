@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Idempotent init scripts (safe for restarts, uses IF NOT EXISTS)
 
 #### Keycloak SSO
-- Keycloak deployment + init script (`scripts/init-keycloak.sh`)
+- Keycloak Helm sub-chart with auto-provisioned realm, clients, roles, and users
 - OIDC clients for Grafana, Langfuse, MinIO, LiteLLM
 - Traefik Ingress for all services (`*.llmops.local`)
 

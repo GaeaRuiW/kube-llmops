@@ -28,7 +28,7 @@
 
 #### Keycloak SSO
 
-- Keycloak 部署 + 初始化脚本（`scripts/init-keycloak.sh`）
+- Keycloak Helm 子 chart，自动配置 realm、客户端、角色和用户
 - 为 Grafana、Langfuse、MinIO、LiteLLM 创建 OIDC 客户端
 - 所有服务的 Traefik Ingress（`*.llmops.local`）
 

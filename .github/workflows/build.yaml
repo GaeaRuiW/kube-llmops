@@ -32,8 +32,6 @@ jobs:
         image:
           - name: model-resolver
             context: images/model-resolver
-          - name: model-loader
-            context: images/model-loader
     steps:
       - uses: actions/checkout@v4
       - name: Build image

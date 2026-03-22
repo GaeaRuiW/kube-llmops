@@ -39,7 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        image: [model-resolver, model-loader]
+        image: [model-resolver]
     steps:
       - uses: actions/checkout@v4
       - name: Log in to GHCR

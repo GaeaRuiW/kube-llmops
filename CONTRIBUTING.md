@@ -112,7 +112,6 @@ alerting/                   # Prometheus alert rules
 otel/                       # OpenTelemetry Collector configs
 images/                     # Docker image source
   model-resolver/           # Engine auto-selection logic
-  model-loader/             # Model weight downloader
 scripts/                    # Automation scripts
 docs/                       # Documentation
 examples/                   # Usage examples

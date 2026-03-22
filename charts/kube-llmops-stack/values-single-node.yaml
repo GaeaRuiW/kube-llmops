@@ -1,7 +1,6 @@
 # Single-node deployment — core features + SSO + observability
 # Usage:
 #   helm install kube-llmops charts/kube-llmops-stack -f values-single-node.yaml
-#   ./scripts/init-keycloak.sh
 #
 # After install, add to /etc/hosts:
 #   <NODE_IP> litellm.llmops.local grafana.llmops.local langfuse.llmops.local keycloak.llmops.local prometheus.llmops.local
