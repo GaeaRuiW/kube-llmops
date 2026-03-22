@@ -3,7 +3,7 @@ enabled: true
 models: []
 
 image:
-  repository: ghcr.io/ggerganov/llama.cpp
+  repository: ghcr.io/ggml-org/llama.cpp
   tag: server
   pullPolicy: IfNotPresent
 
