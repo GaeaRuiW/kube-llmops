@@ -36,7 +36,15 @@ llamacpp:
 
 tei:
   enabled: true
-  models: []
+  models:
+    - name: bge-small-en
+      source: /data/bge-small-en-v1.5
+      engine: tei
+      replicas: 1
+      resources:
+        gpu: 0
+        cpu: "0.5"
+        memory: 256Mi
 
 # ========== AI Gateway ==========
 litellm:
@@ -51,6 +59,9 @@ litellm:
     - name: qwen2-5-0-5b
       source: Qwen/Qwen2.5-0.5B-Instruct
       engine: vllm
+  embeddingModels:
+    - name: bge-small-en
+      apiBase: http://tei-bge-small-en:8080
   postgresql:
     enabled: true
     auth:

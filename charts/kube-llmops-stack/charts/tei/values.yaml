@@ -2,6 +2,10 @@ enabled: true
 
 models: []
 
+# Offline mode: skip HuggingFace downloads, use models from PVC only
+# Set to true when models are pre-loaded via kubectl cp or init container
+offlineMode: false
+
 image:
   repository: ghcr.io/huggingface/text-embeddings-inference
   tag: cpu-1.6

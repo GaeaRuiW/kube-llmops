@@ -57,7 +57,11 @@ spec:
             {{- end }}
           env:
             - name: HF_HOME
-              value: /models/huggingface
+              value: /data
+            - name: HUGGINGFACE_HUB_CACHE
+              value: /data
+            - name: HF_HUB_OFFLINE
+              value: "{{ if $.Values.offlineMode }}1{{ else }}0{{ end }}"
           readinessProbe:
             httpGet:
               path: /health
@@ -82,13 +86,12 @@ spec:
               nvidia.com/gpu: {{ $gpu | quote }}
               {{- end }}
             limits:
-              memory: {{ $memory }}
               {{- if gt $gpu 0 }}
               nvidia.com/gpu: {{ $gpu | quote }}
               {{- end }}
           volumeMounts:
             - name: model-cache
-              mountPath: /models
+              mountPath: /data
       {{- if gt $gpu 0 }}
       tolerations:
         - key: {{ $.Values.gpuToleration.key }}
