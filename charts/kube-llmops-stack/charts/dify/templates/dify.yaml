@@ -362,6 +362,22 @@ spec:
 # Dify Plugin Daemon — model provider plugin management
 # ============================================================
 ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-dify-plugin-storage
+  labels:
+    app.kubernetes.io/name: dify
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: plugin-daemon
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -438,6 +454,9 @@ spec:
               value: "120"
             - name: PLUGIN_MAX_EXECUTION_TIMEOUT
               value: "600"
+          volumeMounts:
+            - name: plugin-storage
+              mountPath: /app/storage
           resources:
             requests:
               cpu: 100m
@@ -445,6 +464,10 @@ spec:
             limits:
               cpu: 500m
               memory: 512Mi
+      volumes:
+        - name: plugin-storage
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-dify-plugin-storage
 ---
 apiVersion: v1
 kind: Service

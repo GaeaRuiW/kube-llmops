@@ -21,6 +21,7 @@ data:
     ADMIN_EMAIL="{{ .Values.setup.adminEmail }}"
     ADMIN_PASSWORD="{{ .Values.setup.adminPassword }}"
     ADMIN_NAME="{{ .Values.setup.adminName }}"
+    PLUGIN_DIR="/plugin-storage"
 
     echo "=== Dify Auto-Setup ==="
 
@@ -35,14 +36,11 @@ data:
       sleep 5
       elapsed=$((elapsed + 5))
     done
-    if [ $elapsed -ge $MAX_WAIT ]; then
-      echo "  TIMEOUT waiting for API" >&2; exit 1
-    fi
+    [ $elapsed -ge $MAX_WAIT ] && { echo "  TIMEOUT" >&2; exit 1; }
 
     # ── Step 2: Create admin account (idempotent) ──
     echo "[2/5] Checking setup status..."
-    SETUP=$(curl -sf "$API/console/api/setup")
-    STEP=$(echo "$SETUP" | python3 -c "import json,sys; print(json.load(sys.stdin).get('step',''))" 2>/dev/null)
+    STEP=$(curl -sf "$API/console/api/setup" | python3 -c "import json,sys; print(json.load(sys.stdin).get('step',''))" 2>/dev/null)
     if [ "$STEP" = "not_started" ]; then
       echo "  Creating admin account..."
       curl -sf "$API/console/api/setup" -X POST \
@@ -57,108 +55,86 @@ data:
     echo "[3/5] Logging in..."
     B64_PW=$(echo -n "$ADMIN_PASSWORD" | base64)
     COOKIES=$(mktemp)
-    LOGIN_RESP=$(curl -sf -c "$COOKIES" "$API/console/api/login" -X POST \
+    curl -sf -c "$COOKIES" "$API/console/api/login" -X POST \
       -H "Content-Type: application/json" \
-      -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$B64_PW\"}")
+      -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$B64_PW\"}" > /dev/null
     CSRF=$(grep csrf_token "$COOKIES" | awk '{print $NF}')
-    if [ -z "$CSRF" ]; then
-      echo "  Login failed" >&2; exit 1
-    fi
+    [ -z "$CSRF" ] && { echo "  Login failed" >&2; exit 1; }
     echo "  Logged in OK"
 
-    # Helper: authenticated GET/POST
     api_get()  { curl -sf -b "$COOKIES" -H "X-CSRF-Token: $CSRF" "$API$1"; }
     api_post() { curl -sf -b "$COOKIES" -H "X-CSRF-Token: $CSRF" -H "Content-Type: $2" "$API$1" -X POST -d "$3"; }
-    api_post_file() { curl -sf -b "$COOKIES" -H "X-CSRF-Token: $CSRF" "$API$1" -X POST -F "$2"; }
 
-    # ── Step 4: Install plugins ──
+    # ── Step 4: Install plugins from local .difypkg files ──
     echo "[4/5] Installing plugins..."
     INSTALLED=$(api_get "/console/api/workspaces/current/plugin/list?page=1&page_size=100" | \
       python3 -c "import json,sys; print(' '.join(p['plugin_id'] for p in json.load(sys.stdin).get('plugins',[])))" 2>/dev/null)
 
     {{- range .Values.setup.plugins }}
     PLUGIN_ID="{{ .id }}"
-    if echo "$INSTALLED" | grep -q "$PLUGIN_ID"; then
+    PLUGIN_SHORT=$(echo "$PLUGIN_ID" | cut -d/ -f2)
+
+    if echo "$INSTALLED" | grep -qw "$PLUGIN_ID"; then
       echo "  $PLUGIN_ID already installed, skipping"
     else
-      echo "  Fetching $PLUGIN_ID from marketplace..."
-      # Get latest version identifier
-      BATCH_RESP=$(curl -sf -X POST "https://marketplace.dify.ai/api/v1/plugins/batch" \
-        -H "Content-Type: application/json" -d "{\"plugin_ids\":[\"$PLUGIN_ID\"]}")
-      LATEST_ID=$(echo "$BATCH_RESP" | python3 -c "
-    import json,sys
-    d=json.load(sys.stdin)
-    plugins=d.get('data',{}).get('plugins',[])
-    print(plugins[0]['latest_package_identifier'] if plugins else '')
-    " 2>/dev/null)
-
-      if [ -z "$LATEST_ID" ]; then
-        echo "  WARNING: Could not find $PLUGIN_ID in marketplace, skipping" >&2
+      # Look for .difypkg in the shared plugin storage PVC
+      PKG_FILE=$(find "$PLUGIN_DIR" -maxdepth 1 -name "${PLUGIN_SHORT}*.difypkg" -type f 2>/dev/null | head -1)
+      if [ -z "$PKG_FILE" ]; then
+        echo "  WARNING: No .difypkg found for $PLUGIN_ID in $PLUGIN_DIR"
+        echo "  To fix: kubectl cp <file>.difypkg <plugin-daemon-pod>:/app/storage/${PLUGIN_SHORT}.difypkg"
         continue
       fi
-      echo "  Latest: $LATEST_ID"
-
-      # Download .difypkg
-      PKG_FILE=$(mktemp --suffix=.difypkg)
-      curl -sf "https://marketplace.dify.ai/api/v1/plugins/download?unique_identifier=$LATEST_ID" \
-        --compressed -o "$PKG_FILE"
-      PKG_SIZE=$(stat -c%s "$PKG_FILE" 2>/dev/null || echo 0)
-      if [ "$PKG_SIZE" -lt 1000 ]; then
-        echo "  WARNING: Download failed for $PLUGIN_ID (${PKG_SIZE}B), skipping" >&2
-        rm -f "$PKG_FILE"
-        continue
-      fi
-      echo "  Downloaded ${PKG_SIZE}B"
+      echo "  Found: $PKG_FILE ($(stat -c%s "$PKG_FILE" 2>/dev/null)B)"
 
       # Upload to Dify
-      UPLOAD_RESP=$(api_post_file "/console/api/workspaces/current/plugin/upload/pkg" "pkg=@$PKG_FILE")
-      UPLOADED_ID=$(echo "$UPLOAD_RESP" | python3 -c "import json,sys; print(json.load(sys.stdin).get('unique_identifier',''))" 2>/dev/null)
-      rm -f "$PKG_FILE"
+      UPLOADED_ID=$(curl -sf -b "$COOKIES" -H "X-CSRF-Token: $CSRF" \
+        -X POST "$API/console/api/workspaces/current/plugin/upload/pkg" \
+        -F "pkg=@$PKG_FILE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('unique_identifier',''))" 2>/dev/null)
 
       if [ -z "$UPLOADED_ID" ]; then
         echo "  WARNING: Upload failed for $PLUGIN_ID" >&2
         continue
       fi
+      echo "  Uploaded: $UPLOADED_ID"
 
-      # Pre-install Python deps in plugin daemon (workaround for offline uv sync)
-      DAEMON_POD=$(kubectl get pods -l "app.kubernetes.io/name=dify-plugin-daemon,app.kubernetes.io/instance={{ $.Release.Name }}" \
-        -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
-      if [ -n "$DAEMON_POD" ]; then
-        PLUGIN_DIR=$(kubectl exec "$DAEMON_POD" -- find /app/storage/cwd -maxdepth 2 -name "$(echo $PLUGIN_ID | tr '/' '-')*" -type d 2>/dev/null | head -1)
-        if [ -n "$PLUGIN_DIR" ]; then
-          echo "  Pre-installing deps in plugin daemon..."
-          kubectl exec "$DAEMON_POD" -- /usr/local/bin/uv sync --project "$PLUGIN_DIR" 2>/dev/null || true
-        fi
+      # Pre-install Python deps (workaround: plugin daemon uses offline uv sync)
+      PLUGIN_CWD=$(find "$PLUGIN_DIR/cwd" -maxdepth 2 -type d -name "${PLUGIN_SHORT}*" 2>/dev/null | head -1)
+      if [ -n "$PLUGIN_CWD" ] && [ -f "$PLUGIN_CWD/pyproject.toml" ]; then
+        echo "  Pre-installing Python deps..."
+        /usr/local/bin/uv sync --project "$PLUGIN_CWD" 2>/dev/null && echo "  Deps OK" || echo "  Deps failed (will retry)"
       fi
 
       # Install plugin
-      echo "  Installing $PLUGIN_ID..."
-      INSTALL_RESP=$(api_post "/console/api/workspaces/current/plugin/install/pkg" \
+      echo "  Installing..."
+      TASK_ID=$(api_post "/console/api/workspaces/current/plugin/install/pkg" \
         "application/json" \
-        "{\"plugin_unique_identifiers\":[\"$UPLOADED_ID\"]}")
-      TASK_ID=$(echo "$INSTALL_RESP" | python3 -c "import json,sys; print(json.load(sys.stdin).get('task_id',''))" 2>/dev/null)
+        "{\"plugin_unique_identifiers\":[\"$UPLOADED_ID\"]}" | \
+        python3 -c "import json,sys; print(json.load(sys.stdin).get('task_id',''))" 2>/dev/null)
 
-      # Wait for installation to complete
-      for i in $(seq 1 30); do
+      # Wait for completion
+      for i in $(seq 1 24); do
         sleep 5
         STATUS=$(api_get "/console/api/workspaces/current/plugin/tasks?action=install&page=1&page_size=5" | \
           python3 -c "
     import json,sys
-    d=json.load(sys.stdin)
-    for t in d.get('tasks',[]):
-        if t['id']=='$TASK_ID':
-            print(t['status']); break
+    for t in json.load(sys.stdin).get('tasks',[]):
+        if t['id']=='$TASK_ID': print(t['status']); break
     " 2>/dev/null)
-        if [ "$STATUS" = "success" ]; then
-          echo "  $PLUGIN_ID installed OK"
-          break
-        elif [ "$STATUS" = "failed" ]; then
-          echo "  WARNING: $PLUGIN_ID install failed, retrying with pre-cached deps..." >&2
-          # Retry: deps should now be cached from the uv sync above
-          INSTALL_RESP=$(api_post "/console/api/workspaces/current/plugin/install/pkg" \
+        [ "$STATUS" = "success" ] && { echo "  $PLUGIN_ID installed OK"; break; }
+        if [ "$STATUS" = "failed" ]; then
+          echo "  First attempt failed, retrying (deps should be cached)..."
+          TASK_ID=$(api_post "/console/api/workspaces/current/plugin/install/pkg" \
             "application/json" \
-            "{\"plugin_unique_identifiers\":[\"$UPLOADED_ID\"]}")
-          sleep 10
+            "{\"plugin_unique_identifiers\":[\"$UPLOADED_ID\"]}" | \
+            python3 -c "import json,sys; print(json.load(sys.stdin).get('task_id',''))" 2>/dev/null)
+          sleep 15
+          STATUS2=$(api_get "/console/api/workspaces/current/plugin/tasks?action=install&page=1&page_size=5" | \
+            python3 -c "
+    import json,sys
+    for t in json.load(sys.stdin).get('tasks',[]):
+        if t['id']=='$TASK_ID': print(t['status']); break
+    " 2>/dev/null)
+          [ "$STATUS2" = "success" ] && echo "  $PLUGIN_ID installed OK (retry)" || echo "  WARNING: $PLUGIN_ID install failed"
           break
         fi
       done
@@ -166,24 +142,11 @@ data:
     {{- end }}
 
     {{- if .Values.setup.modelProvider.enabled }}
-    # ── Step 5: Configure Model Provider ──
-    echo "[5/5] Configuring model provider..."
-    # Wait for plugins to be fully loaded
-    sleep 5
-
-    # Check if provider is already configured
-    LITELLM_URL="{{ $litellmUrl }}"
-    LITELLM_KEY="{{ .Values.litellm.apiKey }}"
-
-    # For OpenAI-API-compatible, we need to save credentials via the model provider config API
-    # This makes LiteLLM available as an LLM + embedding provider in Dify
-    echo "  LiteLLM endpoint: $LITELLM_URL"
-    echo "  Setup complete! Configure models in Dify UI:"
-    echo "    Settings → Model Provider → OpenAI-API-compatible"
-    echo "    API Base: $LITELLM_URL"
-    echo "    API Key:  $LITELLM_KEY"
-    echo "    LLM Model: qwen2-5-0-5b"
-    echo "    Embedding Model: bge-small-en"
+    # ── Step 5: Summary ──
+    echo "[5/5] Model provider setup info:"
+    echo "  LiteLLM endpoint: {{ $litellmUrl }}"
+    echo "  API Key: {{ .Values.litellm.apiKey }}"
+    echo "  Configure in Dify UI: Settings → Model Provider → OpenAI-API-compatible"
     {{- end }}
 
     echo ""
@@ -211,70 +174,21 @@ spec:
         app.kubernetes.io/name: dify-setup
         app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
-      serviceAccountName: {{ .Release.Name }}-dify-setup
       restartPolicy: OnFailure
       containers:
         - name: setup
-          image: "{{ .Values.image.api.repository }}:{{ .Values.image.api.tag }}"
-          command: ["bash", "/scripts/setup.sh"]
+          image: python:3.12-slim
+          command: ["bash", "-c", "apt-get update -qq && apt-get install -qq -y curl > /dev/null 2>&1 && pip install -q uv > /dev/null 2>&1 && bash /scripts/setup.sh"]
           volumeMounts:
             - name: scripts
               mountPath: /scripts
+            - name: plugin-storage
+              mountPath: /plugin-storage
       volumes:
         - name: scripts
           configMap:
             name: {{ .Release.Name }}-dify-setup
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: {{ .Release.Name }}-dify-setup
-  labels:
-    app.kubernetes.io/name: dify-setup
-    app.kubernetes.io/instance: {{ .Release.Name }}
-    app.kubernetes.io/part-of: kube-llmops
-  annotations:
-    helm.sh/hook: post-install,post-upgrade
-    helm.sh/hook-weight: "5"
-    helm.sh/hook-delete-policy: before-hook-creation
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: {{ .Release.Name }}-dify-setup
-  labels:
-    app.kubernetes.io/name: dify-setup
-    app.kubernetes.io/instance: {{ .Release.Name }}
-    app.kubernetes.io/part-of: kube-llmops
-  annotations:
-    helm.sh/hook: post-install,post-upgrade
-    helm.sh/hook-weight: "5"
-    helm.sh/hook-delete-policy: before-hook-creation
-rules:
-  - apiGroups: [""]
-    resources: ["pods"]
-    verbs: ["get", "list"]
-  - apiGroups: [""]
-    resources: ["pods/exec"]
-    verbs: ["create"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: {{ .Release.Name }}-dify-setup
-  labels:
-    app.kubernetes.io/name: dify-setup
-    app.kubernetes.io/instance: {{ .Release.Name }}
-    app.kubernetes.io/part-of: kube-llmops
-  annotations:
-    helm.sh/hook: post-install,post-upgrade
-    helm.sh/hook-weight: "5"
-    helm.sh/hook-delete-policy: before-hook-creation
-subjects:
-  - kind: ServiceAccount
-    name: {{ .Release.Name }}-dify-setup
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: {{ .Release.Name }}-dify-setup
+        - name: plugin-storage
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-dify-plugin-storage
 {{- end }}

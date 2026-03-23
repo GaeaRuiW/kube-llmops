@@ -60,7 +60,7 @@ litellm:
       engine: vllm
   embeddingModels:
     - name: bge-small-en
-      apiBase: http://tei-bge-small-en:8080/v1
+      apiBase: http://tei-bge-small-en:8080
   postgresql:
     enabled: true
     image:

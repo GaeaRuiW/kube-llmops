@@ -26,20 +26,14 @@ data:
       {{- end }}
       - model_name: {{ $model.name }}
         litellm_params:
-          {{- if eq $engine "tei" }}
-          model: huggingface/{{ $model.source }}
-          {{- else }}
           model: openai/{{ $model.name }}
-          {{- end }}
           api_base: http://{{ $prefix }}-{{ $model.name }}.{{ $.Release.Namespace }}.svc.cluster.local:{{ $port }}/v1
-          {{- if ne $engine "tei" }}
           api_key: "no-key-needed"
-          {{- end }}
     {{- end }}
     {{- range $idx, $emb := .Values.embeddingModels }}
       - model_name: {{ $emb.name }}
         litellm_params:
-          model: openai/{{ $emb.name }}
+          model: huggingface/{{ $emb.name }}
           api_base: {{ $emb.apiBase }}
           api_key: {{ $emb.apiKey | default "no-key-needed" | quote }}
     {{- end }}
@@ -74,6 +68,7 @@ data:
 
     {{- if .Values.langfuseEnabled }}
     litellm_settings:
+      drop_params: true
       success_callback: ["langfuse"]
       failure_callback: ["langfuse"]
       {{- if .Values.rateLimiting.enabled }}
