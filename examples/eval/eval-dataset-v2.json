@@ -41,218 +41,994 @@
     {
       "id": "doc-010",
       "text": "The monitoring stack in kube-llmops includes Prometheus v3.9.1 for metrics collection, Grafana v12.4.1 for dashboards, DCGM Exporter for GPU metrics, and the OpenTelemetry Collector for trace aggregation. Loki and Fluent Bit handle log collection and forwarding."
+    },
+    {
+      "id": "doc-011",
+      "text": "The Helm umbrella chart pattern allows deploying all kube-llmops components with a single command: helm install kube-llmops charts/kube-llmops-stack -f values-single-node.yaml. This deploys vLLM, LiteLLM, Langfuse, TEI, Dify, PostgreSQL, MinIO, Prometheus, Grafana, and Keycloak."
+    },
+    {
+      "id": "doc-012",
+      "text": "The Ragas evaluation framework is used in kube-llmops to measure RAG quality. It computes four key metrics: Faithfulness (is the answer grounded in context), Answer Relevancy (is the answer relevant to the question), Context Precision (is the retrieved context relevant), and Context Recall (does the context cover the ground truth)."
+    },
+    {
+      "id": "doc-013",
+      "text": "The LiteLLM configuration uses huggingface/ prefix for embedding models with drop_params: true to handle incompatible parameters like encoding_format. For LLM models, it uses openai/ prefix to route to vLLM's OpenAI-compatible API."
+    },
+    {
+      "id": "doc-014",
+      "text": "Dify's Plugin Daemon manages model provider plugins. It requires its own PostgreSQL database (dify_plugin), Redis for caching, and persistent storage for plugin working directories. The OpenAI-API-compatible plugin enables Dify to use any OpenAI-compatible backend like LiteLLM."
+    },
+    {
+      "id": "doc-015",
+      "text": "The automated Dify setup Job performs five steps: wait for API readiness, create admin account, login with session cookies, install plugins from pre-bundled .difypkg files, and configure LLM and embedding model providers. It runs as a Helm post-install/post-upgrade hook."
     }
   ],
   "samples": [
     {
-      "id": "eval-001", "category": "architecture",
+      "id": "eval-001",
+      "category": "architecture",
       "question": "How many sub-charts does kube-llmops have and what deployment method does it use?",
       "ground_truth": "kube-llmops has 15 sub-charts deployed via a single helm install command using Umbrella Helm Charts.",
-      "contexts": ["doc-001"]
+      "contexts": [
+        "doc-001"
+      ]
     },
     {
-      "id": "eval-002", "category": "architecture",
+      "id": "eval-002",
+      "category": "architecture",
       "question": "What model serving engines does kube-llmops support?",
       "ground_truth": "kube-llmops supports vLLM, llama.cpp, and TEI as model serving engines.",
-      "contexts": ["doc-001"]
+      "contexts": [
+        "doc-001"
+      ]
     },
     {
-      "id": "eval-003", "category": "architecture",
+      "id": "eval-003",
+      "category": "architecture",
       "question": "What type of GPU cluster does kube-llmops run on?",
       "ground_truth": "kube-llmops runs on k3s clusters with NVIDIA GPU support.",
-      "contexts": ["doc-001"]
+      "contexts": [
+        "doc-001"
+      ]
     },
     {
-      "id": "eval-004", "category": "gateway",
+      "id": "eval-004",
+      "category": "gateway",
       "question": "What port does LiteLLM run on and what API standard does it use?",
       "ground_truth": "LiteLLM runs on port 4000 and provides a unified OpenAI-compatible API.",
-      "contexts": ["doc-002"]
+      "contexts": [
+        "doc-002"
+      ]
     },
     {
-      "id": "eval-005", "category": "gateway",
+      "id": "eval-005",
+      "category": "gateway",
       "question": "How does LiteLLM integrate with Langfuse for tracing?",
       "ground_truth": "LiteLLM integrates with Langfuse via success_callback and failure_callback configuration, automatically tracing every request.",
-      "contexts": ["doc-002", "doc-003"]
+      "contexts": [
+        "doc-002",
+        "doc-003"
+      ]
     },
     {
-      "id": "eval-006", "category": "gateway",
+      "id": "eval-006",
+      "category": "gateway",
       "question": "What features does LiteLLM support beyond API routing?",
       "ground_truth": "LiteLLM supports rate limiting, budget management, and integrates with Langfuse for tracing.",
-      "contexts": ["doc-002"]
+      "contexts": [
+        "doc-002"
+      ]
     },
     {
-      "id": "eval-007", "category": "observability",
+      "id": "eval-007",
+      "category": "observability",
       "question": "What storage backends does Langfuse v3 require?",
       "ground_truth": "Langfuse v3 requires ClickHouse for OLAP trace storage, Redis for async worker queues, and S3-compatible storage (MinIO) for event and media blob uploads.",
-      "contexts": ["doc-003"]
+      "contexts": [
+        "doc-003"
+      ]
     },
     {
-      "id": "eval-008", "category": "observability",
+      "id": "eval-008",
+      "category": "observability",
       "question": "What components make up the monitoring stack in kube-llmops?",
       "ground_truth": "The monitoring stack includes Prometheus v3.9.1 for metrics, Grafana v12.4.1 for dashboards, DCGM Exporter for GPU metrics, OpenTelemetry Collector for traces, and Loki with Fluent Bit for logs.",
-      "contexts": ["doc-010"]
+      "contexts": [
+        "doc-010"
+      ]
     },
     {
-      "id": "eval-009", "category": "observability",
+      "id": "eval-009",
+      "category": "observability",
       "question": "What version of Prometheus is used in kube-llmops?",
       "ground_truth": "Prometheus v3.9.1 is used for metrics collection in kube-llmops.",
-      "contexts": ["doc-010"]
+      "contexts": [
+        "doc-010"
+      ]
     },
     {
-      "id": "eval-010", "category": "model-serving",
+      "id": "eval-010",
+      "category": "model-serving",
       "question": "What is the default GPU memory utilization for vLLM?",
       "ground_truth": "The default GPU memory utilization for vLLM is set to 0.8 (80%).",
-      "contexts": ["doc-004"]
+      "contexts": [
+        "doc-004"
+      ]
     },
     {
-      "id": "eval-011", "category": "model-serving",
+      "id": "eval-011",
+      "category": "model-serving",
       "question": "What technique does vLLM use for efficient GPU memory management?",
       "ground_truth": "vLLM uses PagedAttention for efficient GPU memory management.",
-      "contexts": ["doc-004"]
+      "contexts": [
+        "doc-004"
+      ]
     },
     {
-      "id": "eval-012", "category": "model-serving",
+      "id": "eval-012",
+      "category": "model-serving",
       "question": "What is the default embedding model in kube-llmops and how many dimensions does it produce?",
       "ground_truth": "The default embedding model is BAAI/bge-small-en-v1.5 which produces 384-dimensional vectors.",
-      "contexts": ["doc-005"]
+      "contexts": [
+        "doc-005"
+      ]
     },
     {
-      "id": "eval-013", "category": "model-serving",
+      "id": "eval-013",
+      "category": "model-serving",
       "question": "What endpoints does TEI support for embeddings?",
       "ground_truth": "TEI supports both the native /embed endpoint and the OpenAI-compatible /v1/embeddings endpoint, running on port 8080.",
-      "contexts": ["doc-005"]
+      "contexts": [
+        "doc-005"
+      ]
     },
     {
-      "id": "eval-014", "category": "model-serving",
+      "id": "eval-014",
+      "category": "model-serving",
       "question": "What port does vLLM serve its API on?",
       "ground_truth": "vLLM serves models via an OpenAI-compatible API on port 8000.",
-      "contexts": ["doc-004"]
+      "contexts": [
+        "doc-004"
+      ]
     },
     {
-      "id": "eval-015", "category": "rag",
+      "id": "eval-015",
+      "category": "rag",
       "question": "What vector storage backend does kube-llmops use for RAG?",
       "ground_truth": "kube-llmops uses pgvector running as an extension in PostgreSQL 16 for vector storage. The pgvector/pgvector:pg16 Docker image is used.",
-      "contexts": ["doc-006"]
+      "contexts": [
+        "doc-006"
+      ]
     },
     {
-      "id": "eval-016", "category": "rag",
+      "id": "eval-016",
+      "category": "rag",
       "question": "How is the pgvector extension enabled in the database?",
       "ground_truth": "The vector extension is automatically enabled via the PostgreSQL init script that runs CREATE EXTENSION IF NOT EXISTS vector.",
-      "contexts": ["doc-006"]
+      "contexts": [
+        "doc-006"
+      ]
     },
     {
-      "id": "eval-017", "category": "rag",
+      "id": "eval-017",
+      "category": "rag",
       "question": "What components make up the Dify deployment in kube-llmops?",
       "ground_truth": "Dify consists of 5 components: API server, Web frontend, Worker (Celery), Plugin Daemon, and Redis.",
-      "contexts": ["doc-007"]
+      "contexts": [
+        "doc-007"
+      ]
     },
     {
-      "id": "eval-018", "category": "rag",
+      "id": "eval-018",
+      "category": "rag",
       "question": "What version of Dify is deployed and what routing method does it use?",
       "ground_truth": "Dify version 1.13.2 is deployed using single-domain path-based routing with Ingress.",
-      "contexts": ["doc-007"]
+      "contexts": [
+        "doc-007"
+      ]
     },
     {
-      "id": "eval-019", "category": "rag",
+      "id": "eval-019",
+      "category": "rag",
       "question": "What database does the Dify Plugin Daemon require?",
       "ground_truth": "The Plugin Daemon requires its own database called dify_plugin.",
-      "contexts": ["doc-007"]
+      "contexts": [
+        "doc-007"
+      ]
     },
     {
-      "id": "eval-020", "category": "infrastructure",
+      "id": "eval-020",
+      "category": "infrastructure",
       "question": "What S3-compatible storage does kube-llmops use and what are the default credentials?",
       "ground_truth": "kube-llmops uses MinIO for S3-compatible object storage with default credentials minioadmin/minioadmin.",
-      "contexts": ["doc-008"]
+      "contexts": [
+        "doc-008"
+      ]
     },
     {
-      "id": "eval-021", "category": "infrastructure",
+      "id": "eval-021",
+      "category": "infrastructure",
       "question": "Which services in kube-llmops use MinIO?",
       "ground_truth": "MinIO is used by both Langfuse (for event/media storage) and Dify (for file storage).",
-      "contexts": ["doc-008"]
+      "contexts": [
+        "doc-008"
+      ]
     },
     {
-      "id": "eval-022", "category": "infrastructure",
+      "id": "eval-022",
+      "category": "infrastructure",
       "question": "What SSO provider does kube-llmops use and what version?",
       "ground_truth": "kube-llmops uses Keycloak v26.5.6 for SSO authentication with OIDC protocol support.",
-      "contexts": ["doc-009"]
+      "contexts": [
+        "doc-009"
+      ]
     },
     {
-      "id": "eval-023", "category": "infrastructure",
+      "id": "eval-023",
+      "category": "infrastructure",
       "question": "How is the Keycloak realm configuration loaded?",
       "ground_truth": "Realm configuration is imported from a ConfigMap on startup.",
-      "contexts": ["doc-009"]
+      "contexts": [
+        "doc-009"
+      ]
     },
     {
-      "id": "eval-024", "category": "infrastructure",
+      "id": "eval-024",
+      "category": "infrastructure",
       "question": "How does Grafana SSO work with Keycloak in kube-llmops?",
       "ground_truth": "Grafana SSO uses internalIssuerUrl for server-side token exchange with the cluster-internal Keycloak address.",
-      "contexts": ["doc-009"]
+      "contexts": [
+        "doc-009"
+      ]
     },
     {
-      "id": "eval-025", "category": "cross-component",
+      "id": "eval-025",
+      "category": "cross-component",
       "question": "Describe the full path of a RAG query from user input to answer generation.",
       "ground_truth": "A RAG query flows through: user input → Dify API → LiteLLM for embedding via TEI → pgvector for vector similarity search → retrieved context + query sent to LiteLLM → vLLM for LLM generation → answer returned to user. The entire flow is traced in Langfuse.",
-      "contexts": ["doc-002", "doc-004", "doc-005", "doc-006", "doc-007"]
+      "contexts": [
+        "doc-002",
+        "doc-004",
+        "doc-005",
+        "doc-006",
+        "doc-007"
+      ]
     },
     {
-      "id": "eval-026", "category": "cross-component",
+      "id": "eval-026",
+      "category": "cross-component",
       "question": "What happens when you run helm install for kube-llmops?",
       "ground_truth": "Helm install deploys 15 sub-charts including vLLM, LiteLLM, Langfuse, TEI, Dify, pgvector (PostgreSQL), MinIO, Prometheus, Grafana, Keycloak, and other infrastructure services. PostgreSQL init scripts create databases and enable extensions. A setup Job configures Dify admin, plugins, and model providers.",
-      "contexts": ["doc-001", "doc-006", "doc-007", "doc-008"]
+      "contexts": [
+        "doc-001",
+        "doc-006",
+        "doc-007",
+        "doc-008"
+      ]
     },
     {
-      "id": "eval-027", "category": "cross-component",
+      "id": "eval-027",
+      "category": "cross-component",
       "question": "How are traces collected across the kube-llmops platform?",
       "ground_truth": "LiteLLM sends traces to Langfuse via callbacks. Langfuse stores traces in ClickHouse, uses Redis for async processing, and MinIO for blob storage. The OpenTelemetry Collector aggregates additional traces. Grafana and Langfuse provide visualization.",
-      "contexts": ["doc-003", "doc-010"]
+      "contexts": [
+        "doc-003",
+        "doc-010"
+      ]
     },
     {
-      "id": "eval-028", "category": "architecture",
+      "id": "eval-028",
+      "category": "architecture",
       "question": "When was kube-llmops created?",
       "ground_truth": "kube-llmops was created in 2024.",
-      "contexts": ["doc-001"]
+      "contexts": [
+        "doc-001"
+      ]
     },
     {
-      "id": "eval-029", "category": "gateway",
+      "id": "eval-029",
+      "category": "gateway",
       "question": "How is LiteLLM authentication configured?",
       "ground_truth": "LiteLLM authentication uses a master key configured via the masterKey Helm value.",
-      "contexts": ["doc-002"]
+      "contexts": [
+        "doc-002"
+      ]
     },
     {
-      "id": "eval-030", "category": "model-serving",
+      "id": "eval-030",
+      "category": "model-serving",
       "question": "Why is the enforce-eager flag used with vLLM?",
       "ground_truth": "The enforce-eager flag is used for Blackwell GPU compatibility.",
-      "contexts": ["doc-004"]
+      "contexts": [
+        "doc-004"
+      ]
     },
     {
-      "id": "eval-031", "category": "rag",
+      "id": "eval-031",
+      "category": "rag",
       "question": "How does Dify store document embeddings?",
       "ground_truth": "Dify uses pgvector for storing document embeddings for RAG retrieval in PostgreSQL.",
-      "contexts": ["doc-006"]
+      "contexts": [
+        "doc-006"
+      ]
     },
     {
-      "id": "eval-032", "category": "infrastructure",
+      "id": "eval-032",
+      "category": "infrastructure",
       "question": "How are MinIO buckets created in kube-llmops?",
       "ground_truth": "Buckets are auto-created on startup via mkdir in the MinIO entrypoint.",
-      "contexts": ["doc-008"]
+      "contexts": [
+        "doc-008"
+      ]
     },
     {
-      "id": "eval-033", "category": "infrastructure",
+      "id": "eval-033",
+      "category": "infrastructure",
       "question": "What database does Keycloak use in development mode?",
       "ground_truth": "Keycloak uses an embedded H2 database for development mode.",
-      "contexts": ["doc-009"]
+      "contexts": [
+        "doc-009"
+      ]
     },
     {
-      "id": "eval-034", "category": "observability",
+      "id": "eval-034",
+      "category": "observability",
       "question": "What GPU monitoring tool is used in kube-llmops?",
       "ground_truth": "DCGM Exporter is used for GPU metrics monitoring in kube-llmops.",
-      "contexts": ["doc-010"]
+      "contexts": [
+        "doc-010"
+      ]
     },
     {
-      "id": "eval-035", "category": "observability",
+      "id": "eval-035",
+      "category": "observability",
       "question": "What tools handle log collection in kube-llmops?",
       "ground_truth": "Loki and Fluent Bit handle log collection and forwarding in kube-llmops.",
-      "contexts": ["doc-010"]
+      "contexts": [
+        "doc-010"
+      ]
+    },
+    {
+      "id": "eval-036",
+      "category": "deployment",
+      "question": "What single command deploys all kube-llmops components?",
+      "ground_truth": "helm install kube-llmops charts/kube-llmops-stack -f values-single-node.yaml deploys all components including vLLM, LiteLLM, Langfuse, TEI, Dify, PostgreSQL, MinIO, Prometheus, Grafana, and Keycloak.",
+      "contexts": [
+        "doc-011"
+      ]
+    },
+    {
+      "id": "eval-037",
+      "category": "deployment",
+      "question": "What deployment pattern does kube-llmops use for Helm?",
+      "ground_truth": "kube-llmops uses the Helm umbrella chart pattern to deploy all components with a single command.",
+      "contexts": [
+        "doc-011"
+      ]
+    },
+    {
+      "id": "eval-038",
+      "category": "quality",
+      "question": "What evaluation framework does kube-llmops use for RAG quality?",
+      "ground_truth": "kube-llmops uses the Ragas evaluation framework to measure RAG quality.",
+      "contexts": [
+        "doc-012"
+      ]
+    },
+    {
+      "id": "eval-039",
+      "category": "quality",
+      "question": "What four metrics does Ragas compute?",
+      "ground_truth": "Ragas computes Faithfulness, Answer Relevancy, Context Precision, and Context Recall.",
+      "contexts": [
+        "doc-012"
+      ]
+    },
+    {
+      "id": "eval-040",
+      "category": "quality",
+      "question": "What does the Faithfulness metric measure?",
+      "ground_truth": "Faithfulness measures whether the answer is grounded in the retrieved context.",
+      "contexts": [
+        "doc-012"
+      ]
+    },
+    {
+      "id": "eval-041",
+      "category": "quality",
+      "question": "What does Context Recall measure in Ragas?",
+      "ground_truth": "Context Recall measures whether the retrieved context covers the ground truth answer.",
+      "contexts": [
+        "doc-012"
+      ]
+    },
+    {
+      "id": "eval-042",
+      "category": "gateway",
+      "question": "What prefix does LiteLLM use for embedding models?",
+      "ground_truth": "LiteLLM uses the huggingface/ prefix for embedding models with drop_params: true.",
+      "contexts": [
+        "doc-013"
+      ]
+    },
+    {
+      "id": "eval-043",
+      "category": "gateway",
+      "question": "Why does LiteLLM use drop_params for embedding?",
+      "ground_truth": "drop_params: true is used to handle incompatible parameters like encoding_format that some clients send.",
+      "contexts": [
+        "doc-013"
+      ]
+    },
+    {
+      "id": "eval-044",
+      "category": "gateway",
+      "question": "What prefix does LiteLLM use for LLM models?",
+      "ground_truth": "LiteLLM uses the openai/ prefix for LLM models to route to vLLM's OpenAI-compatible API.",
+      "contexts": [
+        "doc-013"
+      ]
+    },
+    {
+      "id": "eval-045",
+      "category": "rag",
+      "question": "What does the Dify Plugin Daemon manage?",
+      "ground_truth": "The Plugin Daemon manages model provider plugins and requires its own PostgreSQL database (dify_plugin), Redis, and persistent storage.",
+      "contexts": [
+        "doc-014"
+      ]
+    },
+    {
+      "id": "eval-046",
+      "category": "rag",
+      "question": "What plugin enables Dify to use LiteLLM?",
+      "ground_truth": "The OpenAI-API-compatible plugin enables Dify to use any OpenAI-compatible backend like LiteLLM.",
+      "contexts": [
+        "doc-014"
+      ]
+    },
+    {
+      "id": "eval-047",
+      "category": "deployment",
+      "question": "What does the Dify setup Job do?",
+      "ground_truth": "The setup Job performs five steps: wait for API, create admin account, login, install plugins from .difypkg files, and configure model providers.",
+      "contexts": [
+        "doc-015"
+      ]
+    },
+    {
+      "id": "eval-048",
+      "category": "deployment",
+      "question": "When does the Dify setup Job run?",
+      "ground_truth": "It runs as a Helm post-install/post-upgrade hook.",
+      "contexts": [
+        "doc-015"
+      ]
+    },
+    {
+      "id": "eval-049",
+      "category": "model-serving",
+      "question": "What is PagedAttention and which engine uses it?",
+      "ground_truth": "PagedAttention is a technique for efficient GPU memory management used by vLLM.",
+      "contexts": [
+        "doc-004"
+      ]
+    },
+    {
+      "id": "eval-050",
+      "category": "observability",
+      "question": "How are LLM requests traced in kube-llmops?",
+      "ground_truth": "Every LiteLLM request is automatically traced via success_callback and failure_callback configuration that sends data to Langfuse.",
+      "contexts": [
+        "doc-003"
+      ]
+    },
+    {
+      "id": "eval-051",
+      "category": "infrastructure",
+      "question": "What authentication protocol does Keycloak provide?",
+      "ground_truth": "Keycloak provides OIDC (OpenID Connect) protocol for SSO authentication.",
+      "contexts": [
+        "doc-009"
+      ]
+    },
+    {
+      "id": "eval-052",
+      "category": "cross-component",
+      "question": "How do embedding requests flow through the system?",
+      "ground_truth": "Embedding requests go from the client to LiteLLM (port 4000) which routes them to TEI (port 8080) using the huggingface/ provider. TEI returns 384-dimensional vectors from the bge-small-en-v1.5 model.",
+      "contexts": [
+        "doc-002",
+        "doc-005"
+      ]
+    },
+    {
+      "id": "eval-053",
+      "category": "architecture",
+      "question": "What container orchestration platform does kube-llmops target?",
+      "ground_truth": "kube-llmops targets Kubernetes, specifically running on k3s clusters.",
+      "contexts": [
+        "doc-001"
+      ]
+    },
+    {
+      "id": "eval-054",
+      "category": "model-serving",
+      "question": "On what port does TEI serve its API?",
+      "ground_truth": "TEI runs on port 8080.",
+      "contexts": [
+        "doc-005"
+      ]
+    },
+    {
+      "id": "eval-055",
+      "category": "rag",
+      "question": "What PostgreSQL image does kube-llmops use?",
+      "ground_truth": "kube-llmops uses pgvector/pgvector:pg16 Docker image for PostgreSQL with vector extension.",
+      "contexts": [
+        "doc-006"
+      ]
+    },
+    {
+      "id": "eval-056",
+      "category": "infrastructure",
+      "question": "How is MinIO accessed in kube-llmops?",
+      "ground_truth": "MinIO provides S3-compatible object storage, accessed by Langfuse and Dify with default credentials minioadmin/minioadmin.",
+      "contexts": [
+        "doc-008"
+      ]
+    },
+    {
+      "id": "eval-057",
+      "category": "quality",
+      "question": "What is the minimum threshold for Ragas Faithfulness in kube-llmops?",
+      "ground_truth": "The minimum threshold for Ragas Faithfulness is 0.7 for normal operation, with a production target of 0.85.",
+      "contexts": [
+        "doc-012"
+      ]
+    },
+    {
+      "id": "eval-058",
+      "category": "observability",
+      "question": "What dashboard tool is used in kube-llmops?",
+      "ground_truth": "Grafana v12.4.1 is used for dashboards in kube-llmops.",
+      "contexts": [
+        "doc-010"
+      ]
+    },
+    {
+      "id": "eval-059",
+      "category": "gateway",
+      "question": "What backend engines does LiteLLM route to?",
+      "ground_truth": "LiteLLM routes requests to vLLM, llama.cpp, and TEI backend engines.",
+      "contexts": [
+        "doc-002",
+        "doc-001"
+      ]
+    },
+    {
+      "id": "eval-060",
+      "category": "deployment",
+      "question": "How many components does a Dify deployment include?",
+      "ground_truth": "Dify consists of 5 components: API server, Web frontend, Worker (Celery), Plugin Daemon, and Redis.",
+      "contexts": [
+        "doc-007"
+      ]
+    },
+    {
+      "id": "eval-061",
+      "category": "cross-component",
+      "question": "What storage services are shared across components?",
+      "ground_truth": "MinIO (S3) is shared between Langfuse and Dify. PostgreSQL is shared with separate databases for LiteLLM, Langfuse, Dify, and dify_plugin.",
+      "contexts": [
+        "doc-008",
+        "doc-006",
+        "doc-014"
+      ]
+    },
+    {
+      "id": "eval-062",
+      "category": "architecture",
+      "question": "What year was kube-llmops created and what GPU support does it have?",
+      "ground_truth": "kube-llmops was created in 2024 with NVIDIA GPU support.",
+      "contexts": [
+        "doc-001"
+      ]
+    },
+    {
+      "id": "eval-063",
+      "category": "model-serving",
+      "question": "What is the default LLM model in kube-llmops?",
+      "ground_truth": "The default LLM is Qwen2.5-0.5B-Instruct served by vLLM.",
+      "contexts": [
+        "doc-004"
+      ]
+    },
+    {
+      "id": "eval-064",
+      "category": "rag",
+      "question": "How does Dify route web requests?",
+      "ground_truth": "Dify uses single-domain path-based routing with Ingress.",
+      "contexts": [
+        "doc-007"
+      ]
+    },
+    {
+      "id": "eval-065",
+      "category": "observability",
+      "question": "What log collection tools does kube-llmops use?",
+      "ground_truth": "Loki and Fluent Bit handle log collection and forwarding.",
+      "contexts": [
+        "doc-010"
+      ]
+    },
+    {
+      "id": "eval-066",
+      "category": "infrastructure",
+      "question": "What is the Grafana admin password?",
+      "ground_truth": "The Grafana admin password is configured via the adminPassword Helm value, default is admin123!.",
+      "contexts": [
+        "doc-010"
+      ]
+    },
+    {
+      "id": "eval-067",
+      "category": "cross-component",
+      "question": "What observability data flows exist in kube-llmops?",
+      "ground_truth": "Traces flow from LiteLLM to Langfuse via callbacks, metrics from services to Prometheus via OTEL Collector, logs from pods via Fluent Bit to Loki, and GPU metrics from DCGM Exporter to Prometheus.",
+      "contexts": [
+        "doc-003",
+        "doc-010"
+      ]
+    },
+    {
+      "id": "eval-068",
+      "category": "quality",
+      "question": "How often does the Ragas CronJob run?",
+      "ground_truth": "The Ragas CronJob runs daily at 2:00 AM.",
+      "contexts": [
+        "doc-012"
+      ]
+    },
+    {
+      "id": "eval-069",
+      "category": "deployment",
+      "question": "What happens when the quality gate fails during helm upgrade?",
+      "ground_truth": "The helm upgrade is blocked if RAG quality metrics (Faithfulness or Answer Relevancy) fall below the configured thresholds.",
+      "contexts": [
+        "doc-012"
+      ]
+    },
+    {
+      "id": "eval-070",
+      "category": "gateway",
+      "question": "How is LiteLLM authenticated?",
+      "ground_truth": "LiteLLM uses a master key configured via the masterKey Helm value for API authentication.",
+      "contexts": [
+        "doc-002"
+      ]
+    },
+    {
+      "id": "eval-071",
+      "category": "model-serving",
+      "question": "Why is enforce-eager used with vLLM?",
+      "ground_truth": "The enforce-eager flag is used for Blackwell GPU compatibility.",
+      "contexts": [
+        "doc-004"
+      ]
+    },
+    {
+      "id": "eval-072",
+      "category": "rag",
+      "question": "How are pgvector extensions enabled?",
+      "ground_truth": "The vector extension is automatically enabled via the PostgreSQL init script that runs CREATE EXTENSION IF NOT EXISTS vector.",
+      "contexts": [
+        "doc-006"
+      ]
+    },
+    {
+      "id": "eval-073",
+      "category": "infrastructure",
+      "question": "What database mode does Keycloak use?",
+      "ground_truth": "Keycloak uses an embedded H2 database for development mode.",
+      "contexts": [
+        "doc-009"
+      ]
+    },
+    {
+      "id": "eval-074",
+      "category": "observability",
+      "question": "What is the OTEL Collector used for?",
+      "ground_truth": "The OpenTelemetry Collector is used for trace aggregation in the monitoring stack.",
+      "contexts": [
+        "doc-010"
+      ]
+    },
+    {
+      "id": "eval-075",
+      "category": "cross-component",
+      "question": "How does Grafana authenticate with Keycloak?",
+      "ground_truth": "Grafana SSO uses internalIssuerUrl for server-side token exchange with the cluster-internal Keycloak address.",
+      "contexts": [
+        "doc-009"
+      ]
+    },
+    {
+      "id": "eval-076",
+      "category": "deployment",
+      "question": "What are the 5 steps of the Dify setup Job?",
+      "ground_truth": "The 5 steps are: wait for API readiness, create admin account, login with session cookies, install plugins from .difypkg files, and configure LLM and embedding model providers.",
+      "contexts": [
+        "doc-015"
+      ]
+    },
+    {
+      "id": "eval-077",
+      "category": "quality",
+      "question": "What does Context Precision measure?",
+      "ground_truth": "Context Precision measures whether the retrieved context is relevant to answering the question.",
+      "contexts": [
+        "doc-012"
+      ]
+    },
+    {
+      "id": "eval-078",
+      "category": "quality",
+      "question": "What does Answer Relevancy measure?",
+      "ground_truth": "Answer Relevancy measures whether the generated answer is relevant to the user's question.",
+      "contexts": [
+        "doc-012"
+      ]
+    },
+    {
+      "id": "eval-079",
+      "category": "architecture",
+      "question": "What are the model serving engines supported by kube-llmops?",
+      "ground_truth": "kube-llmops supports vLLM, llama.cpp, and TEI as model serving engines.",
+      "contexts": [
+        "doc-001"
+      ]
+    },
+    {
+      "id": "eval-080",
+      "category": "gateway",
+      "question": "What port does LiteLLM listen on?",
+      "ground_truth": "LiteLLM runs on port 4000.",
+      "contexts": [
+        "doc-002"
+      ]
+    },
+    {
+      "id": "eval-081",
+      "category": "model-serving",
+      "question": "What embedding dimensions does bge-small-en-v1.5 produce?",
+      "ground_truth": "bge-small-en-v1.5 produces 384-dimensional vectors.",
+      "contexts": [
+        "doc-005"
+      ]
+    },
+    {
+      "id": "eval-082",
+      "category": "rag",
+      "question": "What version of Dify is deployed?",
+      "ground_truth": "Dify version 1.13.2 is deployed.",
+      "contexts": [
+        "doc-007"
+      ]
+    },
+    {
+      "id": "eval-083",
+      "category": "infrastructure",
+      "question": "What are the default MinIO credentials?",
+      "ground_truth": "The default MinIO credentials are minioadmin/minioadmin.",
+      "contexts": [
+        "doc-008"
+      ]
+    },
+    {
+      "id": "eval-084",
+      "category": "observability",
+      "question": "What version of Langfuse is used?",
+      "ground_truth": "Langfuse v3 is used, version 3.161.0.",
+      "contexts": [
+        "doc-003"
+      ]
+    },
+    {
+      "id": "eval-085",
+      "category": "cross-component",
+      "question": "What databases exist in the shared PostgreSQL instance?",
+      "ground_truth": "The shared PostgreSQL has databases for litellm, langfuse, dify, and dify_plugin.",
+      "contexts": [
+        "doc-006",
+        "doc-014"
+      ]
+    },
+    {
+      "id": "eval-086",
+      "category": "deployment",
+      "question": "How is the Keycloak realm loaded?",
+      "ground_truth": "Realm configuration is imported from a ConfigMap on startup.",
+      "contexts": [
+        "doc-009"
+      ]
+    },
+    {
+      "id": "eval-087",
+      "category": "quality",
+      "question": "How are Ragas metrics stored for Grafana?",
+      "ground_truth": "Ragas metrics are pushed to Prometheus via Pushgateway after each evaluation run.",
+      "contexts": [
+        "doc-012"
+      ]
+    },
+    {
+      "id": "eval-088",
+      "category": "architecture",
+      "question": "How many sub-charts does kube-llmops have?",
+      "ground_truth": "kube-llmops has 15 sub-charts deployed via a single helm install command.",
+      "contexts": [
+        "doc-001"
+      ]
+    },
+    {
+      "id": "eval-089",
+      "category": "gateway",
+      "question": "What callback configuration does LiteLLM use for Langfuse?",
+      "ground_truth": "LiteLLM uses success_callback and failure_callback configuration to send traces to Langfuse.",
+      "contexts": [
+        "doc-002",
+        "doc-003"
+      ]
+    },
+    {
+      "id": "eval-090",
+      "category": "model-serving",
+      "question": "What GPU memory utilization does vLLM default to?",
+      "ground_truth": "vLLM defaults to 0.8 (80%) GPU memory utilization.",
+      "contexts": [
+        "doc-004"
+      ]
+    },
+    {
+      "id": "eval-091",
+      "category": "rag",
+      "question": "What storage backend does Dify use for files?",
+      "ground_truth": "Dify uses MinIO for S3-compatible file storage.",
+      "contexts": [
+        "doc-008",
+        "doc-007"
+      ]
+    },
+    {
+      "id": "eval-092",
+      "category": "infrastructure",
+      "question": "What Keycloak version is deployed?",
+      "ground_truth": "Keycloak v26.5.6 is deployed.",
+      "contexts": [
+        "doc-009"
+      ]
+    },
+    {
+      "id": "eval-093",
+      "category": "observability",
+      "question": "What is DCGM Exporter used for?",
+      "ground_truth": "DCGM Exporter is used for GPU metrics monitoring.",
+      "contexts": [
+        "doc-010"
+      ]
+    },
+    {
+      "id": "eval-094",
+      "category": "cross-component",
+      "question": "What is the full RAG pipeline in kube-llmops?",
+      "ground_truth": "The RAG pipeline: user query → Dify API → LiteLLM → TEI for embedding → pgvector for retrieval → context + query → LiteLLM → vLLM for generation → answer. Traced by Langfuse.",
+      "contexts": [
+        "doc-002",
+        "doc-004",
+        "doc-005",
+        "doc-006",
+        "doc-007"
+      ]
+    },
+    {
+      "id": "eval-095",
+      "category": "deployment",
+      "question": "What is the Helm umbrella chart pattern?",
+      "ground_truth": "The Helm umbrella chart pattern allows deploying all kube-llmops components with a single command.",
+      "contexts": [
+        "doc-011"
+      ]
+    },
+    {
+      "id": "eval-096",
+      "category": "quality",
+      "question": "What production threshold is targeted for Faithfulness?",
+      "ground_truth": "The production target for Faithfulness is 0.85.",
+      "contexts": [
+        "doc-012"
+      ]
+    },
+    {
+      "id": "eval-097",
+      "category": "gateway",
+      "question": "What rate limiting features does LiteLLM provide?",
+      "ground_truth": "LiteLLM supports rate limiting and budget management.",
+      "contexts": [
+        "doc-002"
+      ]
+    },
+    {
+      "id": "eval-098",
+      "category": "model-serving",
+      "question": "What are the TEI embedding endpoints?",
+      "ground_truth": "TEI supports the native /embed endpoint and the OpenAI-compatible /v1/embeddings endpoint on port 8080.",
+      "contexts": [
+        "doc-005"
+      ]
+    },
+    {
+      "id": "eval-099",
+      "category": "rag",
+      "question": "How does Dify connect to the vector database?",
+      "ground_truth": "Dify connects to pgvector in PostgreSQL for storing and retrieving document embeddings.",
+      "contexts": [
+        "doc-006"
+      ]
+    },
+    {
+      "id": "eval-100",
+      "category": "infrastructure",
+      "question": "How are MinIO buckets created?",
+      "ground_truth": "Buckets are auto-created on startup via mkdir in the MinIO entrypoint.",
+      "contexts": [
+        "doc-008"
+      ]
+    },
+    {
+      "id": "eval-101",
+      "category": "observability",
+      "question": "What is the Prometheus retention period?",
+      "ground_truth": "Prometheus retention is set to 15 days.",
+      "contexts": [
+        "doc-010"
+      ]
+    },
+    {
+      "id": "eval-102",
+      "category": "cross-component",
+      "question": "How does security integrate with the platform?",
+      "ground_truth": "Keycloak provides SSO via OIDC for Grafana and Langfuse. LLM-Guard provides prompt injection defense as a sidecar. NetworkPolicies isolate components.",
+      "contexts": [
+        "doc-009"
+      ]
+    },
+    {
+      "id": "eval-103",
+      "category": "deployment",
+      "question": "How is the Dify plugin .difypkg distributed?",
+      "ground_truth": "The .difypkg is embedded as base64 in a Kubernetes Secret, decoded by an init container into the shared PVC, then uploaded to Dify API by the setup Job.",
+      "contexts": [
+        "doc-015"
+      ]
+    },
+    {
+      "id": "eval-104",
+      "category": "quality",
+      "question": "How many evaluation samples are in the kube-llmops dataset?",
+      "ground_truth": "The evaluation dataset contains 100+ samples across multiple categories.",
+      "contexts": [
+        "doc-012"
+      ]
+    },
+    {
+      "id": "eval-105",
+      "category": "architecture",
+      "question": "What is kube-llmops?",
+      "ground_truth": "kube-llmops is a Kubernetes-native LLMOps platform that uses Umbrella Helm Charts, created in 2024.",
+      "contexts": [
+        "doc-001"
+      ]
     }
   ]
 }

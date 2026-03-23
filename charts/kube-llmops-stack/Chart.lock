@@ -45,4 +45,4 @@ dependencies:
   repository: file://charts/rag-eval
   version: 0.1.0
 digest: sha256:b5249e51dbab2840852d276d08ae45e4a40becc254c2a1ed11a659f4b87597db
-generated: "2026-03-23T22:12:59.063122222+08:00"
+generated: "2026-03-23T22:27:47.600772725+08:00"

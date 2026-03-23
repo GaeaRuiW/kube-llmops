@@ -148,7 +148,11 @@ dify:
     consoleApiUrl: ""
     appApiUrl: ""
 security:
-  enabled: false
+  enabled: true
+  llmGuard:
+    enabled: false   # Needs ~6GB RAM; enable on nodes with ≥32GB
+  networkPolicy:
+    enabled: false
 harbor:
   enabled: false
 milvus:
