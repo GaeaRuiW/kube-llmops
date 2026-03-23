@@ -74,6 +74,8 @@ litellm:
         password: langfuse-default-pw
       - name: dify
         password: dify-default-pw
+      - name: dify_plugin
+        password: dify-default-pw
 
 # ========== Observability ==========
 observability:
