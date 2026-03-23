@@ -28,9 +28,10 @@ data:
         WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '{{ .name }}')\gexec
       GRANT ALL PRIVILEGES ON DATABASE {{ .name }} TO {{ .name }};
     EOSQL
-    # Enable pgvector extension in the database
     psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "{{ .name }}" <<-EOSQL
       CREATE EXTENSION IF NOT EXISTS vector;
+      -- Grant access to the dify role (plugin daemon uses dify user for dify_plugin DB)
+      GRANT ALL ON SCHEMA public TO {{ .name }};
     EOSQL
     {{- end }}
 {{- end }}

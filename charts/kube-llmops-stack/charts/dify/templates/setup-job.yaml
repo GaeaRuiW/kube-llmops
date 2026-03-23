@@ -25,16 +25,12 @@ data:
 
     echo "=== Dify Auto-Setup ==="
 
-    # ── Step 1: Wait for API to be ready ──
+    # ── Step 1: Wait for API ──
     echo "[1/5] Waiting for Dify API..."
     elapsed=0
     while [ $elapsed -lt $MAX_WAIT ]; do
-      if curl -sf "$API/health" > /dev/null 2>&1; then
-        echo "  API ready (${elapsed}s)"
-        break
-      fi
-      sleep 5
-      elapsed=$((elapsed + 5))
+      curl -sf "$API/health" > /dev/null 2>&1 && { echo "  API ready (${elapsed}s)"; break; }
+      sleep 5; elapsed=$((elapsed + 5))
     done
     [ $elapsed -ge $MAX_WAIT ] && { echo "  TIMEOUT" >&2; exit 1; }
 
@@ -46,28 +42,28 @@ data:
       curl -sf "$API/console/api/setup" -X POST \
         -H "Content-Type: application/json" \
         -d "{\"email\":\"$ADMIN_EMAIL\",\"name\":\"$ADMIN_NAME\",\"password\":\"$ADMIN_PASSWORD\"}" > /dev/null
-      echo "  Admin account created"
+      echo "  Admin created"
     else
-      echo "  Setup already completed (step=$STEP)"
+      echo "  Already completed (step=$STEP)"
     fi
 
     # ── Step 3: Login ──
     echo "[3/5] Logging in..."
     B64_PW=$(echo -n "$ADMIN_PASSWORD" | base64)
-    COOKIES=$(mktemp)
-    curl -sf -c "$COOKIES" "$API/console/api/login" -X POST \
+    CK=$(mktemp)
+    curl -sf -c "$CK" "$API/console/api/login" -X POST \
       -H "Content-Type: application/json" \
       -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$B64_PW\"}" > /dev/null
-    CSRF=$(grep csrf_token "$COOKIES" | awk '{print $NF}')
+    CSRF=$(grep csrf_token "$CK" | awk '{print $NF}')
     [ -z "$CSRF" ] && { echo "  Login failed" >&2; exit 1; }
-    echo "  Logged in OK"
+    echo "  Logged in"
 
-    api_get()  { curl -sf -b "$COOKIES" -H "X-CSRF-Token: $CSRF" "$API$1"; }
-    api_post() { curl -sf -b "$COOKIES" -H "X-CSRF-Token: $CSRF" -H "Content-Type: $2" "$API$1" -X POST -d "$3"; }
+    G() { curl -sf -b "$CK" -H "X-CSRF-Token: $CSRF" "$API$1"; }
+    P() { curl -sf -b "$CK" -H "X-CSRF-Token: $CSRF" -H "Content-Type: application/json" -X POST "$API$1" -d "$2"; }
 
-    # ── Step 4: Install plugins from local .difypkg files ──
+    # ── Step 4: Install plugins ──
     echo "[4/5] Installing plugins..."
-    INSTALLED=$(api_get "/console/api/workspaces/current/plugin/list?page=1&page_size=100" | \
+    INSTALLED=$(G "/console/api/workspaces/current/plugin/list?page=1&page_size=100" | \
       python3 -c "import json,sys; print(' '.join(p['plugin_id'] for p in json.load(sys.stdin).get('plugins',[])))" 2>/dev/null)
 
     {{- range .Values.setup.plugins }}
@@ -75,83 +71,83 @@ data:
     PLUGIN_SHORT=$(echo "$PLUGIN_ID" | cut -d/ -f2)
 
     if echo "$INSTALLED" | grep -qw "$PLUGIN_ID"; then
-      echo "  $PLUGIN_ID already installed, skipping"
+      echo "  $PLUGIN_ID: already installed"
     else
-      # Look for .difypkg in the shared plugin storage PVC
-      PKG_FILE=$(find "$PLUGIN_DIR" -maxdepth 1 -name "${PLUGIN_SHORT}*.difypkg" -type f 2>/dev/null | head -1)
-      if [ -z "$PKG_FILE" ]; then
-        echo "  WARNING: No .difypkg found for $PLUGIN_ID in $PLUGIN_DIR"
-        echo "  To fix: kubectl cp <file>.difypkg <plugin-daemon-pod>:/app/storage/${PLUGIN_SHORT}.difypkg"
-        continue
-      fi
-      echo "  Found: $PKG_FILE ($(stat -c%s "$PKG_FILE" 2>/dev/null)B)"
+      # Find pre-seeded .difypkg in shared PVC
+      PKG=$(find "$PLUGIN_DIR" -maxdepth 1 -name "${PLUGIN_SHORT}*.difypkg" -type f 2>/dev/null | head -1)
+      [ -z "$PKG" ] && { echo "  ERROR: no .difypkg for $PLUGIN_ID"; continue; }
+      echo "  Uploading $PLUGIN_SHORT ($(stat -c%s "$PKG")B)..."
 
-      # Upload to Dify
-      UPLOADED_ID=$(curl -sf -b "$COOKIES" -H "X-CSRF-Token: $CSRF" \
+      # Upload
+      UID=$(curl -sf -b "$CK" -H "X-CSRF-Token: $CSRF" \
         -X POST "$API/console/api/workspaces/current/plugin/upload/pkg" \
-        -F "pkg=@$PKG_FILE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('unique_identifier',''))" 2>/dev/null)
+        -F "pkg=@$PKG" | python3 -c "import json,sys; print(json.load(sys.stdin).get('unique_identifier',''))" 2>/dev/null)
+      [ -z "$UID" ] && { echo "  Upload failed"; continue; }
+      echo "  Uploaded: ${UID:0:60}..."
 
-      if [ -z "$UPLOADED_ID" ]; then
-        echo "  WARNING: Upload failed for $PLUGIN_ID" >&2
-        continue
-      fi
-      echo "  Uploaded: $UPLOADED_ID"
-
-      # Pre-install Python deps (workaround: plugin daemon uses offline uv sync)
-      PLUGIN_CWD=$(find "$PLUGIN_DIR/cwd" -maxdepth 2 -type d -name "${PLUGIN_SHORT}*" 2>/dev/null | head -1)
-      if [ -n "$PLUGIN_CWD" ] && [ -f "$PLUGIN_CWD/pyproject.toml" ]; then
+      # Wait for daemon to extract, then pre-install deps
+      sleep 5
+      CWD=$(find "$PLUGIN_DIR/cwd" -maxdepth 2 -name "${PLUGIN_SHORT}*" -type d 2>/dev/null | head -1)
+      if [ -n "$CWD" ] && [ -f "$CWD/pyproject.toml" ]; then
         echo "  Pre-installing Python deps..."
-        /usr/local/bin/uv sync --project "$PLUGIN_CWD" 2>/dev/null && echo "  Deps OK" || echo "  Deps failed (will retry)"
+        pip install -q uv 2>/dev/null
+        uv sync --project "$CWD" --quiet 2>/dev/null && echo "  Deps ready" || echo "  Deps warn (will retry)"
       fi
 
-      # Install plugin
+      # Install (may fail first time, retry after deps are cached)
       echo "  Installing..."
-      TASK_ID=$(api_post "/console/api/workspaces/current/plugin/install/pkg" \
-        "application/json" \
-        "{\"plugin_unique_identifiers\":[\"$UPLOADED_ID\"]}" | \
+      TID=$(P "/console/api/workspaces/current/plugin/install/pkg" \
+        "{\"plugin_unique_identifiers\":[\"$UID\"]}" | \
         python3 -c "import json,sys; print(json.load(sys.stdin).get('task_id',''))" 2>/dev/null)
 
-      # Wait for completion
-      for i in $(seq 1 24); do
-        sleep 5
-        STATUS=$(api_get "/console/api/workspaces/current/plugin/tasks?action=install&page=1&page_size=5" | \
-          python3 -c "
-    import json,sys
-    for t in json.load(sys.stdin).get('tasks',[]):
-        if t['id']=='$TASK_ID': print(t['status']); break
-    " 2>/dev/null)
-        [ "$STATUS" = "success" ] && { echo "  $PLUGIN_ID installed OK"; break; }
-        if [ "$STATUS" = "failed" ]; then
-          echo "  First attempt failed, retrying (deps should be cached)..."
-          TASK_ID=$(api_post "/console/api/workspaces/current/plugin/install/pkg" \
-            "application/json" \
-            "{\"plugin_unique_identifiers\":[\"$UPLOADED_ID\"]}" | \
-            python3 -c "import json,sys; print(json.load(sys.stdin).get('task_id',''))" 2>/dev/null)
-          sleep 15
-          STATUS2=$(api_get "/console/api/workspaces/current/plugin/tasks?action=install&page=1&page_size=5" | \
+      OK=false
+      for attempt in 1 2; do
+        for i in $(seq 1 20); do
+          sleep 5
+          ST=$(G "/console/api/workspaces/current/plugin/tasks?action=install&page=1&page_size=5" | \
             python3 -c "
     import json,sys
     for t in json.load(sys.stdin).get('tasks',[]):
-        if t['id']=='$TASK_ID': print(t['status']); break
+        if t['id']=='$TID': print(t['status']); break
     " 2>/dev/null)
-          [ "$STATUS2" = "success" ] && echo "  $PLUGIN_ID installed OK (retry)" || echo "  WARNING: $PLUGIN_ID install failed"
-          break
-        fi
+          [ "$ST" = "success" ] && { echo "  $PLUGIN_ID installed (attempt $attempt)"; OK=true; break 2; }
+          [ "$ST" = "failed" ] && break
+        done
+        [ "$OK" = "true" ] && break
+        [ $attempt -eq 1 ] && {
+          echo "  Attempt 1 failed, retrying..."
+          TID=$(P "/console/api/workspaces/current/plugin/install/pkg" \
+            "{\"plugin_unique_identifiers\":[\"$UID\"]}" | \
+            python3 -c "import json,sys; print(json.load(sys.stdin).get('task_id',''))" 2>/dev/null)
+        }
       done
+      [ "$OK" = "false" ] && echo "  WARNING: $PLUGIN_ID install failed after retries"
     fi
     {{- end }}
 
     {{- if .Values.setup.modelProvider.enabled }}
-    # ── Step 5: Summary ──
-    echo "[5/5] Model provider setup info:"
-    echo "  LiteLLM endpoint: {{ $litellmUrl }}"
-    echo "  API Key: {{ .Values.litellm.apiKey }}"
-    echo "  Configure in Dify UI: Settings → Model Provider → OpenAI-API-compatible"
+    # ── Step 5: Configure model provider ──
+    echo "[5/5] Configuring model provider..."
+    CREDS_URL="/console/api/workspaces/current/model-providers/openai_api_compatible/models/credentials"
+    LITELLM_URL="{{ $litellmUrl }}"
+    LITELLM_KEY="{{ .Values.litellm.apiKey }}"
+
+    # Add embedding model
+    echo "  Adding embedding model (bge-small-en)..."
+    RESP=$(P "$CREDS_URL" "{\"model\":\"bge-small-en\",\"model_type\":\"text-embedding\",\"credentials\":{\"api_key\":\"$LITELLM_KEY\",\"endpoint_url\":\"$LITELLM_URL\",\"mode\":\"embedding\",\"context_size\":\"512\"}}" 2>&1) || true
+    echo "  $RESP" | head -c 100
+    echo ""
+
+    # Add LLM model
+    echo "  Adding LLM model (qwen2-5-0-5b)..."
+    RESP2=$(P "$CREDS_URL" "{\"model\":\"qwen2-5-0-5b\",\"model_type\":\"llm\",\"credentials\":{\"api_key\":\"$LITELLM_KEY\",\"endpoint_url\":\"$LITELLM_URL\",\"mode\":\"chat\",\"context_size\":\"4096\"}}" 2>&1) || true
+    echo "  $RESP2" | head -c 100
+    echo ""
     {{- end }}
 
     echo ""
     echo "=== Dify Auto-Setup Complete ==="
-    rm -f "$COOKIES"
+    rm -f "$CK"
 ---
 apiVersion: batch/v1
 kind: Job
@@ -168,6 +164,7 @@ metadata:
 spec:
   backoffLimit: 3
   ttlSecondsAfterFinished: 600
+  activeDeadlineSeconds: 600
   template:
     metadata:
       labels:
@@ -175,10 +172,32 @@ spec:
         app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
       restartPolicy: OnFailure
+      initContainers:
+        # Decode pre-bundled .difypkg files into the shared PVC
+        - name: seed-plugins
+          image: python:3.12-slim
+          command: ["bash", "-c"]
+          args:
+            - |
+              for f in /plugin-b64/*.b64; do
+                NAME=$(basename "$f" .b64)
+                DEST="/plugin-storage/$NAME"
+                if [ ! -f "$DEST" ]; then
+                  echo "Decoding $NAME..."
+                  base64 -d "$f" > "$DEST"
+                else
+                  echo "$NAME already exists"
+                fi
+              done
+          volumeMounts:
+            - name: plugin-b64
+              mountPath: /plugin-b64
+            - name: plugin-storage
+              mountPath: /plugin-storage
       containers:
         - name: setup
           image: python:3.12-slim
-          command: ["bash", "-c", "apt-get update -qq && apt-get install -qq -y curl > /dev/null 2>&1 && pip install -q uv > /dev/null 2>&1 && bash /scripts/setup.sh"]
+          command: ["bash", "-c", "apt-get update -qq && apt-get install -qq -y curl > /dev/null 2>&1 && bash /scripts/setup.sh"]
           volumeMounts:
             - name: scripts
               mountPath: /scripts
@@ -188,7 +207,28 @@ spec:
         - name: scripts
           configMap:
             name: {{ .Release.Name }}-dify-setup
+        - name: plugin-b64
+          configMap:
+            name: {{ .Release.Name }}-dify-plugin-packages
         - name: plugin-storage
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-dify-plugin-storage
+---
+# ConfigMap with base64-encoded plugin packages
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-dify-plugin-packages
+  labels:
+    app.kubernetes.io/name: dify-setup
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "5"
+    helm.sh/hook-delete-policy: before-hook-creation
+binaryData:
+  {{- range .Values.setup.plugins }}
+  {{ .id | replace "/" "_" }}.difypkg.b64: {{ $.Files.Get (printf "files/%s.difypkg.b64" (index (splitList "/" .id) 1)) }}
+  {{- end }}
 {{- end }}

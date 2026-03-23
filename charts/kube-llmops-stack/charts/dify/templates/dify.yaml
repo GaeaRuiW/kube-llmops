@@ -417,7 +417,7 @@ spec:
             - name: DB_DATABASE
               value: dify_plugin
             - name: DB_USERNAME
-              value: {{ .Values.postgresql.username | quote }}
+              value: dify_plugin
             - name: DB_PASSWORD
               value: {{ .Values.postgresql.password | quote }}
             - name: DB_SSL_MODE
