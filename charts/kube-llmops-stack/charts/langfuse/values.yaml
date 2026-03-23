@@ -94,7 +94,7 @@ clickhouse:
       memory: 512Mi
     limits:
       cpu: "2"
-      memory: 1Gi
+      memory: 2Gi
 
 # Redis for Langfuse v3 async worker queue
 redis:

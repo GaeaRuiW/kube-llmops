@@ -71,6 +71,8 @@ litellm:
     extraDatabases:
       - name: langfuse
         password: langfuse-default-pw
+      - name: dify
+        password: dify-default-pw
 
 # ========== Observability ==========
 observability:
@@ -125,7 +127,7 @@ logging:
 keda:
   enabled: false                # Single node, no scale target
 dify:
-  enabled: false                # Enable when RAG is ready
+  enabled: true
 security:
   enabled: false
 harbor:
