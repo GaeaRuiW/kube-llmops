@@ -50,6 +50,19 @@ litellm:
 # Secret key for Dify
 secretKey: "kube-llmops-dify-secret-key-2024"
 
+# Auto-setup: create admin account + install plugins + configure model provider on first deploy
+setup:
+  enabled: true
+  adminEmail: "admin@kube-llmops.local"
+  adminPassword: "Admin123!"
+  adminName: "Admin"
+  # Plugins to pre-install from marketplace (identifier format: org/name)
+  plugins:
+    - id: langgenius/openai_api_compatible
+  # Model provider auto-configuration (uses LiteLLM as OpenAI-compatible backend)
+  modelProvider:
+    enabled: true
+
 # File storage (S3 via MinIO — shared between API + Worker pods)
 storage:
   s3AccessKey: minioadmin
