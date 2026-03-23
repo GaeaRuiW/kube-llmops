@@ -44,6 +44,14 @@ tei:
         gpu: 0
         cpu: "0.5"
         memory: 256Mi
+    - name: bge-reranker-base
+      source: BAAI/bge-reranker-base
+      engine: tei
+      replicas: 1
+      resources:
+        gpu: 0
+        cpu: "1"
+        memory: 1Gi
 
 # ========== AI Gateway ==========
 litellm:

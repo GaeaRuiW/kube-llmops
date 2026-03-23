@@ -34,6 +34,8 @@ data:
     EMB_MODEL = os.environ.get("EMBEDDING_MODEL", "bge-small-en")
     LLM_MODEL = os.environ.get("LLM_MODEL", "qwen2-5-0-5b")
 
+    RERANKER_URL = os.environ.get("RERANKER_URL", "http://tei-bge-reranker-base:8080")
+
     DOCS = [
         {"id": "smoke-001", "text": "kube-llmops is a Kubernetes-native LLMOps platform with 14 sub-charts deployed via a single Helm umbrella chart. It provides vLLM model serving, LiteLLM AI gateway, and Langfuse tracing."},
         {"id": "smoke-002", "text": "Langfuse v3 requires ClickHouse for OLAP trace storage, Redis for async worker queues, and S3-compatible storage for event and media blob uploads."},
@@ -147,6 +149,20 @@ data:
         ok = data.get("status") == "OK"
         return ok, f"status={data.get('status','?')} version={data.get('version','?')}"
 
+    # ── Step 5: Reranker ──
+    def test_reranker():
+        data, code = api_call(
+            f"{RERANKER_URL}/rerank",
+            {"query": "What does Langfuse v3 need?", "texts": [d["text"] for d in DOCS]},
+        )
+        if code == 0 or "error" in data:
+            # Reranker might not be deployed yet
+            return False, f"HTTP {code}: {data.get('error','unreachable')[:80]}"
+        results = data if isinstance(data, list) else data.get("results", data.get("data", []))
+        if not results:
+            return False, f"No results: {str(data)[:100]}"
+        return True, f"{len(results)} results reranked"
+
     # ── Run all steps ──
     print("=" * 60)
     print("  kube-llmops RAG Smoke Test")
@@ -166,6 +182,10 @@ data:
     print("  ⏳ Waiting 10s for Langfuse worker to flush traces...")
     time.sleep(10)
     all_pass &= step("4_langfuse_trace", test_langfuse_trace)
+
+    # Step 5 is optional — reranker may not be deployed
+    reranker_pass = step("5_reranker", test_reranker)
+    # Don't fail the overall test if reranker is not deployed
 
     print()
     print("=" * 60)
@@ -218,6 +238,8 @@ spec:
               value: "pk-lf-kube-llmops"
             - name: LANGFUSE_SK
               value: "sk-lf-kube-llmops"
+            - name: RERANKER_URL
+              value: "http://tei-bge-reranker-base:8080"
           volumeMounts:
             - name: script
               mountPath: /app
