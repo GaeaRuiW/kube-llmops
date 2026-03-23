@@ -1,0 +1,246 @@
+{{- if and .Values.enabled .Values.ragasEval.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-ragas-eval
+  labels:
+    app.kubernetes.io/name: ragas-eval
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+data:
+  eval-dataset.json: {{ .Files.Get "files/eval-dataset-v2.json" | quote }}
+  ragas-eval.py: |
+    #!/usr/bin/env python3
+    """
+    RAG Quality Evaluation with Ragas metrics.
+    Runs eval dataset through the RAG pipeline, computes Ragas metrics,
+    and pushes results to Prometheus Pushgateway.
+    """
+    import json, os, sys, time, urllib.request, urllib.error
+
+    LITELLM = os.environ.get("LITELLM_URL", "http://kube-llmops-litellm:4000")
+    API_KEY = os.environ.get("LITELLM_API_KEY", "sk-kube-llmops-dev")
+    EMB_MODEL = os.environ.get("EMBEDDING_MODEL", "bge-small-en")
+    LLM_MODEL = os.environ.get("LLM_MODEL", "qwen2-5-0-5b")
+    PUSHGW = os.environ.get("PUSHGATEWAY_URL", "http://kube-llmops-prometheus:9091")
+    DATASET = os.environ.get("DATASET_PATH", "/data/eval-dataset.json")
+
+    def api_call(url, data=None, headers=None, method="POST"):
+        headers = headers or {}
+        if data:
+            data = json.dumps(data).encode()
+            headers["Content-Type"] = "application/json"
+        req = urllib.request.Request(url, data=data, headers=headers, method=method)
+        try:
+            resp = urllib.request.urlopen(req, timeout=120)
+            return json.loads(resp.read().decode()), resp.status
+        except urllib.error.HTTPError as e:
+            return {"error": e.read().decode()[:200]}, e.code
+        except Exception as e:
+            return {"error": str(e)}, 0
+
+    def embed(text):
+        data, _ = api_call(f"{LITELLM}/v1/embeddings",
+            {"input": text, "model": EMB_MODEL},
+            {"Authorization": f"Bearer {API_KEY}"})
+        return data.get("data", [{}])[0].get("embedding", [])
+
+    def llm_generate(system_prompt, user_query):
+        data, _ = api_call(f"{LITELLM}/v1/chat/completions", {
+            "model": LLM_MODEL,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_query}
+            ],
+            "max_tokens": 256, "temperature": 0.1
+        }, {"Authorization": f"Bearer {API_KEY}"})
+        return data.get("choices", [{}])[0].get("message", {}).get("content", "")
+
+    def cosine_sim(a, b):
+        if not a or not b: return 0.0
+        dot = sum(x*y for x, y in zip(a, b))
+        na = sum(x*x for x in a) ** 0.5
+        nb = sum(x*x for x in b) ** 0.5
+        return dot / (na * nb) if na * nb > 0 else 0.0
+
+    def compute_faithfulness(answer, context):
+        """LLM-as-judge: check if answer is faithful to context."""
+        prompt = ("Given the context and answer below, rate how faithful the answer is to the context. "
+            "A faithful answer only contains information that can be verified from the context. "
+            "Rate from 0.0 to 1.0. Return ONLY a number.\n\n"
+            f"Context: {context[:1000]}\nAnswer: {answer[:500]}\n\nFaithfulness score:")
+        resp = llm_generate("You are a precise evaluator. Return only a float between 0 and 1.", prompt)
+        try:
+            score = float(resp.strip().split()[0])
+            return max(0.0, min(1.0, score))
+        except (ValueError, IndexError):
+            return 0.5
+
+    def compute_answer_relevancy(question, answer):
+        """Semantic similarity between question and answer."""
+        q_emb = embed(question)
+        a_emb = embed(answer)
+        return cosine_sim(q_emb, a_emb)
+
+    def compute_context_precision(question, context, ground_truth):
+        """Check if retrieved context contains relevant info for the question."""
+        gt_emb = embed(ground_truth)
+        ctx_emb = embed(context)
+        return cosine_sim(gt_emb, ctx_emb)
+
+    def compute_context_recall(context, ground_truth):
+        """Check if context covers the ground truth."""
+        gt_words = set(ground_truth.lower().split())
+        ctx_words = set(context.lower().split())
+        if not gt_words: return 0.0
+        overlap = gt_words & ctx_words
+        return len(overlap) / len(gt_words)
+
+    # ── Main ──
+    print("=" * 60)
+    print("  kube-llmops Ragas Evaluation")
+    print("=" * 60)
+
+    with open(DATASET) as f:
+        dataset = json.load(f)
+
+    corpus = {d["id"]: d["text"] for d in dataset["corpus"]}
+    samples = dataset["samples"]
+    print(f"  Corpus: {len(corpus)} documents")
+    print(f"  Samples: {len(samples)} evaluation queries")
+    print()
+
+    metrics = {"faithfulness": [], "answer_relevancy": [], "context_precision": [], "context_recall": []}
+
+    for i, sample in enumerate(samples):
+        q = sample["question"]
+        gt = sample["ground_truth"]
+        ctx_ids = sample["contexts"]
+        context = " ".join(corpus.get(cid, "") for cid in ctx_ids)
+
+        # Generate answer using RAG context
+        system = f"Answer based ONLY on this context:\n{context}"
+        answer = llm_generate(system, q)
+
+        if not answer:
+            print(f"  [{i+1}/{len(samples)}] {sample['id']}: LLM generation failed")
+            continue
+
+        # Compute metrics
+        faith = compute_faithfulness(answer, context)
+        relevancy = compute_answer_relevancy(q, answer)
+        precision = compute_context_precision(q, context, gt)
+        recall = compute_context_recall(context, gt)
+
+        metrics["faithfulness"].append(faith)
+        metrics["answer_relevancy"].append(relevancy)
+        metrics["context_precision"].append(precision)
+        metrics["context_recall"].append(recall)
+
+        if i % 5 == 0:
+            print(f"  [{i+1}/{len(samples)}] {sample['id']}: faith={faith:.2f} rel={relevancy:.2f} prec={precision:.2f} rec={recall:.2f}")
+
+    # Compute averages
+    avg = {}
+    for k, v in metrics.items():
+        avg[k] = sum(v) / len(v) if v else 0.0
+
+    print()
+    print("=" * 60)
+    print("  Results:")
+    for k, v in avg.items():
+        icon = "✅" if v >= 0.7 else "⚠️" if v >= 0.5 else "❌"
+        print(f"  {icon} {k}: {v:.4f}")
+    print("=" * 60)
+
+    # Push to Prometheus Pushgateway (if available)
+    try:
+        prom_data = ""
+        for k, v in avg.items():
+            prom_data += f"# HELP ragas_{k} Ragas {k} metric\n"
+            prom_data += f"# TYPE ragas_{k} gauge\n"
+            prom_data += f"ragas_{k} {v:.6f}\n"
+        prom_data += f"# HELP ragas_evaluation_timestamp Last evaluation timestamp\n"
+        prom_data += f"# TYPE ragas_evaluation_timestamp gauge\n"
+        prom_data += f"ragas_evaluation_timestamp {time.time():.0f}\n"
+        prom_data += f"# HELP ragas_samples_count Number of evaluation samples\n"
+        prom_data += f"# TYPE ragas_samples_count gauge\n"
+        prom_data += f"ragas_samples_count {len(samples)}\n"
+
+        req = urllib.request.Request(
+            f"{PUSHGW}/metrics/job/ragas_eval",
+            data=prom_data.encode(),
+            headers={"Content-Type": "text/plain"},
+            method="POST")
+        urllib.request.urlopen(req, timeout=10)
+        print("  Metrics pushed to Prometheus Pushgateway")
+    except Exception as e:
+        print(f"  Note: Pushgateway not available ({e}), metrics only in logs")
+
+    # Output JSON for structured logging
+    result = {"pass": all(v >= 0.7 for v in avg.values()), "metrics": avg, "sample_count": len(samples)}
+    print(json.dumps(result, indent=2))
+
+    sys.exit(0 if result["pass"] else 1)
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-ragas-eval
+  labels:
+    app.kubernetes.io/name: ragas-eval
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  schedule: {{ .Values.ragasEval.schedule | default "0 2 * * *" | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 5
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 1800
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: ragas-eval
+            app.kubernetes.io/instance: {{ .Release.Name }}
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: ragas-eval
+              image: {{ .Values.ragasEval.image | default "python:3.12-slim" }}
+              command: ["python3", "/scripts/ragas-eval.py"]
+              env:
+                - name: LITELLM_URL
+                  value: "http://{{ .Release.Name }}-litellm:4000"
+                - name: LITELLM_API_KEY
+                  value: {{ .Values.ragasEval.litellmApiKey | default "sk-kube-llmops-dev" | quote }}
+                - name: EMBEDDING_MODEL
+                  value: {{ .Values.ragasEval.embeddingModel | default "bge-small-en" | quote }}
+                - name: LLM_MODEL
+                  value: {{ .Values.ragasEval.llmModel | default "qwen2-5-0-5b" | quote }}
+                - name: DATASET_PATH
+                  value: /data/eval-dataset.json
+                - name: PUSHGATEWAY_URL
+                  value: "http://{{ .Release.Name }}-prometheus:9091"
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                - name: data
+                  mountPath: /data
+          volumes:
+            - name: scripts
+              configMap:
+                name: {{ .Release.Name }}-ragas-eval
+                items:
+                  - key: ragas-eval.py
+                    path: ragas-eval.py
+            - name: data
+              configMap:
+                name: {{ .Release.Name }}-ragas-eval
+                items:
+                  - key: eval-dataset.json
+                    path: eval-dataset.json
+{{- end }}
