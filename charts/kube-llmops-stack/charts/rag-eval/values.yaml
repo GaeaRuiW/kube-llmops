@@ -20,3 +20,9 @@ ragasEval:
   litellmApiKey: sk-kube-llmops-dev
   embeddingModel: bge-small-en
   llmModel: qwen2-5-0-5b
+
+qualityGate:
+  enabled: true
+  minFaithfulness: 0.7
+  minRelevancy: 0.7
+  maxStaleSec: 172800  # 48 hours

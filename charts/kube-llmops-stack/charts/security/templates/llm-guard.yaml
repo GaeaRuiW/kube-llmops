@@ -1,0 +1,111 @@
+{{- if and .Values.enabled .Values.llmGuard.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-llm-guard-config
+  labels:
+    app.kubernetes.io/name: llm-guard
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+data:
+  scanners.yml: |
+    input_scanners:
+      {{- range .Values.llmGuard.scanners.input }}
+      - type: {{ . }}
+      {{- end }}
+    output_scanners:
+      {{- range .Values.llmGuard.scanners.output }}
+      - type: {{ . }}
+      {{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-llm-guard
+  labels:
+    app.kubernetes.io/name: llm-guard
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: security
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: llm-guard
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: llm-guard
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: security
+        app.kubernetes.io/part-of: kube-llmops
+    spec:
+      containers:
+        - name: llm-guard
+          image: "{{ .Values.llmGuard.image.repository }}:{{ .Values.llmGuard.image.tag }}"
+          imagePullPolicy: {{ .Values.llmGuard.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          env:
+            - name: LOG_LEVEL
+              value: INFO
+            - name: SCAN_PROMPT_ENABLED
+              value: "true"
+            - name: SCAN_OUTPUT_ENABLED
+              value: "true"
+            - name: AUTH_TOKEN
+              value: "llm-guard-kube-llmops"
+            - name: LAZY_LOAD
+              value: "true"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 20
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          resources:
+            requests:
+              cpu: {{ .Values.llmGuard.resources.requests.cpu }}
+              memory: {{ .Values.llmGuard.resources.requests.memory }}
+            {{- if .Values.llmGuard.resources.limits }}
+            limits:
+              {{- if .Values.llmGuard.resources.limits.cpu }}
+              cpu: {{ .Values.llmGuard.resources.limits.cpu | quote }}
+              {{- end }}
+              {{- if .Values.llmGuard.resources.limits.memory }}
+              memory: {{ .Values.llmGuard.resources.limits.memory }}
+              {{- end }}
+            {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-llm-guard
+  labels:
+    app.kubernetes.io/name: llm-guard
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: http
+      name: http
+  selector:
+    app.kubernetes.io/name: llm-guard
+    app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}

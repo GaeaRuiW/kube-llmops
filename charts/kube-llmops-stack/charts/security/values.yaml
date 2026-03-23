@@ -1,5 +1,25 @@
 enabled: false
 
+# LLM-Guard: prompt injection defense + output scanning
+llmGuard:
+  enabled: false
+  image:
+    repository: laiyer/llm-guard-api
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 500m
+      memory: 2Gi
+    limits:
+      cpu: "2"
+  # Scanners to enable (see https://llm-guard.com/input_scanners/)
+  scanners:
+    input:
+      - PromptInjection
+    output:
+      - NoRefusal
+
 # NetworkPolicy: isolate components so only expected traffic flows
 networkPolicy:
   enabled: true

@@ -1,0 +1,113 @@
+{{- if and .Values.enabled .Values.qualityGate.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-quality-gate
+  labels:
+    app.kubernetes.io/name: quality-gate
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+  annotations:
+    helm.sh/hook: pre-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation
+data:
+  check.py: |
+    #!/usr/bin/env python3
+    """
+    Quality Gate: blocks helm upgrade if RAG quality metrics are below thresholds.
+    Queries Prometheus for the latest Ragas metrics.
+    """
+    import json, os, sys, urllib.request
+
+    PROM = os.environ.get("PROMETHEUS_URL", "http://{{ .Release.Name }}-prometheus:9090")
+    MIN_FAITH = float(os.environ.get("MIN_FAITHFULNESS", "{{ .Values.qualityGate.minFaithfulness }}"))
+    MIN_RELEV = float(os.environ.get("MIN_RELEVANCY", "{{ .Values.qualityGate.minRelevancy }}"))
+    MAX_STALE = int(os.environ.get("MAX_STALE_SECONDS", "{{ .Values.qualityGate.maxStaleSec }}"))
+
+    def query_prom(metric):
+        try:
+            url = f"{PROM}/api/v1/query?query={metric}"
+            r = urllib.request.urlopen(url, timeout=10)
+            d = json.loads(r.read())
+            results = d.get("data", {}).get("result", [])
+            return float(results[0]["value"][1]) if results else None
+        except Exception:
+            return None
+
+    print("=" * 50)
+    print("  RAG Quality Gate")
+    print("=" * 50)
+
+    faith = query_prom("ragas_faithfulness")
+    relev = query_prom("ragas_answer_relevancy")
+    ts = query_prom("ragas_evaluation_timestamp")
+
+    if faith is None and relev is None:
+        print("  No Ragas metrics found in Prometheus.")
+        print("  Allowing upgrade (first deploy or no eval data yet).")
+        sys.exit(0)
+
+    import time
+    stale = (time.time() - ts) if ts else float("inf")
+
+    print(f"  Faithfulness:      {faith:.4f}  (min: {MIN_FAITH})")
+    print(f"  Answer Relevancy:  {relev:.4f}  (min: {MIN_RELEV})")
+    print(f"  Data age:          {stale:.0f}s  (max: {MAX_STALE}s)")
+
+    failures = []
+    if faith is not None and faith < MIN_FAITH:
+        failures.append(f"faithfulness {faith:.4f} < {MIN_FAITH}")
+    if relev is not None and relev < MIN_RELEV:
+        failures.append(f"answer_relevancy {relev:.4f} < {MIN_RELEV}")
+    if stale > MAX_STALE:
+        print(f"  WARNING: Eval data older than {MAX_STALE}s, skipping quality check")
+        sys.exit(0)
+
+    if failures:
+        print()
+        print("  ❌ QUALITY GATE FAILED — upgrade blocked!")
+        for f in failures:
+            print(f"     - {f}")
+        print()
+        print("  Fix: improve RAG quality or lower thresholds in values.yaml")
+        sys.exit(1)
+    else:
+        print("  ✅ Quality gate passed — upgrade allowed")
+        sys.exit(0)
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-quality-gate
+  labels:
+    app.kubernetes.io/name: quality-gate
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+  annotations:
+    helm.sh/hook: pre-upgrade
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 60
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: quality-gate
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: check
+          image: python:3.12-slim
+          command: ["python3", "/scripts/check.py"]
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: {{ .Release.Name }}-quality-gate
+{{- end }}

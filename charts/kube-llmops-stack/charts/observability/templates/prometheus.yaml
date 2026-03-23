@@ -77,6 +77,48 @@ data:
               severity: critical
             annotations:
               summary: "Embedding service is down"
+      - name: rag-quality-alerts
+        rules:
+          - alert: RAGFaithfulnessLow
+            expr: ragas_faithfulness < 0.7
+            for: 0m
+            labels:
+              severity: warning
+            annotations:
+              summary: "RAG Faithfulness below threshold"
+              description: "Ragas faithfulness is {{ "{{ $value }}" }} (threshold: 0.7)"
+          - alert: RAGFaithfulnessCritical
+            expr: ragas_faithfulness < 0.5
+            for: 0m
+            labels:
+              severity: critical
+            annotations:
+              summary: "RAG Faithfulness critically low"
+              description: "Ragas faithfulness is {{ "{{ $value }}" }} (critical: 0.5)"
+          - alert: RAGAnswerRelevancyLow
+            expr: ragas_answer_relevancy < 0.7
+            for: 0m
+            labels:
+              severity: warning
+            annotations:
+              summary: "RAG Answer Relevancy below threshold"
+              description: "Ragas answer_relevancy is {{ "{{ $value }}" }} (threshold: 0.7)"
+          - alert: RAGQualityRegression
+            expr: ragas_faithfulness < 0.85 or ragas_answer_relevancy < 0.85
+            for: 0m
+            labels:
+              severity: info
+            annotations:
+              summary: "RAG quality below production target"
+              description: "Faithfulness={{ "{{ $value }}" }} or Relevancy below 0.85 production target"
+          - alert: RAGEvalStale
+            expr: time() - ragas_evaluation_timestamp > 172800
+            for: 0m
+            labels:
+              severity: warning
+            annotations:
+              summary: "RAG evaluation data is stale (>48h)"
+              description: "Last Ragas evaluation was more than 48 hours ago"
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
