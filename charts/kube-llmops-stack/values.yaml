@@ -166,8 +166,8 @@ litellm:
   postgresql:
     enabled: true
     image:
-      repository: postgres
-      tag: "16-alpine"
+      repository: pgvector/pgvector
+      tag: "pg16"
     auth:
       database: litellm
       username: litellm
