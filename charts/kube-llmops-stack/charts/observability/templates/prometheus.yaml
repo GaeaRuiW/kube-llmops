@@ -23,6 +23,10 @@ data:
       - job_name: otel-collector
         static_configs:
           - targets: ["{{ $.Release.Name }}-otel-collector:8889"]
+      - job_name: pushgateway
+        honor_labels: true
+        static_configs:
+          - targets: ["{{ $.Release.Name }}-pushgateway:9091"]
   rules.yml: |
     groups:
       - name: vllm-alerts
@@ -183,5 +187,68 @@ spec:
       {{- end }}
   selector:
     app.kubernetes.io/name: prometheus
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+---
+# Prometheus Pushgateway — allows batch jobs (Ragas eval) to push metrics
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $.Release.Name }}-pushgateway
+  labels:
+    app.kubernetes.io/name: pushgateway
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/component: observability
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pushgateway
+      app.kubernetes.io/instance: {{ $.Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pushgateway
+        app.kubernetes.io/instance: {{ $.Release.Name }}
+        app.kubernetes.io/component: observability
+        app.kubernetes.io/part-of: kube-llmops
+    spec:
+      containers:
+        - name: pushgateway
+          image: prom/pushgateway:v1.11.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9091
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9091
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $.Release.Name }}-pushgateway
+  labels:
+    app.kubernetes.io/name: pushgateway
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9091
+      targetPort: http
+      name: http
+  selector:
+    app.kubernetes.io/name: pushgateway
     app.kubernetes.io/instance: {{ $.Release.Name }}
 {{- end }}
