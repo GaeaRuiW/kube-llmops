@@ -28,7 +28,6 @@ vllm:
         --gpu-memory-utilization: "0.8"
         --max-model-len: "4096"
         --enforce-eager: ""
-        --attention-backend: TRITON_ATTN
 
 llamacpp:
   enabled: true
