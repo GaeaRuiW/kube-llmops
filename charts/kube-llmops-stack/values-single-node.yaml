@@ -133,6 +133,12 @@ harbor:
 milvus:
   enabled: false
 
+# ========== RAG Evaluation ==========
+rag-eval:
+  enabled: true
+  smokeTest:
+    enabled: true
+
 # ========== MinIO (Model Storage) ==========
 fluid:
   enabled: true

@@ -1,0 +1,15 @@
+enabled: false
+
+smokeTest:
+  # Run once after helm install, or as CronJob
+  enabled: true
+  schedule: ""              # Empty = one-shot Job; "0 6 * * *" = daily CronJob
+  image: python:3.11-slim
+
+eval:
+  enabled: false
+  schedule: "0 7 * * *"
+  image: python:3.11-slim
+  model: ""                 # Eval LLM model (defaults to first model in litellm.models)
+  minFaithfulness: 0.7
+  minRelevancy: 0.7

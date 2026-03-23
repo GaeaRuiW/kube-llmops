@@ -103,3 +103,9 @@ dependencies:
     condition: keycloak.enabled
     tags:
       - auth
+  - name: rag-eval
+    version: 0.1.0
+    repository: "file://charts/rag-eval"
+    condition: rag-eval.enabled
+    tags:
+      - rag

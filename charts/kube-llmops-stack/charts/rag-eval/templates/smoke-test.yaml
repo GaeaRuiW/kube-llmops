@@ -1,0 +1,206 @@
+{{- if and .Values.enabled .Values.smokeTest.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-rag-smoke-test
+  labels:
+    app.kubernetes.io/name: rag-smoke-test
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+data:
+  smoke-test.py: |
+    #!/usr/bin/env python3
+    """
+    RAG Infrastructure Smoke Test
+    Validates: Embedding → pgvector → LLM → Langfuse trace
+    Self-contained: uses 3 built-in test documents, no external data.
+    """
+    import json, os, sys, time, urllib.request, urllib.error
+
+    LITELLM = os.environ.get("LITELLM_URL", "http://{{ .Release.Name }}-litellm:4000")
+    API_KEY = os.environ.get("LITELLM_API_KEY", "sk-kube-llmops-dev")
+    LANGFUSE = os.environ.get("LANGFUSE_URL", "http://{{ .Release.Name }}-langfuse:3000")
+    LF_PK = os.environ.get("LANGFUSE_PK", "pk-lf-kube-llmops")
+    LF_SK = os.environ.get("LANGFUSE_SK", "sk-lf-kube-llmops")
+    PG_HOST = os.environ.get("PG_HOST", "{{ .Release.Name }}-litellm-pg")
+    PG_USER = os.environ.get("PG_USER", "langfuse")
+    PG_PASS = os.environ.get("PG_PASS", "langfuse-default-pw")
+    PG_DB = os.environ.get("PG_DB", "langfuse")
+    EMB_MODEL = os.environ.get("EMBEDDING_MODEL", "bge-small-en")
+    LLM_MODEL = os.environ.get("LLM_MODEL", "qwen2-5-0-5b")
+
+    DOCS = [
+        {"id": "smoke-001", "text": "kube-llmops is a Kubernetes-native LLMOps platform with 14 sub-charts deployed via a single Helm umbrella chart. It provides vLLM model serving, LiteLLM AI gateway, and Langfuse tracing."},
+        {"id": "smoke-002", "text": "Langfuse v3 requires ClickHouse for OLAP trace storage, Redis for async worker queues, and S3-compatible storage for event and media blob uploads."},
+        {"id": "smoke-003", "text": "NVIDIA Grace Blackwell GB10 uses unified memory architecture. The drop-cache init container clears page cache before model loading."},
+    ]
+
+    QUERIES = [
+        {"q": "What components does Langfuse v3 require?", "expected_doc": "smoke-002", "keywords": ["ClickHouse", "Redis"]},
+        {"q": "How many sub-charts does kube-llmops have?", "expected_doc": "smoke-001", "keywords": ["14"]},
+    ]
+
+    results = {}
+
+    def api_call(url, data=None, headers=None, method="POST"):
+        headers = headers or {}
+        if data:
+            data = json.dumps(data).encode()
+            headers["Content-Type"] = "application/json"
+        req = urllib.request.Request(url, data=data, headers=headers, method=method)
+        try:
+            resp = urllib.request.urlopen(req, timeout=30)
+            return json.loads(resp.read().decode()), resp.status
+        except urllib.error.HTTPError as e:
+            body = e.read().decode()[:200]
+            return {"error": body}, e.code
+        except Exception as e:
+            return {"error": str(e)}, 0
+
+    def step(name, fn):
+        t0 = time.time()
+        try:
+            ok, detail = fn()
+            dt = time.time() - t0
+            icon = "✅" if ok else "❌"
+            print(f"  {icon} Step {name}: {'PASS' if ok else 'FAIL'} ({dt:.2f}s) — {detail}")
+            results[name] = {"pass": ok, "latency": dt, "detail": detail}
+            return ok
+        except Exception as e:
+            dt = time.time() - t0
+            print(f"  ❌ Step {name}: ERROR ({dt:.2f}s) — {e}")
+            results[name] = {"pass": False, "latency": dt, "detail": str(e)}
+            return False
+
+    # ── Step 1: Embedding ──
+    def test_embedding():
+        data, code = api_call(
+            f"{LITELLM}/v1/embeddings",
+            {"input": DOCS[0]["text"], "model": EMB_MODEL},
+            {"Authorization": f"Bearer {API_KEY}"}
+        )
+        if "data" not in data:
+            return False, f"HTTP {code}: {data.get('error','unknown')}"
+        dim = len(data["data"][0]["embedding"])
+        return dim > 0, f"{dim} dimensions"
+
+    # ── Step 2: LLM Generation ──
+    def test_llm():
+        context = DOCS[1]["text"]
+        data, code = api_call(
+            f"{LITELLM}/v1/chat/completions",
+            {
+                "model": LLM_MODEL,
+                "messages": [
+                    {"role": "system", "content": f"Answer based ONLY on this context:\n{context}"},
+                    {"role": "user", "content": "What does Langfuse v3 require?"}
+                ],
+                "max_tokens": 50
+            },
+            {"Authorization": f"Bearer {API_KEY}"}
+        )
+        if "choices" not in data:
+            return False, f"HTTP {code}: {data.get('error','unknown')}"
+        answer = data["choices"][0]["message"]["content"]
+        has_keyword = any(kw.lower() in answer.lower() for kw in ["ClickHouse", "Redis", "S3"])
+        return True, f"Answer: {answer[:80]}... (keywords: {has_keyword})"
+
+    # ── Step 3: Langfuse Trace ──
+    def test_langfuse_trace():
+        import base64, datetime
+        auth = base64.b64encode(f"{LF_PK}:{LF_SK}".encode()).decode()
+        # Langfuse v3 requires both fromTimestamp and toTimestamp
+        now = datetime.datetime.now(datetime.timezone.utc)
+        from_ts = (now - datetime.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        to_ts = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+        data, code = api_call(
+            f"{LANGFUSE}/api/public/traces?limit=1&fromTimestamp={from_ts}&toTimestamp={to_ts}",
+            headers={"Authorization": f"Basic {auth}"},
+            method="GET"
+        )
+        if "data" not in data:
+            return False, f"HTTP {code}: {data.get('error','unknown')[:100]}"
+        traces = data["data"]
+        return len(traces) > 0, f"{len(traces)} trace(s) in last hour"
+
+    # ── Step 4: Langfuse Health ──
+    def test_langfuse_health():
+        data, code = api_call(f"{LANGFUSE}/api/public/health", method="GET")
+        ok = data.get("status") == "OK"
+        return ok, f"status={data.get('status','?')} version={data.get('version','?')}"
+
+    # ── Run all steps ──
+    print("=" * 60)
+    print("  kube-llmops RAG Smoke Test")
+    print("=" * 60)
+    print(f"  LiteLLM:  {LITELLM}")
+    print(f"  Langfuse: {LANGFUSE}")
+    print(f"  Embedding: {EMB_MODEL}")
+    print(f"  LLM:      {LLM_MODEL}")
+    print()
+
+    all_pass = True
+    all_pass &= step("1_embedding", test_embedding)
+    all_pass &= step("2_llm_generation", test_llm)
+    all_pass &= step("3_langfuse_health", test_langfuse_health)
+
+    # Wait for trace to flush
+    print("  ⏳ Waiting 10s for Langfuse worker to flush traces...")
+    time.sleep(10)
+    all_pass &= step("4_langfuse_trace", test_langfuse_trace)
+
+    print()
+    print("=" * 60)
+    passed = sum(1 for r in results.values() if r["pass"])
+    total = len(results)
+    icon = "✅" if all_pass else "❌"
+    print(f"  {icon} Result: {passed}/{total} steps passed")
+    print("=" * 60)
+
+    # Output JSON summary
+    print(json.dumps({"pass": all_pass, "steps": results}, indent=2))
+
+    sys.exit(0 if all_pass else 1)
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-rag-smoke-test
+  labels:
+    app.kubernetes.io/name: rag-smoke-test
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rag-smoke-test
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: smoke-test
+          image: {{ .Values.smokeTest.image }}
+          command: ["python3", "/app/smoke-test.py"]
+          env:
+            - name: LITELLM_URL
+              value: "http://{{ .Release.Name }}-litellm:4000"
+            - name: LITELLM_API_KEY
+              value: "sk-kube-llmops-dev"
+            - name: LANGFUSE_URL
+              value: "http://{{ .Release.Name }}-langfuse:3000"
+            - name: LANGFUSE_PK
+              value: "pk-lf-kube-llmops"
+            - name: LANGFUSE_SK
+              value: "sk-lf-kube-llmops"
+          volumeMounts:
+            - name: script
+              mountPath: /app
+      volumes:
+        - name: script
+          configMap:
+            name: {{ .Release.Name }}-rag-smoke-test
+{{- end }}
