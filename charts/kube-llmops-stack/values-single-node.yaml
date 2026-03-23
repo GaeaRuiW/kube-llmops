@@ -135,8 +135,8 @@ dify:
     web:
       tag: "1.13.2"
   web:
-    consoleApiUrl: "http://dify-api.llmops.local"
-    appApiUrl: "http://dify-api.llmops.local"
+    consoleApiUrl: ""
+    appApiUrl: ""
 security:
   enabled: false
 harbor:
