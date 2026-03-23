@@ -79,11 +79,11 @@ data:
       echo "  Uploading $PLUGIN_SHORT ($(stat -c%s "$PKG")B)..."
 
       # Upload
-      UID=$(curl -sf -b "$CK" -H "X-CSRF-Token: $CSRF" \
+      PLUGIN_UID=$(curl -sf -b "$CK" -H "X-CSRF-Token: $CSRF" \
         -X POST "$API/console/api/workspaces/current/plugin/upload/pkg" \
         -F "pkg=@$PKG" | python3 -c "import json,sys; print(json.load(sys.stdin).get('unique_identifier',''))" 2>/dev/null)
-      [ -z "$UID" ] && { echo "  Upload failed"; continue; }
-      echo "  Uploaded: ${UID:0:60}..."
+      [ -z "$PLUGIN_UID" ] && { echo "  Upload failed"; continue; }
+      echo "  Uploaded: ${PLUGIN_UID:0:60}..."
 
       # Wait for daemon to extract, then pre-install deps
       sleep 5
@@ -97,7 +97,7 @@ data:
       # Install (may fail first time, retry after deps are cached)
       echo "  Installing..."
       TID=$(P "/console/api/workspaces/current/plugin/install/pkg" \
-        "{\"plugin_unique_identifiers\":[\"$UID\"]}" | \
+        "{\"plugin_unique_identifiers\":[\"$PLUGIN_UID\"]}" | \
         python3 -c "import json,sys; print(json.load(sys.stdin).get('task_id',''))" 2>/dev/null)
 
       OK=false
@@ -117,7 +117,7 @@ data:
         [ $attempt -eq 1 ] && {
           echo "  Attempt 1 failed, retrying..."
           TID=$(P "/console/api/workspaces/current/plugin/install/pkg" \
-            "{\"plugin_unique_identifiers\":[\"$UID\"]}" | \
+            "{\"plugin_unique_identifiers\":[\"$PLUGIN_UID\"]}" | \
             python3 -c "import json,sys; print(json.load(sys.stdin).get('task_id',''))" 2>/dev/null)
         }
       done
@@ -173,25 +173,26 @@ spec:
     spec:
       restartPolicy: OnFailure
       initContainers:
-        # Decode pre-bundled .difypkg files into the shared PVC
+        # Copy pre-bundled .difypkg files into the shared PVC
         - name: seed-plugins
           image: python:3.12-slim
           command: ["bash", "-c"]
           args:
             - |
-              for f in /plugin-b64/*.b64; do
-                NAME=$(basename "$f" .b64)
+              for f in /plugin-pkgs/*.difypkg; do
+                [ -f "$f" ] || continue
+                NAME=$(basename "$f")
                 DEST="/plugin-storage/$NAME"
-                if [ ! -f "$DEST" ]; then
-                  echo "Decoding $NAME..."
-                  base64 -d "$f" > "$DEST"
+                if [ ! -f "$DEST" ] || [ "$(stat -c%s "$DEST" 2>/dev/null)" -lt 1000 ]; then
+                  echo "Copying $NAME ($(stat -c%s "$f")B)..."
+                  cp "$f" "$DEST"
                 else
-                  echo "$NAME already exists"
+                  echo "$NAME already exists ($(stat -c%s "$DEST")B)"
                 fi
               done
           volumeMounts:
-            - name: plugin-b64
-              mountPath: /plugin-b64
+            - name: plugin-pkgs
+              mountPath: /plugin-pkgs
             - name: plugin-storage
               mountPath: /plugin-storage
       containers:
@@ -207,16 +208,16 @@ spec:
         - name: scripts
           configMap:
             name: {{ .Release.Name }}-dify-setup
-        - name: plugin-b64
-          configMap:
-            name: {{ .Release.Name }}-dify-plugin-packages
+        - name: plugin-pkgs
+          secret:
+            secretName: {{ .Release.Name }}-dify-plugin-packages
         - name: plugin-storage
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-dify-plugin-storage
 ---
-# ConfigMap with base64-encoded plugin packages
+# Secret with binary plugin packages (Secret supports up to 1MB vs ConfigMap annotation limits)
 apiVersion: v1
-kind: ConfigMap
+kind: Secret
 metadata:
   name: {{ .Release.Name }}-dify-plugin-packages
   labels:
@@ -227,8 +228,9 @@ metadata:
     helm.sh/hook: post-install,post-upgrade
     helm.sh/hook-weight: "5"
     helm.sh/hook-delete-policy: before-hook-creation
-binaryData:
+type: Opaque
+data:
   {{- range .Values.setup.plugins }}
-  {{ .id | replace "/" "_" }}.difypkg.b64: {{ $.Files.Get (printf "files/%s.difypkg.b64" (index (splitList "/" .id) 1)) }}
+  {{ index (splitList "/" .id) 1 }}.difypkg: {{ $.Files.Get (printf "files/%s.difypkg" (index (splitList "/" .id) 1)) | b64enc }}
   {{- end }}
 {{- end }}
