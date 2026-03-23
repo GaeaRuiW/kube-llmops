@@ -9,6 +9,15 @@ image:
     repository: langgenius/dify-web
     tag: "1.13.2"
     pullPolicy: IfNotPresent
+  pluginDaemon:
+    repository: langgenius/dify-plugin-daemon
+    tag: "0.5.4-local"
+    pullPolicy: IfNotPresent
+
+# Plugin Daemon settings
+pluginDaemon:
+  key: "REMOVED_DIFY_PLUGIN_DAEMON_KEY"
+  innerApiKey: "REMOVED_DIFY_PLUGIN_DAEMON_INNER_API_KEY"
 
 # Redis for Dify (deployed alongside)
 redis:
