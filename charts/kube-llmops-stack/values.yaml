@@ -27,7 +27,7 @@ vllm:
   models: []                  # Populated from top-level models[] at install time
   image:
     repository: vllm/vllm-openai
-    tag: latest
+    tag: v0.9.2
     pullPolicy: IfNotPresent
   service:
     type: ClusterIP
@@ -36,7 +36,7 @@ vllm:
     enabled: true
     image:
       repository: python
-      tag: "3.11-slim"
+      tag: "3.13-slim"
       pullPolicy: IfNotPresent
     hfToken: ""               # Set via --set vllm.modelLoader.hfToken=xxx
   modelCache:
@@ -70,7 +70,7 @@ llamacpp:
   models: []
   image:
     repository: ghcr.io/ggml-org/llama.cpp
-    tag: server
+    tag: server-b5350
     pullPolicy: IfNotPresent
   service:
     type: ClusterIP
@@ -101,7 +101,7 @@ tei:
   models: []
   image:
     repository: ghcr.io/huggingface/text-embeddings-inference
-    tag: "cpu-1.6"
+    tag: "cpu-1.7.0"
     pullPolicy: IfNotPresent
   service:
     type: ClusterIP
@@ -134,7 +134,7 @@ litellm:
   masterKey: ""               # Set via --set or secret. REQUIRED.
   image:
     repository: ghcr.io/berriai/litellm
-    tag: main-stable
+    tag: main-v1.82.3-stable
     pullPolicy: IfNotPresent
   service:
     type: ClusterIP
@@ -167,7 +167,7 @@ litellm:
     enabled: true
     image:
       repository: pgvector/pgvector
-      tag: "pg16"
+      tag: "pg17"
     auth:
       database: litellm
       username: litellm
@@ -186,13 +186,13 @@ observability:
     enabled: true
     image:
       repository: otel/opentelemetry-collector-contrib
-      tag: 0.114.0
+      tag: 0.148.0
       pullPolicy: IfNotPresent
   prometheus:
     enabled: true
     image:
       repository: prom/prometheus
-      tag: v2.54.1
+      tag: v3.9.1
       pullPolicy: IfNotPresent
     retention: 15d
     storage:
@@ -202,13 +202,13 @@ observability:
     enabled: true
     image:
       repository: nvcr.io/nvidia/k8s/dcgm-exporter
-      tag: 3.3.8-3.6.0-ubuntu22.04
+      tag: 4.5.2-4.8.1-ubuntu22.04
       pullPolicy: IfNotPresent
   grafana:
     enabled: true
     image:
       repository: grafana/grafana
-      tag: 11.3.0
+      tag: 12.4.1
       pullPolicy: IfNotPresent
     adminPassword: ""         # Set via --set or secret
     service:
@@ -223,7 +223,7 @@ langfuse:
   enabled: false              # Off in minimal, on in standard+
   image:
     repository: langfuse/langfuse
-    tag: "3.160.0"
+    tag: "3.161.0"
     pullPolicy: IfNotPresent
   replicas: 1
   service:

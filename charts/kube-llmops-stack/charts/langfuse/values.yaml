@@ -2,7 +2,7 @@ enabled: false
 
 image:
   repository: langfuse/langfuse
-  tag: "3.160.0"
+  tag: "3.161.0"
   pullPolicy: IfNotPresent
 
 replicas: 1
@@ -83,7 +83,7 @@ livenessProbe:
 clickhouse:
   image:
     repository: clickhouse/clickhouse-server
-    tag: "24.12-alpine"
+    tag: "26.2.5-alpine"
     pullPolicy: IfNotPresent
   password: "clickhouse123!"
   storage:

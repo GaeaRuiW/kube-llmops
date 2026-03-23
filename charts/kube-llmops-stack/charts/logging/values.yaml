@@ -4,7 +4,7 @@ enabled: false
 loki:
   image:
     repository: grafana/loki
-    tag: "3.4.2"
+    tag: "3.6.7"
     pullPolicy: IfNotPresent
   port: 3100
   storage:
@@ -22,7 +22,7 @@ loki:
 fluentbit:
   image:
     repository: fluent/fluent-bit
-    tag: "4.0.2"
+    tag: "4.2.3.1"
     pullPolicy: IfNotPresent
   resources:
     requests:

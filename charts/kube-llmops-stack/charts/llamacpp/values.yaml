@@ -4,7 +4,7 @@ models: []
 
 image:
   repository: ghcr.io/ggml-org/llama.cpp
-  tag: server
+  tag: server-b5350
   pullPolicy: IfNotPresent
 
 service:

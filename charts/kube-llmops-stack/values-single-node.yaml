@@ -64,6 +64,8 @@ litellm:
       apiBase: http://tei-bge-small-en:8080/v1
   postgresql:
     enabled: true
+    image:
+      tag: "pg16"              # Pinned: existing PVC has PG16 data
     auth:
       username: litellm
       password: llmops-pg-dev-pw
@@ -130,9 +132,9 @@ dify:
   enabled: true
   image:
     api:
-      tag: "0.15.3"
+      tag: "1.13.2"
     web:
-      tag: "0.15.3"
+      tag: "1.13.2"
   web:
     consoleApiUrl: "http://dify-api.llmops.local"
     appApiUrl: "http://dify-api.llmops.local"

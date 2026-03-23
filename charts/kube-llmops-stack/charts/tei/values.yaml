@@ -8,7 +8,7 @@ offlineMode: false
 
 image:
   repository: ghcr.io/huggingface/text-embeddings-inference
-  tag: cpu-1.6
+  tag: cpu-1.7.0
   pullPolicy: IfNotPresent
 
 service:
