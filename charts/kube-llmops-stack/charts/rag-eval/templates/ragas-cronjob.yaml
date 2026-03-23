@@ -23,7 +23,7 @@ data:
     API_KEY = os.environ.get("LITELLM_API_KEY", "sk-kube-llmops-dev")
     EMB_MODEL = os.environ.get("EMBEDDING_MODEL", "bge-small-en")
     LLM_MODEL = os.environ.get("LLM_MODEL", "qwen2-5-0-5b")
-    PUSHGW = os.environ.get("PUSHGATEWAY_URL", "http://kube-llmops-prometheus:9091")
+    PUSHGW = os.environ.get("PUSHGATEWAY_URL", "http://kube-llmops-pushgateway:9091")
     DATASET = os.environ.get("DATASET_PATH", "/data/eval-dataset.json")
 
     def api_call(url, data=None, headers=None, method="POST"):
@@ -172,7 +172,7 @@ data:
             f"{PUSHGW}/metrics/job/ragas_eval",
             data=prom_data.encode(),
             headers={"Content-Type": "text/plain"},
-            method="POST")
+            method="PUT")
         urllib.request.urlopen(req, timeout=10)
         print("  Metrics pushed to Prometheus Pushgateway")
     except Exception as e:
@@ -224,7 +224,7 @@ spec:
                 - name: DATASET_PATH
                   value: /data/eval-dataset.json
                 - name: PUSHGATEWAY_URL
-                  value: "http://{{ .Release.Name }}-prometheus:9091"
+                  value: "http://{{ .Release.Name }}-pushgateway:9091"
               volumeMounts:
                 - name: scripts
                   mountPath: /scripts
