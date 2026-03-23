@@ -37,7 +37,7 @@ tei:
   enabled: true
   models:
     - name: bge-small-en
-      source: /data/bge-small-en-v1.5
+      source: BAAI/bge-small-en-v1.5
       engine: tei
       replicas: 1
       resources:
