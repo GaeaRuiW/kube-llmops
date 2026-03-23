@@ -128,6 +128,14 @@ keda:
   enabled: false                # Single node, no scale target
 dify:
   enabled: true
+  image:
+    api:
+      tag: "0.15.3"
+    web:
+      tag: "0.15.3"
+  web:
+    consoleApiUrl: "http://dify-api.llmops.local"
+    appApiUrl: "http://dify-api.llmops.local"
 security:
   enabled: false
 harbor:
