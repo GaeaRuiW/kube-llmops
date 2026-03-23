@@ -190,6 +190,17 @@ spec:
             # ---- Log level ----
             - name: LOG_LEVEL
               value: INFO
+            # ---- Plugin Daemon ----
+            - name: PLUGIN_DAEMON_URL
+              value: "http://{{ .Release.Name }}-dify-plugin-daemon:5002"
+            - name: PLUGIN_DAEMON_KEY
+              value: {{ .Values.pluginDaemon.key | quote }}
+            - name: PLUGIN_DIFY_INNER_API_KEY
+              value: {{ .Values.pluginDaemon.innerApiKey | quote }}
+            - name: MARKETPLACE_ENABLED
+              value: "false"
+            - name: FORCE_VERIFYING_SIGNATURE
+              value: "false"
           readinessProbe:
             httpGet:
               path: /health
@@ -325,6 +336,17 @@ spec:
               value: {{ .Values.web.consoleApiUrl | default "" | quote }}
             - name: CONSOLE_WEB_URL
               value: {{ .Values.web.consoleWebUrl | default "" | quote }}
+            # ---- Plugin Daemon ----
+            - name: PLUGIN_DAEMON_URL
+              value: "http://{{ .Release.Name }}-dify-plugin-daemon:5002"
+            - name: PLUGIN_DAEMON_KEY
+              value: {{ .Values.pluginDaemon.key | quote }}
+            - name: PLUGIN_DIFY_INNER_API_KEY
+              value: {{ .Values.pluginDaemon.innerApiKey | quote }}
+            - name: MARKETPLACE_ENABLED
+              value: "false"
+            - name: FORCE_VERIFYING_SIGNATURE
+              value: "false"
             # ---- Log level ----
             - name: LOG_LEVEL
               value: INFO
@@ -335,6 +357,113 @@ spec:
             limits:
               cpu: {{ .Values.api.resources.limits.cpu | quote }}
               memory: {{ .Values.api.resources.limits.memory }}
+
+# ============================================================
+# Dify Plugin Daemon — model provider plugin management
+# ============================================================
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-dify-plugin-daemon
+  labels:
+    app.kubernetes.io/name: dify
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: plugin-daemon
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dify-plugin-daemon
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dify-plugin-daemon
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: plugin-daemon
+        app.kubernetes.io/part-of: kube-llmops
+    spec:
+      containers:
+        - name: plugin-daemon
+          image: "{{ .Values.image.pluginDaemon.repository }}:{{ .Values.image.pluginDaemon.tag }}"
+          imagePullPolicy: {{ .Values.image.pluginDaemon.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 5002
+              protocol: TCP
+          env:
+            - name: DB_HOST
+              value: {{ .Values.postgresql.host | default (printf "%s-litellm-pg" .Release.Name) | quote }}
+            - name: DB_PORT
+              value: {{ .Values.postgresql.port | quote }}
+            - name: DB_DATABASE
+              value: dify_plugin
+            - name: DB_USERNAME
+              value: {{ .Values.postgresql.username | quote }}
+            - name: DB_PASSWORD
+              value: {{ .Values.postgresql.password | quote }}
+            - name: DB_SSL_MODE
+              value: "disable"
+            - name: REDIS_HOST
+              value: {{ .Release.Name }}-dify-redis
+            - name: REDIS_PORT
+              value: "6379"
+            - name: SERVER_PORT
+              value: "5002"
+            - name: SERVER_KEY
+              value: {{ .Values.pluginDaemon.key | quote }}
+            - name: DIFY_INNER_API_URL
+              value: "http://{{ .Release.Name }}-dify-api:5001"
+            - name: DIFY_INNER_API_KEY
+              value: {{ .Values.pluginDaemon.innerApiKey | quote }}
+            - name: PLUGIN_REMOTE_INSTALLING_HOST
+              value: "0.0.0.0"
+            - name: PLUGIN_REMOTE_INSTALLING_PORT
+              value: "5003"
+            - name: PLUGIN_WORKING_PATH
+              value: /app/storage/cwd
+            - name: PLUGIN_STORAGE_TYPE
+              value: local
+            - name: PLUGIN_STORAGE_LOCAL_ROOT
+              value: /app/storage
+            - name: PLUGIN_INSTALLED_PATH
+              value: plugin
+            - name: PLUGIN_PACKAGE_CACHE_PATH
+              value: plugin_packages
+            - name: FORCE_VERIFYING_SIGNATURE
+              value: "false"
+            - name: PYTHON_ENV_INIT_TIMEOUT
+              value: "120"
+            - name: PLUGIN_MAX_EXECUTION_TIMEOUT
+              value: "600"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-dify-plugin-daemon
+  labels:
+    app.kubernetes.io/name: dify
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: plugin-daemon
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5002
+      targetPort: http
+      name: http
+  selector:
+    app.kubernetes.io/name: dify-plugin-daemon
+    app.kubernetes.io/instance: {{ .Release.Name }}
 
 # ============================================================
 # Dify Web — Next.js frontend
