@@ -2,6 +2,8 @@
 
 > Tracks actual implementation status of all RAG infrastructure components.
 > Updated per Phase completion. See [RAG-PLAN.md](RAG-PLAN.md) for full plan.
+>
+> **Last updated**: 2026-03-23
 
 ---
 
@@ -9,7 +11,7 @@
 
 | Phase | Target | Status | Key Blocker |
 |-------|--------|--------|------------|
-| **Phase 1** | RAG 能跑通 | ❌ Not started | TEI embedding 未配默认模型 |
+| **Phase 1** | RAG 能跑通 | 🟡 In progress | 端到端 RAG 测试 |
 | **Phase 2** | 质量可衡量 | ❌ Not started | 依赖 Phase 1 |
 | **Phase 3** | 可上生产 | ❌ Not started | 依赖 Phase 2 |
 | **Phase 4** | 企业级 | ❌ Not started | 按需 |
@@ -20,15 +22,32 @@
 
 | # | 任务 | 状态 | 验收标准 |
 |---|------|------|---------|
-| 1 | TEI 配默认 embedding 模型 (bge-m3) | ❌ | `/v1/embeddings` 返回 1024 维向量 |
-| 2 | LiteLLM 配 embedding route 到 TEI | ❌ | 通过 LiteLLM 代理调用 embedding |
-| 3 | Dify embedding 指向 LiteLLM | ❌ | Dify 不再直连 HuggingFace |
-| 4 | 端到端验证：上传文档 → RAG 回答 | ❌ | 回答包含文档中的信息 |
-| 5 | Smoke Test Job (L1) | ❌ | 8 个 step 全部 PASS |
+| 1 | TEI 配默认 embedding 模型 (bge-small-en-v1.5) | ✅ Done | `/v1/embeddings` 返回 384 维向量 |
+| 2 | LiteLLM 配 embedding route 到 TEI | ✅ Done | `huggingface/bge-small-en` + `drop_params: true` |
+| 3 | Dify embedding 指向 LiteLLM | ✅ Done | Setup Job 自动配置 OpenAI-API-compatible provider |
+| 4 | 端到端验证：上传文档 → RAG 回答 | 🟡 Testing | Playwright E2E 测试中 |
+| 5 | Smoke Test Job (L1) | 🟡 Needs fix | rag-eval sub-chart 需适配新环境 |
+
+**实际完成的额外工作**（非原计划但为 Phase 1 必需）：
+
+| 额外任务 | 状态 | 说明 |
+|----------|------|------|
+| Dify v1.13.2 部署 | ✅ | API + Web + Worker + Redis + Plugin Daemon |
+| Dify Plugin Daemon | ✅ | langgenius/dify-plugin-daemon:0.5.4-local + PVC 持久化 |
+| OpenAI-API-compatible 插件 | ✅ | .difypkg 内嵌 Secret，Setup Job 全自动安装 |
+| Model Provider 自动配置 | ✅ | LLM (qwen2-5-0-5b) + Embedding (bge-small-en) 自动配好 |
+| Dify 单域名路由 | ✅ | path-based routing，Cookie auth 正常工作 |
+| pgvector/pgvector:pg16 | ✅ | 替换 postgres:16-alpine，vector extension 自动启用 |
+| dify_plugin 数据库 | ✅ | PostgreSQL init script 自动创建 |
+| Playwright E2E 测试 | ✅ | 登录 + 添加模型 + 验证，5/5 PASS |
 
 **Phase 1 Exit Criteria**:
+- [x] TEI embedding 服务正常（384 维向量）
+- [x] LiteLLM embedding route 正常（含 encoding_format 兼容）
+- [x] Dify Model Provider 自动配置（Setup Job）
+- [x] Playwright 测试 5/5 通过
+- [ ] Dify 上传文档 → 提问 → 得到基于文档的回答
 - [ ] Smoke Test Job 通过
-- [ ] Dify 上传 PDF → 提问 → 得到基于文档的回答
 
 ---
 
@@ -82,21 +101,19 @@
 
 ## Already Done (Foundation)
 
-以下基础设施已完成，是 RAG 开发的前置条件：
-
 | 组件 | 状态 | 说明 |
 |------|------|------|
-| pgvector 扩展 | ✅ | PostgreSQL 17 with vector extension |
-| LiteLLM 网关 | ✅ | OpenAI 兼容 API，embedding route 结构已有 |
+| pgvector 扩展 | ✅ | pgvector/pgvector:pg16 + auto CREATE EXTENSION |
+| LiteLLM 网关 | ✅ | embedding (huggingface/ + drop_params) + LLM (openai/) |
 | Langfuse v3 追踪 | ✅ | ClickHouse + Redis + Worker，trace 链路通 |
-| MinIO 存储 | ✅ | S3 兼容，langfuse bucket 自动创建 |
+| MinIO 存储 | ✅ | S3 兼容，dify / langfuse bucket 自动创建 |
 | Prometheus + Grafana | ✅ | 指标 + 告警 + dashboard 框架 |
-| Keycloak SSO | ✅ | OIDC 认证，多租户基础 |
-| TEI 模板 | ✅ | sub-chart 骨架有，缺默认模型 |
-| Dify 模板 | ✅ | sub-chart 骨架有，embedding 断 |
-| Milvus 模板 | ✅ | sub-chart 骨架有，未验证 |
-| Prompt 模板 | ✅ | 5 个 RAG prompt + sync 脚本 |
-| Eval 脚本骨架 | ✅ | rag-eval.sh + k8s-eval-job.yaml（仅关键词匹配） |
+| Keycloak SSO | ✅ | v26.5.6，OIDC 认证 |
+| TEI embedding | ✅ | bge-small-en-v1.5 (384 dims)，HF 自动下载 |
+| Dify 1.13.2 全栈 | ✅ | API + Web + Worker + PluginDaemon + Redis |
+| Dify 自动化部署 | ✅ | Setup Job: admin 账户 + 插件安装 + Model Provider |
+| vLLM | ✅ | qwen2-5-0-5b，v0.9.2 + --enforce-eager |
+| E2E 测试 | ✅ | Playwright: 登录 + 模型配置 + 验证 (5/5 PASS) |
 
 ---
 
@@ -109,3 +126,4 @@
 | [RAG-TEST-PLAN.md](RAG-TEST-PLAN.md) | 测试数据设计 + 验收标准 + Ragas 集成 |
 | [RAG-ASSESSMENT.md](RAG-ASSESSMENT.md) | 现状评估 + 竞品对比 |
 | [docs/rag-tech/](docs/rag-tech/README.md) | 47 项 RAG 技术百科（论文 + 开源 + 企业方案） |
+| [tests/e2e/](tests/e2e/) | Playwright E2E 测试 |

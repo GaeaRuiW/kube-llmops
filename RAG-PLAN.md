@@ -40,11 +40,11 @@ We provide infrastructure services that RAG applications (Dify, RAGFlow, LangCha
 
 | Item | Status | Detail |
 |------|--------|--------|
-| TEI sub-chart | ✅ Template exists | `charts/tei/` with deployment, service, PVC |
-| Default embedding model | ❌ Not configured | Need `BAAI/bge-m3` as default |
-| LiteLLM embedding route | ❌ Not configured | LiteLLM config needs `/v1/embeddings` route to TEI |
-| Health check | ✅ Template exists | readinessProbe on TEI |
-| Model preloading | ❌ Not implemented | TEI pulls model on first start (slow) |
+| TEI sub-chart | ✅ Working | `charts/tei/` deployed with bge-small-en-v1.5 (384 dims) |
+| Default embedding model | ✅ Configured | `BAAI/bge-small-en-v1.5` auto-downloaded from HuggingFace |
+| LiteLLM embedding route | ✅ Working | `huggingface/bge-small-en` + `drop_params: true` |
+| Health check | ✅ Working | readinessProbe on TEI |
+| Model preloading | ✅ Auto-download | TEI downloads from HF on first start |
 
 ### 2. Reranking Service
 
@@ -58,7 +58,7 @@ We provide infrastructure services that RAG applications (Dify, RAGFlow, LangCha
 
 | Item | Status | Detail |
 |------|--------|--------|
-| pgvector extension | ✅ Enabled | `CREATE EXTENSION vector` works |
+| pgvector extension | ✅ Auto-enabled | pgvector/pgvector:pg16, init script runs `CREATE EXTENSION IF NOT EXISTS vector` |
 | tsvector full-text | ❌ Not configured | PostgreSQL has it but no index/function setup |
 | Hybrid search function | ❌ Not implemented | Need SQL function for dense+sparse+RRF |
 | Milvus chart | ✅ Template exists | Not tested in cluster |
@@ -68,11 +68,13 @@ We provide infrastructure services that RAG applications (Dify, RAGFlow, LangCha
 
 | Item | Status | Detail |
 |------|--------|--------|
-| Dify sub-chart | ✅ Template exists | Disabled by default, embedding broken |
-| Dify → LiteLLM embedding | ❌ Not configured | Dify tries to download models directly |
-| Dify → LiteLLM LLM | ✅ Configured | Dify uses LiteLLM as LLM provider |
+| Dify sub-chart | ✅ Full stack | API + Web + Worker + PluginDaemon + Redis, v1.13.2 |
+| Dify → LiteLLM embedding | ✅ Auto-configured | Setup Job installs OpenAI-API-compatible plugin + credentials |
+| Dify → LiteLLM LLM | ✅ Auto-configured | Setup Job configures qwen2-5-0-5b as LLM provider |
 | Dify → pgvector | ✅ Configured | Vector store set to pgvector |
-| End-to-end: upload → answer | ❌ Not verified | Embedding service must work first |
+| Plugin Daemon | ✅ Working | .difypkg embedded in Secret, PVC for persistence |
+| Single-domain routing | ✅ Working | path-based Ingress, SameSite cookie auth works |
+| End-to-end: upload → answer | 🟡 Testing | Infrastructure ready, E2E test in progress |
 
 ### 5. RAG Evaluation (Differentiator)
 
