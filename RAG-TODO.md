@@ -11,7 +11,7 @@
 
 | Phase | Target | Status | Key Blocker |
 |-------|--------|--------|------------|
-| **Phase 1** | RAG 能跑通 | 🟡 In progress | 端到端 RAG 测试 |
+| **Phase 1** | RAG 能跑通 | ✅ Complete | 全部 5 项任务通过 |
 | **Phase 2** | 质量可衡量 | ❌ Not started | 依赖 Phase 1 |
 | **Phase 3** | 可上生产 | ❌ Not started | 依赖 Phase 2 |
 | **Phase 4** | 企业级 | ❌ Not started | 按需 |
@@ -25,8 +25,8 @@
 | 1 | TEI 配默认 embedding 模型 (bge-small-en-v1.5) | ✅ Done | `/v1/embeddings` 返回 384 维向量 |
 | 2 | LiteLLM 配 embedding route 到 TEI | ✅ Done | `huggingface/bge-small-en` + `drop_params: true` |
 | 3 | Dify embedding 指向 LiteLLM | ✅ Done | Setup Job 自动配置 OpenAI-API-compatible provider |
-| 4 | 端到端验证：上传文档 → RAG 回答 | 🟡 Testing | Playwright E2E 测试中 |
-| 5 | Smoke Test Job (L1) | 🟡 Needs fix | rag-eval sub-chart 需适配新环境 |
+| 4 | 端到端验证：上传文档 → RAG 回答 | ✅ Done | Playwright 9/9 PASS，回答含文档原文 |
+| 5 | Smoke Test Job (L1) | ✅ Done | 4/4 PASS: embedding + LLM + Langfuse health + trace |
 
 **实际完成的额外工作**（非原计划但为 Phase 1 必需）：
 
@@ -46,8 +46,8 @@
 - [x] LiteLLM embedding route 正常（含 encoding_format 兼容）
 - [x] Dify Model Provider 自动配置（Setup Job）
 - [x] Playwright 测试 5/5 通过
-- [ ] Dify 上传文档 → 提问 → 得到基于文档的回答
-- [ ] Smoke Test Job 通过
+- [x] Dify 上传文档 → 提问 → 得到基于文档的回答
+- [x] Smoke Test Job 通过
 
 ---
 

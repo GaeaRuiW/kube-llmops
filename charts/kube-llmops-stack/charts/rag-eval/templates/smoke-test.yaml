@@ -8,6 +8,10 @@ metadata:
     app.kubernetes.io/name: rag-smoke-test
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/part-of: kube-llmops
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "15"
+    helm.sh/hook-delete-policy: before-hook-creation
 data:
   smoke-test.py: |
     #!/usr/bin/env python3
@@ -72,6 +76,19 @@ data:
             print(f"  ❌ Step {name}: ERROR ({dt:.2f}s) — {e}")
             results[name] = {"pass": False, "latency": dt, "detail": str(e)}
             return False
+
+    # ── Wait for services to be ready ──
+    print("  ⏳ Waiting for services to be ready...")
+    for _ in range(60):
+        try:
+            urllib.request.urlopen(f"{LITELLM}/health/liveliness", timeout=5)
+            print("  Services ready")
+            break
+        except Exception:
+            time.sleep(5)
+    else:
+        print("  ❌ TIMEOUT waiting for LiteLLM")
+        sys.exit(1)
 
     # ── Step 1: Embedding ──
     def test_embedding():
@@ -171,9 +188,14 @@ metadata:
     app.kubernetes.io/name: rag-smoke-test
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/part-of: kube-llmops
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "20"
+    helm.sh/hook-delete-policy: before-hook-creation
 spec:
   backoffLimit: 2
   ttlSecondsAfterFinished: 3600
+  activeDeadlineSeconds: 600
   template:
     metadata:
       labels:
