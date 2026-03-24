@@ -1,0 +1,65 @@
+{
+  "uid": "milvus-overview",
+  "title": "Milvus Vector Database",
+  "tags": ["milvus", "vectordb", "rag"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Collections",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "milvus_num_collections", "legendFormat": "Collections"}],
+      "fieldConfig": {"defaults": {"thresholds": {"steps": [{"color": "green", "value": null}]}}}
+    },
+    {
+      "id": 2,
+      "title": "Total Entities",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum(milvus_num_entities)", "legendFormat": "Entities"}],
+      "fieldConfig": {"defaults": {"thresholds": {"steps": [{"color": "green", "value": null}]}}}
+    },
+    {
+      "id": 3,
+      "title": "Search Latency (p99)",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "histogram_quantile(0.99, sum(rate(milvus_proxy_search_vectors_duration_seconds_bucket[5m])) by (le))", "legendFormat": "p99"}],
+      "fieldConfig": {"defaults": {"unit": "s", "thresholds": {"steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 0.5}, {"color": "red", "value": 1}]}}}
+    },
+    {
+      "id": 4,
+      "title": "Memory Usage",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "process_resident_memory_bytes{job=\"milvus\"}", "legendFormat": "RSS"}],
+      "fieldConfig": {"defaults": {"unit": "bytes", "thresholds": {"steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 2147483648}, {"color": "red", "value": 3221225472}]}}}
+    },
+    {
+      "id": 5,
+      "title": "Search QPS",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum(rate(milvus_proxy_search_vectors_count[5m]))", "legendFormat": "Search QPS"}],
+      "fieldConfig": {"defaults": {"unit": "ops"}}
+    },
+    {
+      "id": 6,
+      "title": "Insert QPS",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum(rate(milvus_proxy_insert_vectors_count[5m]))", "legendFormat": "Insert QPS"}],
+      "fieldConfig": {"defaults": {"unit": "ops"}}
+    }
+  ],
+  "time": {"from": "now-1h", "to": "now"},
+  "refresh": "10s"
+}

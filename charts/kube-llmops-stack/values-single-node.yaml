@@ -151,12 +151,31 @@ security:
   enabled: true
   llmGuard:
     enabled: true
+  presidio:
+    enabled: true
+  multiTenant:
+    enabled: true
+    teams:
+      - name: team-alpha
+        namespace: llm-team-alpha
+        gpuQuota: 1
+        memoryQuota: 8Gi
+        cpuQuota: 4
+        maxPods: 10
+      - name: team-beta
+        namespace: llm-team-beta
+        gpuQuota: 0
+        memoryQuota: 4Gi
+        cpuQuota: 2
+        maxPods: 5
   networkPolicy:
     enabled: false
 harbor:
   enabled: false
 milvus:
-  enabled: false
+  enabled: true
+lightrag:
+  enabled: true
 
 # ========== RAG Evaluation ==========
 rag-eval:

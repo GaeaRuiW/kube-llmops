@@ -109,3 +109,9 @@ dependencies:
     condition: rag-eval.enabled
     tags:
       - rag
+  - name: lightrag
+    version: 0.1.0
+    repository: "file://charts/lightrag"
+    condition: lightrag.enabled
+    tags:
+      - rag

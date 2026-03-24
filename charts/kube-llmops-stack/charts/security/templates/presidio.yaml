@@ -1,0 +1,130 @@
+{{- if and .Values.enabled .Values.presidio.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-presidio-analyzer
+  labels:
+    app.kubernetes.io/name: presidio-analyzer
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: security
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: presidio-analyzer
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: presidio-analyzer
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: security
+        app.kubernetes.io/part-of: kube-llmops
+    spec:
+      containers:
+        - name: analyzer
+          image: "{{ .Values.presidio.analyzer.image.repository }}:{{ .Values.presidio.analyzer.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 10
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-presidio-analyzer
+  labels:
+    app.kubernetes.io/name: presidio-analyzer
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: http
+      name: http
+  selector:
+    app.kubernetes.io/name: presidio-analyzer
+    app.kubernetes.io/instance: {{ .Release.Name }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-presidio-anonymizer
+  labels:
+    app.kubernetes.io/name: presidio-anonymizer
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: security
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: presidio-anonymizer
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: presidio-anonymizer
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: security
+        app.kubernetes.io/part-of: kube-llmops
+    spec:
+      containers:
+        - name: anonymizer
+          image: "{{ .Values.presidio.anonymizer.image.repository }}:{{ .Values.presidio.anonymizer.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-presidio-anonymizer
+  labels:
+    app.kubernetes.io/name: presidio-anonymizer
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: http
+      name: http
+  selector:
+    app.kubernetes.io/name: presidio-anonymizer
+    app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}

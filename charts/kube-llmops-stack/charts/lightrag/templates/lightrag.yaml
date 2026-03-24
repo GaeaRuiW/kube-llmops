@@ -1,0 +1,216 @@
+{{- if .Values.enabled }}
+---
+# ── Neo4j Graph Database ──
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-neo4j-data
+  labels:
+    app.kubernetes.io/name: neo4j
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: {{ .Values.neo4j.storage.size }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-neo4j
+  labels:
+    app.kubernetes.io/name: neo4j
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: graph-db
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: neo4j
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: neo4j
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: graph-db
+        app.kubernetes.io/part-of: kube-llmops
+    spec:
+      containers:
+        - name: neo4j
+          image: "{{ .Values.neo4j.image.repository }}:{{ .Values.neo4j.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: bolt
+              containerPort: 7687
+            - name: http
+              containerPort: 7474
+          env:
+            - name: NEO4J_AUTH
+              value: "neo4j/{{ .Values.neo4j.auth.password }}"
+            - name: NEO4J_PLUGINS
+              value: '["apoc"]'
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 7474
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 20
+          resources:
+            requests:
+              cpu: {{ .Values.neo4j.resources.requests.cpu }}
+              memory: {{ .Values.neo4j.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.neo4j.resources.limits.cpu | quote }}
+              memory: {{ .Values.neo4j.resources.limits.memory }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-neo4j-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-neo4j
+  labels:
+    app.kubernetes.io/name: neo4j
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  type: ClusterIP
+  ports:
+    - port: 7687
+      targetPort: bolt
+      name: bolt
+    - port: 7474
+      targetPort: http
+      name: http
+  selector:
+    app.kubernetes.io/name: neo4j
+    app.kubernetes.io/instance: {{ .Release.Name }}
+---
+# ── LightRAG API Server ──
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-lightrag-config
+  labels:
+    app.kubernetes.io/name: lightrag
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+data:
+  config.yaml: |
+    llm:
+      api_base: http://{{ .Release.Name }}-litellm:4000/v1
+      api_key: sk-kube-llmops-dev
+      model: {{ .Values.config.llmModel }}
+    embedding:
+      api_base: http://{{ .Release.Name }}-litellm:4000/v1
+      api_key: sk-kube-llmops-dev
+      model: {{ .Values.config.embeddingModel }}
+    graph:
+      storage: {{ .Values.config.graphStorage }}
+      neo4j_uri: bolt://{{ .Release.Name }}-neo4j:7687
+      neo4j_user: neo4j
+      neo4j_password: {{ .Values.neo4j.auth.password }}
+    chunk:
+      size: {{ .Values.config.chunkSize }}
+      overlap: {{ .Values.config.chunkOverlap }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-lightrag
+  labels:
+    app.kubernetes.io/name: lightrag
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: knowledge-graph
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: lightrag
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: lightrag
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: knowledge-graph
+        app.kubernetes.io/part-of: kube-llmops
+    spec:
+      containers:
+        - name: lightrag
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 9621
+          env:
+            - name: LIGHTRAG_KG_STORAGE
+              value: Neo4JStorage
+            - name: NEO4J_URI
+              value: "bolt://{{ .Release.Name }}-neo4j:7687"
+            - name: NEO4J_USERNAME
+              value: "neo4j"
+            - name: NEO4J_PASSWORD
+              value: {{ .Values.neo4j.auth.password | quote }}
+            - name: LLM_BINDING
+              value: {{ .Values.config.llmBinding | quote }}
+            - name: LLM_BINDING_HOST
+              value: "http://{{ .Release.Name }}-litellm:4000/v1"
+            - name: LLM_MODEL
+              value: {{ .Values.config.llmModel | quote }}
+            - name: EMBEDDING_BINDING
+              value: {{ .Values.config.llmBinding | quote }}
+            - name: EMBEDDING_BINDING_HOST
+              value: "http://{{ .Release.Name }}-litellm:4000/v1"
+            - name: EMBEDDING_MODEL
+              value: {{ .Values.config.embeddingModel | quote }}
+            - name: OPENAI_API_KEY
+              value: "sk-kube-llmops-dev"
+            - name: LIGHTRAG_HOST
+              value: "0.0.0.0"
+            - name: LIGHTRAG_PORT
+              value: "9621"
+          resources:
+            requests:
+              cpu: {{ .Values.resources.requests.cpu }}
+              memory: {{ .Values.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.resources.limits.cpu | quote }}
+              memory: {{ .Values.resources.limits.memory }}
+          volumeMounts:
+            - name: config
+              mountPath: /app/config.yaml
+              subPath: config.yaml
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-lightrag-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-lightrag
+  labels:
+    app.kubernetes.io/name: lightrag
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      name: http
+  selector:
+    app.kubernetes.io/name: lightrag
+    app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}

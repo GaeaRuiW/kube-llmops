@@ -269,6 +269,10 @@ harbor:
 milvus:
   enabled: false
 
+# -- LightRAG Knowledge Graph
+lightrag:
+  enabled: false
+
 # -- Dify RAG Platform
 dify:
   enabled: false
