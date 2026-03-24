@@ -150,7 +150,7 @@ dify:
 security:
   enabled: true
   llmGuard:
-    enabled: false   # Needs ~6GB RAM; enable on nodes with ≥32GB
+    enabled: true
   networkPolicy:
     enabled: false
 harbor:

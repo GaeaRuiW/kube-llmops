@@ -10,6 +10,16 @@ metadata:
     app.kubernetes.io/part-of: kube-llmops
 data:
   scanners.yml: |
+    app:
+      name: LLM Guard API
+      log_level: INFO
+      scan_fail_fast: false
+      scan_prompt_timeout: 30
+      scan_output_timeout: 30
+      lazy_load: true
+    auth:
+      type: http_bearer
+      token: llm-guard-kube-llmops
     input_scanners:
       {{- range .Values.llmGuard.scanners.input }}
       - type: {{ . }}
@@ -53,14 +63,6 @@ spec:
           env:
             - name: LOG_LEVEL
               value: INFO
-            - name: SCAN_PROMPT_ENABLED
-              value: "true"
-            - name: SCAN_OUTPUT_ENABLED
-              value: "true"
-            - name: AUTH_TOKEN
-              value: "llm-guard-kube-llmops"
-            - name: LAZY_LOAD
-              value: "true"
           readinessProbe:
             httpGet:
               path: /healthz
@@ -90,6 +92,14 @@ spec:
               memory: {{ .Values.llmGuard.resources.limits.memory }}
               {{- end }}
             {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /home/user/app/config/scanners.yml
+              subPath: scanners.yml
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-llm-guard-config
 ---
 apiVersion: v1
 kind: Service
