@@ -75,14 +75,14 @@
 
 | # | 任务 | 状态 | 验收标准 |
 |---|------|------|---------|
-| 13 | LLM-Guard sidecar | ✅ Chart ready | Helm chart 完成，需 ≥32GB RAM 节点启用 |
+| 13 | LLM-Guard sidecar | ✅ Done | PromptInjection scanner 正常拦截注入攻击 (score=1.0) |
 | 14 | Quality gate (Helm hook) | ✅ Done | pre-upgrade hook 检查 Ragas 指标，低于阈值阻断升级 |
 | 15 | 回归检测 + 告警 | ✅ Done | 5 条 Prometheus 告警规则，RAGQualityRegression 正确 firing |
 | 16 | Ragas 生产阈值 | ✅ Done | Faithfulness ≥ 0.85 + Relevancy ≥ 0.85 (info alert) |
 | 17 | 评估数据集扩展 (100+) | ✅ Done | 105 样本 × 15 文档 × 9 类别 |
 
 **Phase 3 Exit Criteria**:
-- [x] LLM-Guard chart 就绪（需 ≥32GB 节点）
+- [x] LLM-Guard 拦截 prompt injection 攻击 (4/4 测试通过)
 - [x] Quality gate 在质量低时阻断 helm upgrade（验证通过）
 - [x] 回归告警触发（RAGQualityRegression firing, faith=0.74 < 0.85 target）
 

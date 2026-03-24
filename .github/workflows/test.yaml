@@ -18,6 +18,8 @@ jobs:
             args: "-f charts/kube-llmops-stack/values-ci.yaml"
           - name: minimal
             args: "-f charts/kube-llmops-stack/values-minimal.yaml"
+          - name: single-node
+            args: "-f charts/kube-llmops-stack/values-single-node.yaml"
           - name: standard
             args: "-f charts/kube-llmops-stack/values-standard.yaml"
           - name: production
