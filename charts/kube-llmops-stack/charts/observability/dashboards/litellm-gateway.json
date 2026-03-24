@@ -77,7 +77,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vllm_request_success_total[5m]))",
+          "expr": "sum(rate(vllm:request_success_total[5m]))",
           "instant": false,
           "legendFormat": "Request Rate",
           "range": true,
@@ -133,7 +133,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(vllm_request_success_total)",
+          "expr": "sum(vllm:request_success_total)",
           "instant": false,
           "legendFormat": "Total Requests",
           "range": true,
@@ -189,7 +189,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "count(count by (model_name)(vllm_request_success_total))",
+          "expr": "count(count by (model_name)(vllm:request_success_total))",
           "instant": false,
           "legendFormat": "Active Models",
           "range": true,
@@ -246,7 +246,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vllm_e2e_request_latency_seconds_sum[5m])) / sum(rate(vllm_e2e_request_latency_seconds_count[5m]))",
+          "expr": "sum(rate(vllm:e2e_request_latency_seconds_sum[5m])) / sum(rate(vllm:e2e_request_latency_seconds_count[5m]))",
           "instant": false,
           "legendFormat": "Avg Latency",
           "range": true,
@@ -332,7 +332,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (model_name)(rate(vllm_request_success_total[5m]))",
+          "expr": "sum by (model_name)(rate(vllm:request_success_total[5m]))",
           "instant": false,
           "legendFormat": "{{model_name}}",
           "range": true,
@@ -423,7 +423,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vllm_prompt_tokens_total[5m]))",
+          "expr": "sum(rate(vllm:prompt_tokens_total[5m]))",
           "instant": false,
           "legendFormat": "Prompt Tokens/s",
           "range": true,
@@ -435,7 +435,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vllm_generation_tokens_total[5m]))",
+          "expr": "sum(rate(vllm:generation_tokens_total[5m]))",
           "instant": false,
           "legendFormat": "Generation Tokens/s",
           "range": true,
@@ -541,7 +541,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.50, sum(rate(vllm_e2e_request_latency_seconds_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.50, sum(rate(vllm:e2e_request_latency_seconds_bucket[5m])) by (le))",
           "instant": false,
           "legendFormat": "p50",
           "range": true,
@@ -553,7 +553,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(vllm_e2e_request_latency_seconds_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(vllm:e2e_request_latency_seconds_bucket[5m])) by (le))",
           "instant": false,
           "legendFormat": "p95",
           "range": true,
@@ -565,7 +565,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum(rate(vllm_e2e_request_latency_seconds_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.99, sum(rate(vllm:e2e_request_latency_seconds_bucket[5m])) by (le))",
           "instant": false,
           "legendFormat": "p99",
           "range": true,
@@ -651,7 +651,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vllm_request_success_total{finished_reason=\"error\"}[5m]))",
+          "expr": "sum(rate(vllm:request_success_total{finished_reason=\"error\"}[5m]))",
           "instant": false,
           "legendFormat": "Error Rate",
           "range": true,

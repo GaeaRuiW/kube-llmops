@@ -27,12 +27,15 @@ data:
         honor_labels: true
         static_configs:
           - targets: ["{{ $.Release.Name }}-pushgateway:9091"]
+      - job_name: vllm
+        static_configs:
+          - targets: ["vllm-qwen2-5-0-5b:8000"]
   rules.yml: |
     groups:
       - name: vllm-alerts
         rules:
           - alert: VllmHighLatency
-            expr: histogram_quantile(0.95, sum(rate(vllm_e2e_request_latency_seconds_bucket[5m])) by (le)) > 10
+            expr: histogram_quantile(0.95, sum(rate(vllm:e2e_request_latency_seconds_bucket[5m])) by (le)) > 10
             for: 2m
             labels:
               severity: warning
@@ -40,7 +43,7 @@ data:
               summary: "vLLM P95 latency above 10s"
               description: "P95 end-to-end latency is {{`{{ $value }}`}}s (threshold: 10s)"
           - alert: VllmHighQueueDepth
-            expr: sum(vllm_num_requests_waiting) > 10
+            expr: sum(vllm:num_requests_waiting) > 10
             for: 1m
             labels:
               severity: warning
@@ -48,7 +51,7 @@ data:
               summary: "vLLM request queue depth above 10"
               description: "{{`{{ $value }}`}} requests waiting in queue"
           - alert: VllmKVCacheNearFull
-            expr: avg(vllm_kv_cache_usage_perc) > 0.9
+            expr: avg(vllm:kv_cache_usage_perc) > 0.9
             for: 2m
             labels:
               severity: critical
@@ -64,7 +67,7 @@ data:
               summary: "vLLM instance down"
               description: "vLLM scrape target has been down for more than 1 minute"
           - alert: RAGHighRetrievalLatency
-            expr: histogram_quantile(0.95, sum(rate(vllm_e2e_request_latency_seconds_bucket[5m])) by (le)) > 5
+            expr: histogram_quantile(0.95, sum(rate(vllm:e2e_request_latency_seconds_bucket[5m])) by (le)) > 5
             for: 2m
             labels:
               severity: warning
