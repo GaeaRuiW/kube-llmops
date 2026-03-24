@@ -48,14 +48,14 @@ jobs:
         run: |
           DASHBOARDS=$(curl -sf http://admin:admin123!@localhost:3000/api/search?type=dash-db | python3 -c "import sys,json; print(len(json.load(sys.stdin)))")
           echo "Dashboards: $DASHBOARDS"
-          [ "$DASHBOARDS" -ge 3 ] || (echo "FAIL: expected >=3 dashboards" && exit 1)
+          [ "$DASHBOARDS" -ge 4 ] || (echo "FAIL: expected >=4 dashboards (including rag-quality)" && exit 1)
       - name: Verify Prometheus rules
         run: |
           kubectl port-forward svc/kube-llmops-prometheus 9090:9090 &
           sleep 3
           RULES=$(curl -sf http://localhost:9090/api/v1/rules | python3 -c "import sys,json; d=json.load(sys.stdin); print(sum(len(g['rules']) for g in d['data']['groups']))")
           echo "Alert rules: $RULES"
-          [ "$RULES" -ge 4 ] || (echo "FAIL: expected >=4 alert rules" && exit 1)
+          [ "$RULES" -ge 10 ] || (echo "FAIL: expected >=10 alert rules (vllm + rag-quality)" && exit 1)
       - name: Clean uninstall
         run: |
           helm uninstall kube-llmops

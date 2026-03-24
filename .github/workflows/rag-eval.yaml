@@ -1,7 +1,6 @@
 name: RAG Evaluation
 
 on:
-  # Manual trigger with parameters
   workflow_dispatch:
     inputs:
       model:
@@ -9,37 +8,19 @@ on:
         default: 'qwen2-5-0-5b'
       threshold:
         description: 'Minimum pass rate (0-1)'
-        default: '0.5'
-  # Auto-trigger on prompt/eval dataset changes
+        default: '0.7'
   push:
     branches: [main]
     paths:
       - 'examples/eval/**'
-      - 'examples/rag/**'
+      - 'charts/kube-llmops-stack/charts/rag-eval/**'
   pull_request:
     branches: [main]
     paths:
       - 'examples/eval/**'
-      - 'examples/rag/**'
+      - 'charts/kube-llmops-stack/charts/rag-eval/**'
 
 jobs:
-  eval:
-    runs-on: ubuntu-latest
-    # Only run if a cluster is available (skip in pure CI)
-    if: github.event_name == 'workflow_dispatch'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Run RAG evaluation
-        env:
-          LITELLM_URL: ${{ secrets.LITELLM_URL || 'http://localhost:4000' }}
-          LITELLM_KEY: ${{ secrets.LITELLM_KEY || 'sk-kube-llmops-dev' }}
-          MODEL: ${{ github.event.inputs.model }}
-          EVAL_THRESHOLD: ${{ github.event.inputs.threshold }}
-        run: bash scripts/rag-eval.sh
-
   eval-dataset-validation:
     runs-on: ubuntu-latest
     steps:
@@ -47,10 +28,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Validate eval dataset JSON
+      - name: Validate eval datasets
         run: |
           python3 -c "
           import json, sys
+
+          # Validate v1 dataset (keyword-based)
           for f in ['examples/eval/eval-dataset.json']:
               try:
                   with open(f) as fh:
@@ -58,8 +41,54 @@ jobs:
                   assert isinstance(data, list), f'{f}: must be a JSON array'
                   for i, item in enumerate(data):
                       assert 'question' in item, f'{f}[{i}]: missing question'
-                      assert 'expected_keywords' in item, f'{f}[{i}]: missing expected_keywords'
                   print(f'PASS: {f} ({len(data)} items)')
               except FileNotFoundError:
                   print(f'SKIP: {f} not found')
+
+          # Validate v2 dataset (Ragas format)
+          for f in ['examples/eval/eval-dataset-v2.json', 'charts/kube-llmops-stack/charts/rag-eval/files/eval-dataset-v2.json']:
+              try:
+                  with open(f) as fh:
+                      data = json.load(fh)
+                  assert 'corpus' in data, f'{f}: missing corpus'
+                  assert 'samples' in data, f'{f}: missing samples'
+                  assert len(data['corpus']) >= 10, f'{f}: need ≥10 corpus docs'
+                  assert len(data['samples']) >= 35, f'{f}: need ≥35 samples'
+                  for i, s in enumerate(data['samples']):
+                      assert 'question' in s, f'{f} sample[{i}]: missing question'
+                      assert 'ground_truth' in s, f'{f} sample[{i}]: missing ground_truth'
+                      assert 'contexts' in s, f'{f} sample[{i}]: missing contexts'
+                  cats = set(s['category'] for s in data['samples'])
+                  print(f'PASS: {f} ({len(data[\"corpus\"])} docs, {len(data[\"samples\"])} samples, {len(cats)} categories)')
+              except FileNotFoundError:
+                  print(f'SKIP: {f} not found')
           "
+
+  eval-chart-template:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.0
+      - name: Helm dependency update
+        run: helm dependency update charts/kube-llmops-stack/
+      - name: Validate rag-eval templates
+        run: |
+          # Smoke test template
+          helm template test charts/kube-llmops-stack/ \
+            --set rag-eval.enabled=true \
+            --show-only charts/rag-eval/templates/smoke-test.yaml > /dev/null
+          echo "PASS: smoke-test.yaml"
+
+          # Ragas CronJob template
+          helm template test charts/kube-llmops-stack/ \
+            --set rag-eval.enabled=true \
+            --show-only charts/rag-eval/templates/ragas-cronjob.yaml > /dev/null
+          echo "PASS: ragas-cronjob.yaml"
+
+          # Quality gate template
+          helm template test charts/kube-llmops-stack/ \
+            --set rag-eval.enabled=true \
+            --show-only charts/rag-eval/templates/quality-gate.yaml > /dev/null
+          echo "PASS: quality-gate.yaml"

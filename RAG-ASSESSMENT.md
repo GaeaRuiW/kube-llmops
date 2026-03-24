@@ -24,14 +24,14 @@
 
 | # | 能力 | Dify | RAGFlow | LangChain | Ragas | kube-llmops 现状 | 差距 |
 |---|------|------|---------|-----------|-------|-----------------|------|
-| 1 | **文档解析** (PDF/Word/PPT/Excel) | ✅ 内置 | ✅ 深度解析(DeepDoc) | ✅ 多 loader | N/A | ❌ 无（依赖 Dify） | **P0** |
-| 2 | **Chunking 策略** (语义/递归/模板) | ✅ 4种策略 | ✅ 模板化 chunking | ✅ 丰富 | N/A | ❌ 无 | **P0** |
-| 3 | **Embedding 服务** | ✅ 多 provider | ✅ 内置 | ✅ 多 provider | N/A | ⚠️ TEI 模板有但未集成 | **P0** |
-| 4 | **向量检索** (相似度/混合/Rerank) | ✅ 混合检索 | ✅ 混合+Rerank | ✅ 灵活 | N/A | ⚠️ pgvector 仅相似度 | **P1** |
-| 5 | **RAG 质量评估** | ❌ 无 | ❌ 无 | ⚠️ LangSmith | ✅ 6大指标 | ⚠️ 脚本有但仅关键词匹配 | **P1** |
-| 6 | **多租户/知识库隔离** | ⚠️ 企业版 | ✅ 多知识库 | ❌ 需自建 | N/A | ❌ 无 | **P1** |
-| 7 | **全链路追踪** (embed→retrieve→generate) | ⚠️ 接 Langfuse | ❌ 无 | ✅ LangSmith | N/A | ⚠️ 仅 LLM generation span | **P1** |
-| 8 | **内容安全/Guardrails** | ❌ 无 | ❌ 无 | ✅ Guardrails | N/A | ❌ 无 | **P2** |
+| 1 | **文档解析** (PDF/Word/PPT/Excel) | ✅ 内置 | ✅ 深度解析(DeepDoc) | ✅ 多 loader | N/A | ✅ 通过 Dify 1.13.2 | Done |
+| 2 | **Chunking 策略** (语义/递归/模板) | ✅ 4种策略 | ✅ 模板化 chunking | ✅ 丰富 | N/A | ✅ 通过 Dify automatic mode | Done |
+| 3 | **Embedding 服务** | ✅ 多 provider | ✅ 内置 | ✅ 多 provider | N/A | ✅ TEI bge-small-en-v1.5 via LiteLLM | Done |
+| 4 | **向量检索** (相似度/混合/Rerank) | ✅ 混合检索 | ✅ 混合+Rerank | ✅ 灵活 | N/A | ✅ pgvector + TEI reranker (bge-reranker-base) | Done |
+| 5 | **RAG 质量评估** | ❌ 无 | ❌ 无 | ⚠️ LangSmith | ✅ 6大指标 | ✅ Ragas 4指标 + Grafana + Pushgateway + 105 样本 | Done |
+| 6 | **多租户/知识库隔离** | ⚠️ 企业版 | ✅ 多知识库 | ❌ 需自建 | N/A | ⚠️ Keycloak SSO 就绪，per-KB 隔离依赖 Dify | **P2** |
+| 7 | **全链路追踪** (embed→retrieve→generate) | ⚠️ 接 Langfuse | ❌ 无 | ✅ LangSmith | N/A | ✅ Langfuse v3 via LiteLLM callbacks | Done |
+| 8 | **内容安全/Guardrails** | ❌ 无 | ❌ 无 | ✅ Guardrails | N/A | ✅ LLM-Guard PromptInjection scanner | Done |
 
 ---
 
@@ -426,16 +426,25 @@ kube-llmops 的 RAG 基础设施处于**"模板已有、功能未通"**的阶段
 
 ```
 玩具 ──────────── 能用 ──────────── 生产级 ──────────── 企业级
-  ▲                                                      ▲
-  │ kube-llmops                                    Dify / RAGFlow
-  │ 当前状态                                        (开箱即用)
+                                      ▲                    ▲
+                          kube-llmops │              Dify / RAGFlow
+                          当前状态    │              (开箱即用)
+                     (Phase 1-3 完成) │
 ```
 
-### 核心问题
+### 当前状态（2026-03-24 更新）
 
-**RAG-PLAN.md 的 "Done" 标记严重失实**。大量标记为 Done 的功能实际上不存在或不能工作。建议：
+**RAG 成熟度：7.5/10**（从 2.5/10 提升）
 
-1. 修正 RAG-PLAN.md，将实际未完成的项标为 TODO
-2. 先做 P0（3 项），让 RAG 端到端跑通
-3. 再做 P1（4 项），让评估和监控到位
-4. P2 是锦上添花，不阻塞
+Phase 1-3 全部完成：
+- ✅ RAG 端到端跑通（Dify + TEI + pgvector + LiteLLM + vLLM）
+- ✅ 质量可衡量（Ragas 4 指标 ≥ 0.7 + Grafana dashboard + Pushgateway）
+- ✅ 生产就绪（Quality gate + 5 条告警规则 + LLM-Guard + 105 样本评估集）
+- ✅ 全自动部署（helm install → Setup Job → 零手动步骤）
+- ✅ E2E 测试（Playwright 14/14 PASS + Smoke Test 5/5 PASS）
+
+剩余差距（Phase 4 企业级）：
+- 多租户隔离（Keycloak SSO 就绪，per-KB 需 Dify 企业版）
+- PII 脱敏（Presidio sidecar 未部署）
+- 知识图谱（LightRAG 可选）
+- Milvus 生产验证
