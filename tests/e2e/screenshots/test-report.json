@@ -1,0 +1,163 @@
+{
+  "timestamp": "2026-03-24T13:00:55Z",
+  "passed": 31,
+  "failed": 0,
+  "total": 31,
+  "results": [
+    {
+      "name": "Dify login",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Set default models",
+      "pass": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "Add embedding model",
+      "pass": true,
+      "detail": "status=201"
+    },
+    {
+      "name": "Add LLM model",
+      "pass": true,
+      "detail": "status=201"
+    },
+    {
+      "name": "Embedding model visible",
+      "pass": true,
+      "detail": "['bge-small-en']"
+    },
+    {
+      "name": "Create knowledge base",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Upload file",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Create document",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Document indexed",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Create RAG app",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "RAG answer has model name",
+      "pass": true,
+      "detail": "The default embedding model used is bge-small-en-v1.5 with 384 dimensions."
+    },
+    {
+      "name": "RAG answer has dimensions",
+      "pass": true,
+      "detail": "The default embedding model used is bge-small-en-v1.5 with 384 dimensions."
+    },
+    {
+      "name": "Grafana login",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Grafana RAG Quality dashboard loads",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Langfuse has traces",
+      "pass": true,
+      "detail": "5 traces in last hour"
+    },
+    {
+      "name": "Smoke: embedding",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Smoke: LLM",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Smoke: Langfuse health",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Smoke: trace",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Smoke: reranker",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Ragas faithfulness >= 0.7",
+      "pass": true,
+      "detail": "0.7490"
+    },
+    {
+      "name": "Ragas answer_relevancy >= 0.7",
+      "pass": true,
+      "detail": "0.8274"
+    },
+    {
+      "name": "Ragas context_precision >= 0.7",
+      "pass": true,
+      "detail": "0.7739"
+    },
+    {
+      "name": "Ragas context_recall >= 0.7",
+      "pass": true,
+      "detail": "0.7242"
+    },
+    {
+      "name": "Quality gate PASS (threshold=0.7)",
+      "pass": true,
+      "detail": "faith=0.7536 relev=0.8257\nGATE_PASS"
+    },
+    {
+      "name": "Quality gate BLOCK (threshold=0.99)",
+      "pass": true,
+      "detail": "GATE_BLOCKED"
+    },
+    {
+      "name": "LLM-Guard: normal prompt accepted",
+      "pass": true,
+      "detail": "valid=True score=-1.0"
+    },
+    {
+      "name": "LLM-Guard: injection blocked",
+      "pass": true,
+      "detail": "valid=False score=1.0"
+    },
+    {
+      "name": "LLM-Guard: subtle injection blocked",
+      "pass": true,
+      "detail": "valid=False score=1.0"
+    },
+    {
+      "name": "LLM-Guard: benign security topic accepted",
+      "pass": true,
+      "detail": "valid=True score=-1.0"
+    },
+    {
+      "name": "Prometheus has rag-quality-alerts group",
+      "pass": true,
+      "detail": "5 rules: ['RAGFaithfulnessLow:inactive', 'RAGFaithfulnessCritical:inactive', 'RAGAnswerRelevancyLow:inactive', 'RAGQualityRegression:firing', 'RAGEvalStale:inactive']"
+    }
+  ]
+}
