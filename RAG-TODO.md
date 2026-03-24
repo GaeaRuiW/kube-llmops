@@ -14,7 +14,7 @@
 | **Phase 1** | RAG 能跑通 | ✅ Complete | 全部 5 项任务通过 |
 | **Phase 2** | 质量可衡量 | ✅ Complete | 全部 7 项任务通过 |
 | **Phase 3** | 可上生产 | ✅ Complete | Quality gate + alerts + eval 105 samples |
-| **Phase 4** | 企业级 | ❌ Not started | 按需 |
+| **Phase 4** | 企业级 | ✅ Complete | 全部 4 项功能部署验证 |
 
 ---
 
@@ -88,14 +88,20 @@
 
 ---
 
-## Phase 4: 企业级（按需）
+## Phase 4: 企业级
 
 | # | 任务 | 状态 | 说明 |
 |---|------|------|------|
-| 18 | LightRAG 知识图谱 | ❌ | 可选子 chart |
-| 19 | 多租户隔离 | ❌ | pgvector metadata filter + Keycloak org |
-| 20 | Milvus 生产就绪 | ❌ | 验证 + 监控 |
-| 21 | Presidio PII 脱敏 | ❌ | sidecar 部署 |
+| 18 | LightRAG 知识图谱 | ✅ Done | Neo4j + LightRAG API, /health 200, OpenAI binding → LiteLLM |
+| 19 | 多租户隔离 | ✅ Done | 2 team namespaces + ResourceQuota (GPU/CPU/Memory/Pods) + NetworkPolicy |
+| 20 | Milvus 生产就绪 | ✅ Done | gRPC 19530 + HTTP 9091, etcd backend, MinIO storage, Grafana dashboard |
+| 21 | Presidio PII 脱敏 | ✅ Done | Analyzer (EMAIL/PERSON/URL 检测) + Anonymizer (文本脱敏) |
+
+**Phase 4 Exit Criteria**:
+- [x] LightRAG + Neo4j 部署运行 (/health 200)
+- [x] 多租户 namespace 隔离 (GPU/CPU/Memory quota + NetworkPolicy)
+- [x] Milvus 向量数据库就绪 (gRPC + HTTP + 监控)
+- [x] Presidio PII 检测 + 脱敏 (3 种实体类型检测)
 
 ---
 

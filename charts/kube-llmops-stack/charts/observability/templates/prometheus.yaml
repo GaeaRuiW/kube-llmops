@@ -30,6 +30,9 @@ data:
       - job_name: vllm
         static_configs:
           - targets: ["vllm-qwen2-5-0-5b:8000"]
+      - job_name: milvus
+        static_configs:
+          - targets: ["{{ $.Release.Name }}-milvus:9091"]
   rules.yml: |
     groups:
       - name: vllm-alerts

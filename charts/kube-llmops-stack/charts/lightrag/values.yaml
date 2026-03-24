@@ -1,0 +1,48 @@
+enabled: false
+
+image:
+  repository: sbnb/lightrag
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# LightRAG API service
+service:
+  type: ClusterIP
+  port: 9621
+
+# LightRAG configuration
+config:
+  # LLM backend (uses LiteLLM as OpenAI-compatible proxy)
+  llmBinding: openai
+  llmModel: qwen2-5-0-5b
+  embeddingModel: bge-small-en
+  # Graph storage backend
+  graphStorage: neo4j
+  # Chunk size for document processing
+  chunkSize: 1200
+  chunkOverlap: 100
+
+# Neo4j graph database backend
+neo4j:
+  image:
+    repository: neo4j
+    tag: "5-community"
+  auth:
+    password: neo4j-kube-llmops
+  storage:
+    size: 5Gi
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi

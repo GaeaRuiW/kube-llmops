@@ -24,6 +24,18 @@ llmGuard:
 networkPolicy:
   enabled: true
 
+# Presidio PII detection + anonymization
+presidio:
+  enabled: false
+  analyzer:
+    image:
+      repository: mcr.microsoft.com/presidio-analyzer
+      tag: latest
+  anonymizer:
+    image:
+      repository: mcr.microsoft.com/presidio-anonymizer
+      tag: latest
+
 # OIDC/SSO configuration (works with Keycloak, Dex, or any OIDC provider)
 oidc:
   enabled: false

@@ -1,0 +1,189 @@
+{{- if .Values.tests.enabled }}
+# ============================================================================
+# Helm Test: kube-llmops 全组件健康检查
+# 用法: helm test kube-llmops
+# ============================================================================
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ .Release.Name }}-infra-test"
+  labels:
+    app.kubernetes.io/name: {{ .Release.Name }}-infra-test
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-weight": "10"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  activeDeadlineSeconds: 300
+  containers:
+    - name: infra-test
+      image: python:3.12-slim
+      command: ["python3", "-c"]
+      args:
+        - |
+          import urllib.request
+          import urllib.error
+          import json
+          import sys
+          import time
+
+          PASS = 0
+          FAIL = 0
+
+          def check(name, url, expected_code=200, timeout=15):
+              global PASS, FAIL
+              try:
+                  req = urllib.request.Request(url, method="GET")
+                  resp = urllib.request.urlopen(req, timeout=timeout)
+                  code = resp.getcode()
+                  body = resp.read().decode("utf-8", errors="replace")[:200]
+                  if code == expected_code:
+                      print(f"  PASS  {name} -> HTTP {code}")
+                      PASS += 1
+                  else:
+                      print(f"  FAIL  {name} -> HTTP {code} (expected {expected_code})")
+                      FAIL += 1
+              except urllib.error.HTTPError as e:
+                  print(f"  FAIL  {name} -> HTTP {e.code}: {e.reason}")
+                  FAIL += 1
+              except Exception as e:
+                  print(f"  FAIL  {name} -> {type(e).__name__}: {str(e)[:80]}")
+                  FAIL += 1
+
+          def check_api(name, url, method="POST", data=None, headers=None, validate=None, timeout=30):
+              global PASS, FAIL
+              try:
+                  body_bytes = json.dumps(data).encode() if data else None
+                  req = urllib.request.Request(url, data=body_bytes, method=method)
+                  req.add_header("Content-Type", "application/json")
+                  if headers:
+                      for k, v in headers.items():
+                          req.add_header(k, v)
+                  resp = urllib.request.urlopen(req, timeout=timeout)
+                  result = json.loads(resp.read().decode())
+                  if validate and not validate(result):
+                      print(f"  FAIL  {name} -> validation failed")
+                      FAIL += 1
+                  else:
+                      print(f"  PASS  {name}")
+                      PASS += 1
+              except Exception as e:
+                  print(f"  FAIL  {name} -> {type(e).__name__}: {str(e)[:80]}")
+                  FAIL += 1
+
+          # ==========================================
+          print("=" * 60)
+          print("  kube-llmops Helm Test - Infrastructure Health Check")
+          print("=" * 60)
+
+          # ---------- 1. 健康端点 ----------
+          print("\n--- Section 1: Health Endpoints ---")
+          {{- if .Values.litellm.enabled }}
+          check("LiteLLM",        "http://{{ .Release.Name }}-litellm:4000/health/liveliness")
+          {{- end }}
+          {{- if .Values.vllm.enabled }}
+          {{- range .Values.vllm.models }}
+          check("vLLM-{{ .name }}",  "http://vllm-{{ .name }}:8000/health", timeout=30)
+          {{- end }}
+          {{- end }}
+          {{- if .Values.tei.enabled }}
+          {{- range .Values.tei.models }}
+          check("TEI-{{ .name }}",   "http://tei-{{ .name }}:8080/health")
+          {{- end }}
+          {{- end }}
+          {{- if .Values.langfuse.enabled }}
+          check("Langfuse",       "http://{{ .Release.Name }}-langfuse:3000/api/public/health")
+          {{- end }}
+          {{- if .Values.observability.enabled }}
+          {{- if .Values.observability.grafana.enabled }}
+          check("Grafana",        "http://{{ .Release.Name }}-grafana:3000/api/health")
+          {{- end }}
+          {{- if .Values.observability.prometheus.enabled }}
+          check("Prometheus",     "http://{{ .Release.Name }}-prometheus:9090/-/ready")
+          {{- end }}
+          {{- end }}
+          {{- if and .Values.fluid.enabled .Values.fluid.minio.enabled }}
+          check("MinIO",          "http://{{ .Release.Name }}-minio:9000/minio/health/ready")
+          {{- end }}
+          {{- if .Values.dify.enabled }}
+          check("Dify-API",       "http://{{ .Release.Name }}-dify-api:5001/health")
+          {{- end }}
+          {{- if .Values.keycloak.enabled }}
+          check("Keycloak",       "http://{{ .Release.Name }}-keycloak:8080/health/ready")
+          {{- end }}
+          {{- if and .Values.security.enabled .Values.security.llmGuard.enabled }}
+          check("LLM-Guard",      "http://{{ .Release.Name }}-llm-guard:8000/healthz")
+          {{- end }}
+          {{- if .Values.logging.enabled }}
+          check("Loki",           "http://{{ .Release.Name }}-loki:3100/ready")
+          {{- end }}
+
+          # ---------- 2. AI 功能验证 ----------
+          print("\n--- Section 2: AI Functionality ---")
+          AUTH = {"Authorization": "Bearer {{ .Values.litellm.masterKey }}"}
+
+          {{- if .Values.litellm.enabled }}
+          # Embedding
+          check_api(
+              "Embedding (bge-small-en)",
+              "http://{{ .Release.Name }}-litellm:4000/v1/embeddings",
+              data={"model": "bge-small-en", "input": "What is Kubernetes?"},
+              headers=AUTH,
+              validate=lambda r: len(r.get("data", [{}])[0].get("embedding", [])) == 384,
+          )
+
+          # LLM 推理
+          {{- range .Values.vllm.models }}
+          check_api(
+              "LLM Chat ({{ .name }})",
+              "http://{{ $.Release.Name }}-litellm:4000/v1/chat/completions",
+              data={
+                  "model": "{{ .name }}",
+                  "messages": [{"role": "user", "content": "What is 2+2? Reply with just the number."}],
+                  "max_tokens": 10,
+              },
+              headers=AUTH,
+              validate=lambda r: len(r.get("choices", [{}])[0].get("message", {}).get("content", "")) > 0,
+              timeout=60,
+          )
+          {{- end }}
+          {{- end }}
+
+          # ---------- 3. 可观测性验证 ----------
+          print("\n--- Section 3: Observability ---")
+          {{- if and .Values.observability.enabled .Values.observability.prometheus.enabled }}
+          check_api(
+              "Prometheus 有 vLLM 指标",
+              "http://{{ .Release.Name }}-prometheus:9090/api/v1/query?query=up",
+              method="GET",
+              validate=lambda r: r.get("status") == "success" and len(r.get("data", {}).get("result", [])) > 0,
+          )
+          {{- end }}
+
+          {{- if .Values.langfuse.enabled }}
+          import base64
+          langfuse_auth = base64.b64encode(b"pk-lf-kube-llmops:sk-lf-kube-llmops").decode()
+          check_api(
+              "Langfuse Traces 存在",
+              "http://{{ .Release.Name }}-langfuse:3000/api/public/traces?limit=1",
+              method="GET",
+              headers={"Authorization": f"Basic {langfuse_auth}"},
+              validate=lambda r: "data" in r,
+          )
+          {{- end }}
+
+          # ---------- 汇总 ----------
+          print("\n" + "=" * 60)
+          print(f"  TOTAL: {PASS + FAIL} | PASS: {PASS} | FAIL: {FAIL}")
+          print("=" * 60)
+
+          if FAIL > 0:
+              print(f"\nFAILED: {FAIL} check(s) did not pass")
+              sys.exit(1)
+          else:
+              print("\nAll checks passed!")
+              sys.exit(0)
+{{- end }}

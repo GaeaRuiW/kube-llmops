@@ -44,5 +44,8 @@ dependencies:
 - name: rag-eval
   repository: file://charts/rag-eval
   version: 0.1.0
-digest: sha256:b5249e51dbab2840852d276d08ae45e4a40becc254c2a1ed11a659f4b87597db
-generated: "2026-03-24T12:32:47.435136485+08:00"
+- name: lightrag
+  repository: file://charts/lightrag
+  version: 0.1.0
+digest: sha256:5af7e527ba68181e2c15feb8bca23546e55d86f5a0976a732bd378e960905f87
+generated: "2026-03-24T22:55:52.737666256+08:00"

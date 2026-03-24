@@ -49,6 +49,8 @@ spec:
             - --listen-client-urls=http://0.0.0.0:2379
             - --advertise-client-urls=http://{{ include "milvus.fullname" . }}-etcd:2379
             - --listen-peer-urls=http://0.0.0.0:2380
+            - --initial-advertise-peer-urls=http://{{ include "milvus.fullname" . }}-etcd:2380
+            - --initial-cluster=default=http://{{ include "milvus.fullname" . }}-etcd:2380
             - --data-dir=/etcd-data
           ports:
             - containerPort: 2379
@@ -114,6 +116,12 @@ spec:
           env:
             - name: ETCD_ENDPOINTS
               value: "{{ include "milvus.fullname" . }}-etcd:2379"
+            - name: MINIO_ADDRESS
+              value: "{{ .Release.Name }}-minio:9000"
+            - name: MINIO_ACCESS_KEY
+              value: "minioadmin"
+            - name: MINIO_SECRET_KEY
+              value: "minioadmin"
           ports:
             - containerPort: 19530
               name: grpc
