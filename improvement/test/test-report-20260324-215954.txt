@@ -1,3 +1,0 @@
-kube-llmops Infra Test Report - Tue Mar 24 21:59:54 CST 2026
-Namespace: default | Release: kube-llmops
-==========================================
