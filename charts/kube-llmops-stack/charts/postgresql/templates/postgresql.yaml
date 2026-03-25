@@ -1,0 +1,259 @@
+{{- if .Values.enabled }}
+---
+# ══════════════════════════════════════════════════════
+# Operator PG — LiteLLM hot-path database
+# ══════════════════════════════════════════════════════
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-operator-pg-data
+  labels:
+    app.kubernetes.io/name: operator-pg
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: {{ .Values.operatorPg.storage.size }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-operator-pg
+  labels:
+    app.kubernetes.io/name: operator-pg
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: operator-pg
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: operator-pg
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: database
+        app.kubernetes.io/part-of: kube-llmops
+    spec:
+      containers:
+        - name: postgresql
+          image: "{{ .Values.operatorPg.image.repository }}:{{ .Values.operatorPg.image.tag }}"
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: {{ .Values.operatorPg.database }}
+            - name: POSTGRES_USER
+              value: {{ .Values.operatorPg.username }}
+            - name: POSTGRES_PASSWORD
+              value: {{ .Values.operatorPg.password | default "llmops-operator-pg-pw" }}
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", {{ .Values.operatorPg.username | quote }}]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: {{ .Values.operatorPg.resources.requests.cpu }}
+              memory: {{ .Values.operatorPg.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.operatorPg.resources.limits.cpu | quote }}
+              memory: {{ .Values.operatorPg.resources.limits.memory }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-operator-pg-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-operator-pg
+  labels:
+    app.kubernetes.io/name: operator-pg
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: 5432
+      name: postgresql
+  selector:
+    app.kubernetes.io/name: operator-pg
+    app.kubernetes.io/instance: {{ .Release.Name }}
+---
+# ══════════════════════════════════════════════════════
+# App PG — Langfuse, Dify, dify_plugin databases
+# ══════════════════════════════════════════════════════
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-app-pg-initdb
+  labels:
+    app.kubernetes.io/name: app-pg
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+data:
+  init.sh: |
+    #!/bin/bash
+    set -e
+    {{- range .Values.appPg.databases }}
+    echo "Creating database: {{ .name }}"
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+      DO \$\$
+      BEGIN
+        IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '{{ .username }}') THEN
+          CREATE ROLE {{ .username }} WITH LOGIN PASSWORD '{{ .password | default "app-pg-default-pw" }}';
+        END IF;
+      END
+      \$\$;
+      SELECT 'CREATE DATABASE {{ .name }} OWNER {{ .username }}'
+        WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '{{ .name }}')\gexec
+      GRANT ALL PRIVILEGES ON DATABASE {{ .name }} TO {{ .username }};
+    EOSQL
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "{{ .name }}" <<-EOSQL
+      CREATE EXTENSION IF NOT EXISTS vector;
+      GRANT ALL ON SCHEMA public TO {{ .username }};
+    EOSQL
+    {{- end }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-app-pg-data
+  labels:
+    app.kubernetes.io/name: app-pg
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: {{ .Values.appPg.storage.size }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-app-pg
+  labels:
+    app.kubernetes.io/name: app-pg
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: app-pg
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: app-pg
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: database
+        app.kubernetes.io/part-of: kube-llmops
+    spec:
+      containers:
+        - name: postgresql
+          image: "{{ .Values.appPg.image.repository }}:{{ .Values.appPg.image.tag }}"
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: postgres
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              value: app-pg-admin-pw
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: {{ .Values.appPg.resources.requests.cpu }}
+              memory: {{ .Values.appPg.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.appPg.resources.limits.cpu | quote }}
+              memory: {{ .Values.appPg.resources.limits.memory }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: initdb
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-app-pg-data
+        - name: initdb
+          configMap:
+            name: {{ .Release.Name }}-app-pg-initdb
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-app-pg
+  labels:
+    app.kubernetes.io/name: app-pg
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: 5432
+      name: postgresql
+  selector:
+    app.kubernetes.io/name: app-pg
+    app.kubernetes.io/instance: {{ .Release.Name }}
+{{- if .Values.pdb.enabled }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Release.Name }}-operator-pg
+  labels:
+    app.kubernetes.io/name: operator-pg
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: operator-pg
+      app.kubernetes.io/instance: {{ .Release.Name }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Release.Name }}-app-pg
+  labels:
+    app.kubernetes.io/name: app-pg
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: app-pg
+      app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+{{- end }}

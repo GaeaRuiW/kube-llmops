@@ -1,0 +1,107 @@
+{{- if .Values.alertmanager.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-alertmanager-config
+  labels:
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+data:
+  alertmanager.yml: |
+    global:
+      resolve_timeout: 5m
+    route:
+      receiver: default
+      group_by: [alertname, severity]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+    receivers:
+      - name: default
+        {{- if .Values.alertmanager.slack.enabled }}
+        slack_configs:
+          - api_url: {{ .Values.alertmanager.slack.webhookUrl | quote }}
+            channel: {{ .Values.alertmanager.slack.channel | default "#alerts" | quote }}
+            send_resolved: true
+        {{- end }}
+        {{- if .Values.alertmanager.webhook.enabled }}
+        webhook_configs:
+          - url: {{ .Values.alertmanager.webhook.url | quote }}
+            send_resolved: true
+        {{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-alertmanager
+  labels:
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: observability
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: alertmanager
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: alertmanager
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: observability
+        app.kubernetes.io/part-of: kube-llmops
+    spec:
+      containers:
+        - name: alertmanager
+          image: prom/alertmanager:v0.28.1
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--config.file=/etc/alertmanager/alertmanager.yml"
+            - "--storage.path=/alertmanager"
+          ports:
+            - containerPort: 9093
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9093
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alertmanager/alertmanager.yml
+              subPath: alertmanager.yml
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-alertmanager-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-alertmanager
+  labels:
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9093
+      targetPort: http
+      name: http
+  selector:
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}

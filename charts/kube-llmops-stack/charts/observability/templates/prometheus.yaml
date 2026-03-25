@@ -14,6 +14,10 @@ data:
       scrape_interval: 15s
       evaluation_interval: 15s
     remote_write: []
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets: ["{{ $.Release.Name }}-alertmanager:9093"]
     rule_files:
       - /etc/prometheus/rules.yml
     scrape_configs:

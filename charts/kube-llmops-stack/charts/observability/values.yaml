@@ -83,3 +83,13 @@ grafana:
 
 pdb:
   enabled: true
+
+alertmanager:
+  enabled: true
+  slack:
+    enabled: false
+    webhookUrl: ""
+    channel: "#alerts"
+  webhook:
+    enabled: false
+    url: ""

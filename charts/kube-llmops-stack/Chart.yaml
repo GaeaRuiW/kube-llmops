@@ -115,3 +115,9 @@ dependencies:
     condition: lightrag.enabled
     tags:
       - rag
+  - name: postgresql
+    version: 0.1.0
+    repository: "file://charts/postgresql"
+    condition: postgresql.enabled
+    tags:
+      - database

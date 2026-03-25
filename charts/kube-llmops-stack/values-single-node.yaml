@@ -190,3 +190,7 @@ fluid:
     enabled: true
     storage:
       size: 50Gi
+
+# ========== PostgreSQL Split (Phase 2) ==========
+postgresql:
+  enabled: true

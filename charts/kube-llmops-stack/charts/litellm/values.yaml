@@ -117,3 +117,10 @@ pdb:
 
 # Use an existing Secret instead of auto-generated credentials
 existingSecret: ""
+
+# PostgreSQL backup CronJob
+backup:
+  enabled: false
+  schedule: "0 3 * * *"
+  retentionDays: 7
+  storageSize: 5Gi

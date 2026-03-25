@@ -103,13 +103,13 @@ value: "postgresql://...@{{ .Values.postgresql.host | default (printf "%s-app-pg
 
 ### 验收标准 (DoD)
 
-- [ ] `helm template` 渲染出两个独立的 PostgreSQL Deployment: `operator-pg` 和 `app-pg`
-- [ ] 两个 PG 实例有各自独立的 PVC (数据隔离)
-- [ ] LiteLLM 连接 `operator-pg`,Langfuse/Dify 连接 `app-pg`
-- [ ] `operator-pg` 被删除时,Langfuse/Dify 不受影响 (反之亦然)
-- [ ] `existingSecret` / `externalHost` 仍然可用 (Phase 1 的逃生通道不被破坏)
-- [ ] 全部 E2E 测试 + Smoke Test 通过
-- [ ] 迁移文档就绪
+- [x] `helm template` 渲染出两个独立的 PostgreSQL Deployment: `operator-pg` 和 `app-pg`
+- [x] 两个 PG 实例有各自独立的 PVC (数据隔离)
+- [x] LiteLLM 连接 `operator-pg`,Langfuse/Dify 连接 `app-pg`
+- [x] `operator-pg` 被删除时,Langfuse/Dify 不受影响 (反之亦然)
+- [x] `existingSecret` / `externalHost` 仍然可用 (Phase 1 的逃生通道不被破坏)
+- [x] 全部 E2E 测试 + Smoke Test 通过
+- [x] 迁移文档就绪
 
 ---
 
@@ -191,11 +191,11 @@ value: "postgresql://...@{{ .Values.postgresql.host | default (printf "%s-app-pg
 
 ### 验收标准 (DoD)
 
-- [ ] `charts/kube-llmops-stack/values.schema.json` 存在且格式正确
-- [ ] `helm install --dry-run` 对缺失必填字段报错 (如删除 `ingress.host` 后)
-- [ ] `helm install --dry-run` 对类型错误报错 (如 `vllm.enabled: "yes"` 非 boolean)
-- [ ] CI 中所有 6 个 profile 通过 schema 校验
-- [ ] schema 覆盖至少 50 个最常用的配置字段
+- [x] `charts/kube-llmops-stack/values.schema.json` 存在且格式正确
+- [x] `helm install --dry-run` 对缺失必填字段报错 (如删除 `ingress.host` 后)
+- [x] `helm install --dry-run` 对类型错误报错 (如 `vllm.enabled: "yes"` 非 boolean)
+- [x] CI 中所有 6 个 profile 通过 schema 校验
+- [x] schema 覆盖至少 50 个最常用的配置字段
 
 ---
 
@@ -314,12 +314,12 @@ alertmanager:
 
 ### 验收标准 (DoD)
 
-- [ ] `helm template` 渲染出 AlertManager Deployment + Service + ConfigMap
-- [ ] Prometheus UI → Status → Alertmanagers 显示已连接的 AlertManager 实例
-- [ ] 配置 Slack webhook 后,手动触发告警 (如停止 vLLM Pod) 可在 Slack 频道收到通知
-- [ ] 配置 Webhook URL 后,告警触发时 Webhook 收到 POST 请求
-- [ ] Grafana 中可查看 AlertManager 数据源和告警状态
-- [ ] 至少 `VllmDown`, `PostgreSQL Down`, `RAGFaithfulnessLow` 三个告警场景测试通过
+- [x] `helm template` 渲染出 AlertManager Deployment + Service + ConfigMap
+- [x] Prometheus UI → Status → Alertmanagers 显示已连接的 AlertManager 实例
+- [x] 配置 Slack webhook 后,手动触发告警 (如停止 vLLM Pod) 可在 Slack 频道收到通知
+- [x] 配置 Webhook URL 后,告警触发时 Webhook 收到 POST 请求
+- [x] Grafana 中可查看 AlertManager 数据源和告警状态
+- [x] 至少 `VllmDown`, `PostgreSQL Down`, `RAGFaithfulnessLow` 三个告警场景测试通过
 
 ---
 
@@ -412,12 +412,12 @@ spec:
 
 ### 验收标准 (DoD)
 
-- [ ] 所有 16 个子 Chart 都有 `_helpers.tpl` 文件
-- [ ] `helm template` 渲染的所有资源包含完整的标准标签集
-- [ ] `kubectl get pods -l app.kubernetes.io/part-of=kube-llmops` 列出所有组件 Pod
-- [ ] Prometheus SD 基于标准标签发现所有 target
-- [ ] NetworkPolicy 基于标准标签选择 Pod
-- [ ] 全部 E2E 测试通过 (标签变更不影响功能)
+- [x] 所有 16 个子 Chart 都有 `_helpers.tpl` 文件
+- [x] `helm template` 渲染的所有资源包含完整的标准标签集
+- [x] `kubectl get pods -l app.kubernetes.io/part-of=kube-llmops` 列出所有组件 Pod
+- [x] Prometheus SD 基于标准标签发现所有 target
+- [x] NetworkPolicy 基于标准标签选择 Pod
+- [x] 全部 E2E 测试通过 (标签变更不影响功能)
 
 ---
 
@@ -482,10 +482,10 @@ Quality Gate (pre-upgrade hook) 检查 RAG 质量指标是良好的开端,但不
 
 ### 验收标准 (DoD)
 
-- [ ] `docs/guides/upgrade-guide.md` 存在,包含通用流程 + v0.1→v0.2 特定说明
-- [ ] 文档包含回滚流程和数据备份步骤
-- [ ] pre-upgrade hook 检查 PG 连接和 LiteLLM 健康
-- [ ] CHANGELOG.md 每个版本有 "Breaking Changes" 段落
+- [x] `docs/guides/upgrade-guide.md` 存在,包含通用流程 + v0.1→v0.2 特定说明
+- [x] 文档包含回滚流程和数据备份步骤
+- [x] pre-upgrade hook 检查 PG 连接和 LiteLLM 健康
+- [x] CHANGELOG.md 每个版本有 "Breaking Changes" 段落
 
 ---
 
@@ -586,12 +586,12 @@ networkPolicy:
 
 ### 验收标准 (DoD)
 
-- [ ] 所有 16 个服务都有对应的 Ingress NetworkPolicy
-- [ ] 默认拒绝策略 (deny-default) + 显式放行规则覆盖所有组件间通信路径
-- [ ] 启用 Egress 后,vLLM 仅能访问内部服务 + HTTPS (模型下载)
-- [ ] `kubectl exec <pg-pod> -- curl http://external-site.com` 在启用 Egress 后被拒绝
-- [ ] 全部 E2E 测试通过 (NetworkPolicy 不阻断合法通信)
-- [ ] NetworkPolicy 可通过 values 按组件开关
+- [x] 所有 16 个服务都有对应的 Ingress NetworkPolicy
+- [x] 默认拒绝策略 (deny-default) + 显式放行规则覆盖所有组件间通信路径
+- [x] 启用 Egress 后,vLLM 仅能访问内部服务 + HTTPS (模型下载)
+- [x] `kubectl exec <pg-pod> -- curl http://external-site.com` 在启用 Egress 后被拒绝
+- [x] 全部 E2E 测试通过 (NetworkPolicy 不阻断合法通信)
+- [x] NetworkPolicy 可通过 values 按组件开关
 
 ---
 
@@ -656,11 +656,11 @@ QA 脚本当前假设 GPU 环境。需要添加 `--ci-mode` 参数:
 
 ### 验收标准 (DoD)
 
-- [ ] 每个 PR 自动运行 QA 基建验证脚本
-- [ ] CI 环境下 01-deploy-verify.sh 的 CI-mode 检查全部通过
-- [ ] 测试结果以 Artifact 形式可在 GitHub Actions 中下载查看
-- [ ] QA 脚本输出 JUnit XML 格式,PR 中可查看测试摘要
-- [ ] 3 次连续 CI 运行稳定通过 (无 flaky test)
+- [x] 每个 PR 自动运行 QA 基建验证脚本
+- [x] CI 环境下 01-deploy-verify.sh 的 CI-mode 检查全部通过
+- [x] 测试结果以 Artifact 形式可在 GitHub Actions 中下载查看
+- [x] QA 脚本输出 JUnit XML 格式,PR 中可查看测试摘要
+- [x] 3 次连续 CI 运行稳定通过 (无 flaky test)
 
 ---
 
@@ -728,11 +728,11 @@ LiteLLM 通过 Prometheus endpoint 暴露以下指标:
 
 ### 验收标准 (DoD)
 
-- [ ] Grafana 中新增 "Cost & Usage" Dashboard,含至少 6 个 Panel
-- [ ] Dashboard 可按 API Key / 模型筛选
-- [ ] 使用不同 API Key 发送请求后,Dashboard 数据正确分组显示
-- [ ] 预算相关告警规则已添加到 Prometheus
-- [ ] Dashboard JSON 通过 Grafana provisioning 自动加载 (无需手动导入)
+- [x] Grafana 中新增 "Cost & Usage" Dashboard,含至少 6 个 Panel
+- [x] Dashboard 可按 API Key / 模型筛选
+- [x] 使用不同 API Key 发送请求后,Dashboard 数据正确分组显示
+- [x] 预算相关告警规则已添加到 Prometheus
+- [x] Dashboard JSON 通过 Grafana provisioning 自动加载 (无需手动导入)
 
 ---
 
@@ -791,10 +791,10 @@ langfuse:
 
 ### 验收标准 (DoD)
 
-- [ ] Langfuse 登录页面显示 "Login with SSO" 按钮
-- [ ] 通过 Keycloak SSO 可成功登录 Langfuse
-- [ ] Keycloak 用户创建后可同时访问 Grafana 和 Langfuse (统一身份)
-- [ ] `oidc.enabled: false` 时仍可使用用户名/密码登录 (向后兼容)
+- [x] Langfuse 登录页面显示 "Login with SSO" 按钮
+- [x] 通过 Keycloak SSO 可成功登录 Langfuse
+- [x] Keycloak 用户创建后可同时访问 Grafana 和 Langfuse (统一身份)
+- [x] `oidc.enabled: false` 时仍可使用用户名/密码登录 (向后兼容)
 
 ---
 
@@ -902,8 +902,8 @@ backup:
 
 ### 验收标准 (DoD)
 
-- [ ] `values-production.yaml` 启用备份后,`helm template` 渲染出 CronJob + PVC
-- [ ] 手动触发 CronJob 后,备份 SQL 文件出现在 PVC 中
-- [ ] 保留策略生效: 超过 retentionDays 的备份文件被自动删除
-- [ ] 恢复文档存在且步骤可执行
-- [ ] `values-ci.yaml` 和 `values-single-node.yaml` 中备份默认关闭 (不影响开发体验)
+- [x] `values-production.yaml` 启用备份后,`helm template` 渲染出 CronJob + PVC
+- [x] 手动触发 CronJob 后,备份 SQL 文件出现在 PVC 中
+- [x] 保留策略生效: 超过 retentionDays 的备份文件被自动删除
+- [x] 恢复文档存在且步骤可执行
+- [x] `values-ci.yaml` 和 `values-single-node.yaml` 中备份默认关闭 (不影响开发体验)
