@@ -5,7 +5,7 @@
 **Kubernetes 原生 LLMOps 平台** -- 一条命令部署、管理、监控并优化你的整个 LLM 基础设施。
 
 > [!NOTE]
-> 本项目正在积极开发中。请点个 Star 并 Watch 以获取最新动态！
+> v0.3.0 已发布 -- 完整 RAG 基础设施（Dify + pgvector + TEI + Ragas + LLM-Guard），E2E 测试 14/14 全部通过。详见 [CHANGELOG](CHANGELOG.zh-CN.md)。
 
 ## 什么是 kube-llmops？
 
@@ -13,10 +13,11 @@
 
 - **模型推理服务** -- vLLM、llama.cpp 或 TEI，根据模型格式自动选择推理引擎
 - **AI 网关** -- LiteLLM 提供统一的 OpenAI 兼容 API、Key 管理、速率限制、预算控制
-- **可观测性** -- Prometheus + Grafana（3 个仪表盘 + 4 条告警规则）+ Langfuse v3 LLM 调用追踪（ClickHouse + Redis + Worker）
+- **可观测性** -- Prometheus + Grafana（9 个仪表盘 + 5 条告警规则）+ Langfuse v3 LLM 调用追踪（ClickHouse + Redis + Worker）
 - **日志** -- Fluent Bit + Loki，在 Grafana Explore 中查询
 - **自动扩缩** -- KEDA 根据队列深度和延迟自动扩缩 vLLM Pod
-- **安全** -- Keycloak SSO 登录 Grafana/Langfuse，NetworkPolicy 网络隔离
+- **安全** -- Keycloak SSO 登录 Grafana/Langfuse，LLM-Guard Prompt 注入防护，NetworkPolicy 网络隔离
+- **RAG 基础设施** -- Dify 平台 + pgvector + TEI 嵌入/重排序 + Ragas 评估 + 质量门控
 - **存储** -- MinIO S3 兼容模型存储，PVC 模型缓存
 
 ```bash
@@ -147,12 +148,13 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &
 | 推理引擎自动选择（GPTQ→vLLM、GGUF→llama.cpp） | 支持 | 不适用 | 不支持 | 不支持 |
 | AI 网关（Key 管理、成本追踪、速率限制） | 支持 | 不支持 | 不支持 | 不支持 |
 | LLM 调用追踪（Prompt、Token、每次请求费用） | 支持 | 不支持 | 不支持 | 不支持 |
-| 预置 Grafana 仪表盘（3 个）+ 告警规则（4 条） | 支持 | 不支持 | 不支持 | 不支持 |
+| 预置 Grafana 仪表盘（9 个）+ 告警规则（5 条） | 支持 | 不支持 | 不支持 | 不支持 |
 | GPU 监控（DCGM） | 支持 | 需自行搭建 | 不支持 | 不支持 |
 | KEDA 自动扩缩（队列深度、TTFT） | 支持 | 不支持 | 不支持 | 部分支持 |
 | SSO 集成（Keycloak OIDC） | 支持 | 不支持 | 不支持 | 不支持 |
 | S3 模型存储（MinIO） | 支持 | 不支持 | 不支持 | 不支持 |
 | 容器日志聚合（Fluent Bit + Loki） | 支持 | 不支持 | 不支持 | 不支持 |
+| RAG 基础设施（Dify + 评估 + 安全防护） | 支持 | 不支持 | 不支持 | 不支持 |
 | 一键部署完整栈 | 支持 | 不适用 | 不支持 | 不支持 |
 | 云平台无关 | 支持 | 支持 | 仅 Azure | 支持 |
 
@@ -169,15 +171,16 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &
 
 - [快速入门](docs/getting-started.zh-CN.md) -- 安装、配置与故障排除
 - [架构设计](ARCHITECTURE.md) -- 完整的技术设计与技术选型
-- [实施计划](PLAN.md) -- 里程碑、CI/CD 策略与待办事项
 - [更新日志](CHANGELOG.zh-CN.md) -- 版本发布说明
 - [贡献指南](CONTRIBUTING.zh-CN.md) -- 如何参与贡献
+- [RAG 基础设施](docs/rag/rag-plan.md) -- RAG 组件、评估与安全
+- [ADR](docs/adr/) -- 架构决策记录
 
 ## 路线图
 
 - [x] **v0.1.0（MVP）** -- 模型推理服务 + 网关 + 指标监控 + 调用追踪
 - [x] **v0.2.0** -- Langfuse v3 + Keycloak SSO + 基础设施自动化 + NodePort
-- [ ] **v0.3.0** -- RAG 基础设施（Dify + pgvector + embedding 服务 + 评估流水线）
+- [x] **v0.3.0** -- RAG 基础设施（Dify + pgvector + TEI 嵌入/重排序 + Ragas 评估 + LLM-Guard + 质量门控）
 - [ ] **v0.4.0** -- 微调 + ML 平台
 - [ ] **v0.5.0** -- 解耦式推理服务（llm-d）
 - [ ] **v1.0.0** -- Operator + CLI + 可视化面板

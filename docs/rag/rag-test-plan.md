@@ -126,9 +126,8 @@ Ragas 需要 `question` + `ground_truth` 是预先准备的，`contexts` 和 `an
 ├── ARCHITECTURE.md
 ├── CHANGELOG.md
 ├── docs/getting-started.md
-├── DEPLOY-GB10-REPORT.md
 ├── charts/*/values.yaml（关键配置项）
-└── RAG-DIRECTION.md
+└── docs/rag/rag-direction.md
 ```
 
 先人工编写 15 条核心样本（事实 + 否定 + 对抗），再用 **Ragas TestsetGenerator** 自动扩展到 35 条。

@@ -5,7 +5,7 @@
 **Kubernetes-native LLMOps Platform** -- Deploy, manage, monitor, and optimize your entire LLM infrastructure with one command.
 
 > [!NOTE]
-> This project is under active development. Star and watch for updates!
+> v0.3.0 released -- full RAG infrastructure (Dify + pgvector + TEI + Ragas + LLM-Guard) with 14/14 E2E tests passing. See [CHANGELOG](CHANGELOG.md) for details.
 
 ## What is kube-llmops?
 
@@ -13,10 +13,11 @@
 
 - **Model Serving** -- vLLM, llama.cpp, or TEI, auto-selected based on model format
 - **AI Gateway** -- LiteLLM for unified OpenAI-compatible API, key management, rate limiting, budget control
-- **Observability** -- Prometheus + Grafana (3 dashboards + 4 alert rules) + Langfuse v3 LLM tracing (ClickHouse + Redis + Worker)
+- **Observability** -- Prometheus + Grafana (9 dashboards + 5 alert rules) + Langfuse v3 LLM tracing (ClickHouse + Redis + Worker)
 - **Logging** -- Fluent Bit + Loki, queryable in Grafana Explore
 - **Autoscaling** -- KEDA scales vLLM pods based on queue depth and latency
-- **Security** -- Keycloak SSO for Grafana/Langfuse, NetworkPolicy isolation
+- **Security** -- Keycloak SSO for Grafana/Langfuse, LLM-Guard prompt injection defense, NetworkPolicy isolation
+- **RAG Infrastructure** -- Dify platform + pgvector + TEI embedding/reranking + Ragas evaluation + quality gate
 - **Storage** -- MinIO S3-compatible model storage, PVC model cache
 
 ```bash
@@ -147,12 +148,13 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &
 | Engine auto-selection (GPTQ->vLLM, GGUF->llama.cpp) | Yes | N/A | No | No |
 | AI Gateway (key mgmt, cost tracking, rate limit) | Yes | No | No | No |
 | LLM tracing (prompt, tokens, cost per request) | Yes | No | No | No |
-| Pre-built Grafana dashboards (3) + alert rules (4) | Yes | No | No | No |
+| Pre-built Grafana dashboards (9) + alert rules (5+) | Yes | No | No | No |
 | GPU monitoring (DCGM) | Yes | DIY | No | No |
 | KEDA autoscaling (queue depth, TTFT) | Yes | No | No | Partial |
 | SSO integration (Keycloak OIDC) | Yes | No | No | No |
 | S3 model storage (MinIO) | Yes | No | No | No |
 | Container log aggregation (Fluent Bit + Loki) | Yes | No | No | No |
+| RAG infrastructure (Dify + eval + guardrails) | Yes | No | No | No |
 | One-click full stack | Yes | N/A | No | No |
 | Cloud-agnostic | Yes | Yes | Azure only | Yes |
 
@@ -169,15 +171,16 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &
 
 - [Getting Started](docs/getting-started.md) -- Installation, configuration, troubleshooting
 - [Architecture](ARCHITECTURE.md) -- Full technical design and technology choices
-- [Implementation Plan](PLAN.md) -- Milestones, CI/CD strategy, and backlog
 - [Changelog](CHANGELOG.md) -- Release notes
 - [Contributing](CONTRIBUTING.md) -- How to contribute
+- [RAG Infrastructure](docs/rag/rag-plan.md) -- RAG components, evaluation, and safety
+- [ADR](docs/adr/) -- Architecture Decision Records
 
 ## Roadmap
 
 - [x] **v0.1.0 (MVP)** -- Model serving + Gateway + Metrics + Tracing
 - [x] **v0.2.0** -- Langfuse v3 + Keycloak SSO + Infra automation + NodePort
-- [ ] **v0.3.0** -- RAG infra (Dify + pgvector + embedding service + eval pipeline)
+- [x] **v0.3.0** -- RAG infra (Dify + pgvector + TEI embedding/reranking + Ragas eval + LLM-Guard + Quality Gate)
 - [ ] **v0.4.0** -- Fine-tuning + ML platform
 - [ ] **v0.5.0** -- Disaggregated serving (llm-d)
 - [ ] **v1.0.0** -- Operator + CLI + Dashboard

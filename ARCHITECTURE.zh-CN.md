@@ -448,13 +448,15 @@ spec:
 - **金丝雀发布**：通过 InferenceModel CRD 在模型版本间进行 A/B 分流
 - **流量控制**：工作负载间的优先级 + 公平性
 
-### 第二层上线策略
+### 第二层上线策略（未来规划）
+
+> 注意：第二层网关是未来路线图项目。当前架构使用 LiteLLM 作为唯一网关。
 
 ```
-Phase 1 (MVP):     LiteLLM -> vLLM directly (no Tier 2)
-Phase 2:           LiteLLM -> Envoy AI Gateway (basic) -> vLLM
-Phase 3:           LiteLLM -> Envoy + IGW (full inference scheduling) -> vLLM
-Phase 4 (future):  LiteLLM -> IGW + llm-d (disaggregated P/D serving)
+当前:              LiteLLM -> vLLM 直连（无第二层）
+未来阶段 1:        LiteLLM -> Envoy AI Gateway（基础）-> vLLM
+未来阶段 2:        LiteLLM -> Envoy + IGW（完整推理调度）-> vLLM
+未来阶段 3:        LiteLLM -> IGW + llm-d（Prefill/Decode 分离式推理）
 ```
 
 ---

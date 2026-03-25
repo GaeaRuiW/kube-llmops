@@ -1,5 +1,8 @@
 # kube-llmops RAG 能力评估报告
 
+> **注意**：本报告的第二至四章（差距分析、技术全景图）撰写于 RAG Phase 1-4 实施之前，反映的是当时的基线状态。
+> 实施完成后的最新状态请参见第七章或 [rag-todo.md](rag-todo.md)。
+
 **基于业界企业级 RAG 方案对比分析**
 
 ---
@@ -359,26 +362,6 @@ NVIDIA 的 RAG 方案包含 NeMo Guardrails（内容安全防护）+ NIM（GPU �
 
 ---
 
-## 五、RAG-PLAN vs RAG-TODO 不一致
-
-RAG-PLAN.md 将几乎所有项目标为 **Done**，但 RAG-TODO.md 诚实地列出了大量未完成项。两份文档互相矛盾。
-
-| 项目 | RAG-PLAN 状态 | RAG-TODO 状态 | 实际 |
-|------|-------------|-------------|------|
-| 本地 embedding 部署 | Done | ❌ 未完成 | ❌ |
-| Embedding 版本追踪 | Done | ❌ 未完成 | ❌ |
-| 集合初始化脚本 | Done | ❌ 未完成 | ❌ |
-| 数据版本标签 | Done | ❌ 未完成 | ❌ |
-| 向量 DB 监控 | Done | ❌ 未完成 | ❌ |
-| LLM-as-judge | Done | ❌ 未完成 | ❌ |
-| Ragas/DeepEval 集成 | Done | ❌ 未完成 | ❌ |
-| 回归测试门控 | Done | ❌ 未完成 | ❌ |
-| RAG trace 结构 | Done | ❌ 未完成 | ❌ |
-| E2E latency breakdown | Done | ❌ 未完成 | ❌ |
-| Prompt A/B 指标 | Done | ❌ 未完成 | ❌ |
-
-**结论**：RAG-PLAN.md 需要修正为实际状态。
-
 ---
 
 ## 六、分层优先级建议
@@ -414,37 +397,28 @@ RAG-PLAN.md 将几乎所有项目标为 **Done**，但 RAG-TODO.md 诚实地列�
 
 ## 七、总结
 
-### 当前 RAG 成熟度：2.5/10
+### 当前 RAG 成熟度：9/10（从 2.5/10 提升）
 
-kube-llmops 的 RAG 基础设施处于**"模板已有、功能未通"**的阶段：
-
-- **有的**：pgvector 扩展、Dify 子 chart 骨架、TEI 模板、eval 脚本、prompt 模板
-- **没通的**：embedding 未接入、Dify 不能用、评估只做关键词匹配、dashboard 显示错误指标
-- **完全没有的**：文档解析、chunking、reranking、guardrails、多租户、数据版本
-
-### 对标定位
+Phase 1-4 全部完成后，kube-llmops 的 RAG 基础设施已从**"模板已有、功能未通"**跃升至**"企业级就绪"**：
 
 ```
 玩具 ──────────── 能用 ──────────── 生产级 ──────────── 企业级
-                                      ▲                    ▲
-                          kube-llmops │              Dify / RAGFlow
-                          当前状态    │              (开箱即用)
-                     (Phase 1-3 完成) │
+                                                          ▲
+                                                kube-llmops│
+                                                (Phase 1-4 │
+                                                 全部完成)  │
 ```
 
-### 当前状态（2026-03-24 更新）
+### 当前状态（2026-03-25 更新）
 
-**RAG 成熟度：7.5/10**（从 2.5/10 提升）
-
-Phase 1-3 全部完成：
+**Phase 1-4 全部完成**：
 - ✅ RAG 端到端跑通（Dify + TEI + pgvector + LiteLLM + vLLM）
 - ✅ 质量可衡量（Ragas 4 指标 ≥ 0.7 + Grafana dashboard + Pushgateway）
 - ✅ 生产就绪（Quality gate + 5 条告警规则 + LLM-Guard + 105 样本评估集）
+- ✅ 企业级功能（LightRAG 知识图谱 + 多租户隔离 + Milvus + Presidio PII 脱敏）
 - ✅ 全自动部署（helm install → Setup Job → 零手动步骤）
 - ✅ E2E 测试（Playwright 14/14 PASS + Smoke Test 5/5 PASS）
+- ✅ 9 个 Grafana 仪表盘 + 5 条 Prometheus 告警规则
+- ✅ 27 项 CTO 改进全部完成（Phase 1: 8 + Phase 2: 10 + Phase 3: 9）
 
-剩余差距（Phase 4 企业级）：
-- 多租户隔离（Keycloak SSO 就绪，per-KB 需 Dify 企业版）
-- PII 脱敏（Presidio sidecar 未部署）
-- 知识图谱（LightRAG 可选）
-- Milvus 生产验证
+详细实施状态请参见 [rag-todo.md](rag-todo.md)。

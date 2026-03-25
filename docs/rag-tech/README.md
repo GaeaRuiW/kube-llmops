@@ -108,6 +108,6 @@
 
 ## 相关文档
 
-- [RAG 能力评估报告](../../RAG-ASSESSMENT.md) — kube-llmops RAG 现状 vs 企业级方案对比
-- [RAG 实施计划](../../RAG-PLAN.md) — 7 大支柱实施路线
-- [RAG 待办清单](../../RAG-TODO.md) — 未完成项跟踪
+- [RAG 能力评估报告](../rag/rag-assessment.md) — kube-llmops RAG 现状 vs 企业级方案对比
+- [RAG 实施计划](../rag/rag-plan.md) — 基础设施组件状态
+- [RAG 状态追踪](../rag/rag-todo.md) — Phase 1-4 完成状态
