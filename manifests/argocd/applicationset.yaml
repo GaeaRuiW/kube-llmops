@@ -1,0 +1,49 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: kube-llmops-envs
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - env: staging
+            namespace: llmops-staging
+            valuesFile: values-single-node.yaml
+            revision: main
+          - env: production
+            namespace: llmops-production
+            valuesFile: values-ha.yaml
+            revision: v1.0.0
+  template:
+    metadata:
+      name: "kube-llmops-{{env}}"
+      namespace: argocd
+      annotations:
+        argocd.argoproj.io/manifest-generate-paths: .
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/your-org/kube-llmops.git
+        targetRevision: "{{revision}}"
+        path: .
+        helm:
+          valueFiles:
+            - "{{valuesFile}}"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "{{namespace}}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+      # Sync-wave annotations applied per sub-chart template:
+      #   argocd.argoproj.io/sync-wave: "1"  # PostgreSQL
+      #   argocd.argoproj.io/sync-wave: "2"  # Keycloak
+      #   argocd.argoproj.io/sync-wave: "3"  # LiteLLM
+      #   argocd.argoproj.io/sync-wave: "4"  # vLLM
+      #   argocd.argoproj.io/sync-wave: "5"  # Dify
+      #   argocd.argoproj.io/sync-wave: "6"  # Observability

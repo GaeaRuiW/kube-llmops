@@ -298,3 +298,22 @@ harbor:
 #   className: nginx
 #   host: llm.example.com
 #   tls: true
+
+# ── HA Settings (Phase 3) ──
+# PostgreSQL: use external HA database in production
+# litellm.postgresql.externalHost: "rds-litellm.example.com"
+# langfuse.postgresql.externalHost: "rds-langfuse.example.com"
+
+# LiteLLM: 2 replicas for HA
+litellm:
+  replicas: 2
+
+# Langfuse: 2 replicas
+langfuse:
+  replicas: 2
+
+# Prometheus remote_write for long-term storage
+# observability:
+#   prometheus:
+#     remoteWrite:
+#       - url: "http://victoriametrics:8428/api/v1/write"

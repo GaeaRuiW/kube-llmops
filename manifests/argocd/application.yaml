@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-llmops
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/manifest-generate-paths: .
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/your-org/kube-llmops.git
+    targetRevision: main
+    path: .
+    helm:
+      valueFiles:
+        - values-single-node.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-llmops
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 3m
+  # Sync-wave order (set in each sub-chart's templates):
+  #   1 - PostgreSQL
+  #   2 - Keycloak
+  #   3 - LiteLLM
+  #   4 - vLLM
+  #   5 - Dify
+  #   6 - Observability (Prometheus, Grafana, Loki)

@@ -1,0 +1,16 @@
+{
+  "uid": "infra-roi",
+  "title": "Infrastructure ROI - GPU to Token to Cost",
+  "tags": ["infrastructure", "roi", "cost", "gpu"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "panels": [
+    {"id":1,"title":"GPU Utilization","type":"timeseries","gridPos":{"h":8,"w":8,"x":0,"y":0},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"avg(DCGM_FI_DEV_GPU_UTIL)","legendFormat":"GPU Util %"}],"fieldConfig":{"defaults":{"unit":"percent"}}},
+    {"id":2,"title":"Tokens per GPU-Hour","type":"stat","gridPos":{"h":8,"w":8,"x":8,"y":0},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"sum(rate(vllm:generation_tokens_total[1h])) * 3600","legendFormat":"Tokens/GPU-Hour"}]},
+    {"id":3,"title":"Inference Cost Efficiency","type":"stat","gridPos":{"h":8,"w":8,"x":16,"y":0},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"sum(rate(vllm:generation_tokens_total[1h])) / (avg(DCGM_FI_DEV_GPU_UTIL) / 100 + 0.001)","legendFormat":"Tokens/GPU-util"}]},
+    {"id":4,"title":"E2E Request Latency vs GPU Load","type":"timeseries","gridPos":{"h":8,"w":12,"x":0,"y":8},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"histogram_quantile(0.95, sum(rate(vllm:e2e_request_latency_seconds_bucket[5m])) by (le))","legendFormat":"E2E p95"},{"expr":"avg(DCGM_FI_DEV_GPU_UTIL)/100","legendFormat":"GPU Load"}]},
+    {"id":5,"title":"Memory Efficiency","type":"timeseries","gridPos":{"h":8,"w":12,"x":12,"y":8},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"avg(vllm:gpu_cache_usage_perc)","legendFormat":"KV Cache Usage"},{"expr":"avg(DCGM_FI_DEV_FB_USED) / avg(DCGM_FI_DEV_FB_TOTAL)","legendFormat":"GPU Memory Usage"}]}
+  ],
+  "time": {"from": "now-6h", "to": "now"},
+  "refresh": "30s"
+}
