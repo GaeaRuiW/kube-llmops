@@ -51,4 +51,4 @@ dependencies:
   repository: file://charts/postgresql
   version: 0.1.0
 digest: sha256:209140b067a313c1195a9a84fe164936a8adfdbf04e6261f7b13cb702afee7fb
-generated: "2026-03-25T10:03:56.160714088+08:00"
+generated: "2026-03-25T10:16:28.899039439+08:00"

@@ -1,0 +1,15 @@
+{
+  "uid": "tenant-overview",
+  "title": "Tenant Overview - Resource Usage by Team",
+  "tags": ["tenant", "multi-tenancy", "team"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "panels": [
+    {"id":1,"title":"CPU Usage by Namespace","type":"timeseries","gridPos":{"h":8,"w":12,"x":0,"y":0},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"sum by (namespace)(rate(container_cpu_usage_seconds_total{namespace=~\"llm-team-.*\"}[5m]))","legendFormat":"{{namespace}}"}],"fieldConfig":{"defaults":{"unit":"short"}}},
+    {"id":2,"title":"Memory Usage by Namespace","type":"timeseries","gridPos":{"h":8,"w":12,"x":12,"y":0},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"sum by (namespace)(container_memory_usage_bytes{namespace=~\"llm-team-.*\"})","legendFormat":"{{namespace}}"}],"fieldConfig":{"defaults":{"unit":"bytes"}}},
+    {"id":3,"title":"Pod Count by Team","type":"stat","gridPos":{"h":4,"w":12,"x":0,"y":8},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"count by (namespace)(kube_pod_info{namespace=~\"llm-team-.*\"})","legendFormat":"{{namespace}}"}]},
+    {"id":4,"title":"Resource Quota Usage","type":"table","gridPos":{"h":4,"w":12,"x":12,"y":8},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"kube_resourcequota{namespace=~\"llm-team-.*\",type=\"used\"}","legendFormat":"{{namespace}} {{resource}}","format":"table","instant":true}]}
+  ],
+  "time": {"from": "now-1h", "to": "now"},
+  "refresh": "30s"
+}

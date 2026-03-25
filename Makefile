@@ -1,77 +1,40 @@
-CHART_DIR := charts/kube-llmops-stack
-CHART_NAME := kube-llmops-stack
-VERSION ?= $(shell grep '^version:' $(CHART_DIR)/Chart.yaml | awk '{print $$2}')
+RELEASE_NAME ?= kube-llmops
+CHART_DIR     ?= .
+VALUES_FILE   ?= values-single-node.yaml
+NAMESPACE     ?= default
+PROFILES      := single-node multi-gpu ha
 
-.PHONY: lint test template build package e2e clean help python-test ci security-scan
+.PHONY: dev dep-update lint test-infra bench screenshots
 
-help: ## Show this help
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
+## ── Development ──────────────────────────────────────────────────
+dev:
+	helm upgrade --install $(RELEASE_NAME) $(CHART_DIR) \
+		-f $(VALUES_FILE) \
+		-n $(NAMESPACE) --create-namespace \
+		--no-hooks
 
-lint: ## Run all linters (helm, yaml, shell, markdown)
-	helm lint $(CHART_DIR)
-	@if command -v ct > /dev/null 2>&1; then ct lint --config ct.yaml --charts $(CHART_DIR); fi
-	@if command -v yamllint > /dev/null 2>&1; then yamllint -c .yamllint.yml $(CHART_DIR)/values.yaml $(CHART_DIR)/values-*.yaml 2>/dev/null || true; fi
-	@if command -v shellcheck > /dev/null 2>&1; then find scripts -name '*.sh' -exec shellcheck {} + 2>/dev/null || true; fi
-	@if command -v markdownlint > /dev/null 2>&1; then markdownlint '**/*.md' --ignore node_modules 2>/dev/null || true; fi
-
-test: ## Run tests (helm template, python unit tests)
-	helm template test-release $(CHART_DIR) > /dev/null
-	@if [ -f $(CHART_DIR)/values-minimal.yaml ]; then helm template test-release $(CHART_DIR) -f $(CHART_DIR)/values-minimal.yaml > /dev/null; fi
-	@if [ -f $(CHART_DIR)/values-ci.yaml ]; then helm template test-release $(CHART_DIR) -f $(CHART_DIR)/values-ci.yaml > /dev/null; fi
-	@if command -v pytest > /dev/null 2>&1 && [ -d images/model-resolver/tests ]; then pytest images/model-resolver/tests/ -v; fi
-
-template: ## Render Helm templates to stdout
-	helm template test-release $(CHART_DIR)
-
-build: ## Build Docker images (local, no push)
-	@for img_dir in images/*/; do \
-		if [ -f "$$img_dir/Dockerfile" ]; then \
-			img_name=$$(basename $$img_dir); \
-			echo "Building $$img_name..."; \
-			docker build -t kube-llmops/$$img_name:dev $$img_dir; \
-		fi; \
-	done
-
-package: ## Package Helm chart
-	helm package $(CHART_DIR) -d dist/
-
-e2e: ## Run E2E tests on kind cluster
-	@echo "Creating kind cluster..."
-	kind create cluster --name kube-llmops-e2e 2>/dev/null || true
+dep-update:
+	rm -f charts/*.tgz Chart.lock
 	helm dependency update $(CHART_DIR)
-	helm install kube-llmops $(CHART_DIR) -f $(CHART_DIR)/values-ci.yaml --wait --timeout 5m
-	@echo "Verifying..."
-	kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=litellm --timeout=120s
-	kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=prometheus --timeout=120s
-	kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=grafana --timeout=120s
-	@echo "E2E passed!"
-	helm uninstall kube-llmops
-	kind delete cluster --name kube-llmops-e2e
 
-clean: ## Clean build artifacts
-	rm -rf dist/ build/ tmp/
-	find . -name '*.tgz' -not -path './.git/*' -delete
-
-release: ## Prepare a release (update chart version)
-ifndef VERSION
-	$(error VERSION is not set. Usage: make release VERSION=0.1.0)
-endif
-	@sed -i 's/^version:.*/version: $(VERSION)/' $(CHART_DIR)/Chart.yaml
-	@sed -i 's/^appVersion:.*/appVersion: "$(VERSION)"/' $(CHART_DIR)/Chart.yaml
-	@echo "Updated Chart.yaml to version $(VERSION)"
-
-python-test: ## Run Python unit tests
-	cd images/model-resolver && python -m pytest tests/ -v --tb=short
-
-ci: lint test python-test ## Run full CI suite locally
-
-security-scan: ## Run security scans
-	@echo "Scanning Helm chart for secrets..."
-	@grep -rn "password\|secret\|token" $(CHART_DIR)/values.yaml | grep -v "^#" | grep -v "REQUIRED" || echo "No hardcoded secrets found"
-	@echo "Scanning Docker images with Trivy..."
-	@for img in model-resolver model-loader; do \
-		if [ -f images/$$img/Dockerfile ]; then \
-			docker build -t kube-llmops/$$img:scan images/$$img/ 2>/dev/null && \
-			trivy image --severity CRITICAL,HIGH kube-llmops/$$img:scan 2>/dev/null || echo "Trivy not available, skipping $$img"; \
-		fi; \
+## ── Quality ─────────────────────────────────────────────────────
+lint:
+	helm lint $(CHART_DIR) -f $(VALUES_FILE)
+	@for p in $(PROFILES); do \
+		echo "--- template: values-$$p.yaml ---"; \
+		helm template $(RELEASE_NAME) $(CHART_DIR) -f values-$$p.yaml > /dev/null || exit 1; \
 	done
+	@echo "All profiles passed."
+
+## ── Testing ─────────────────────────────────────────────────────
+test-infra:
+	cd tests/e2e && npx playwright test
+
+bench:
+	@echo "Usage: python tests/load/llm-inference.py --concurrency 8 --requests 200"
+	@echo "       python tests/load/embedding.py      --concurrency 8 --requests 200"
+	@echo "       python tests/load/rag-e2e.py        --concurrency 4 --requests 100"
+
+## ── Docs ────────────────────────────────────────────────────────
+screenshots:
+	./scripts/capture-screenshots.sh

@@ -124,3 +124,10 @@ backup:
   schedule: "0 3 * * *"
   retentionDays: 7
   storageSize: 5Gi
+
+# External Secrets Operator integration
+externalSecrets:
+  enabled: false
+  secretStore: "vault-backend"
+  keyPath: "kube-llmops/litellm"
+  refreshInterval: "1h"

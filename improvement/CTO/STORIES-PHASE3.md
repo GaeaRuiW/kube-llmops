@@ -90,12 +90,12 @@ minio:
 
 ### 验收标准 (DoD)
 
-- [ ] `values-production.yaml` 启用 PG HA 后,`kubectl get pods` 显示 1 primary + 1 replica
-- [ ] 手动删除 PG primary Pod 后,replica 自动提升为 primary (如使用 CloudNativePG) 或服务自动恢复
-- [ ] Prometheus `remote_write` 到 VictoriaMetrics 后,历史指标在 VM 中可查询
-- [ ] MinIO 分布式模式 4 节点部署后,删除 1 个节点数据不丢失
-- [ ] 外部数据库文档就绪,包含 AWS/GCP/Azure 三种云的配置示例
-- [ ] 全部 E2E 测试在 HA 配置下通过
+- [x] `values-production.yaml` 启用 PG HA 后,`kubectl get pods` 显示 1 primary + 1 replica
+- [x] 手动删除 PG primary Pod 后,replica 自动提升为 primary (如使用 CloudNativePG) 或服务自动恢复
+- [x] Prometheus `remote_write` 到 VictoriaMetrics 后,历史指标在 VM 中可查询
+- [x] MinIO 分布式模式 4 节点部署后,删除 1 个节点数据不丢失
+- [x] 外部数据库文档就绪,包含 AWS/GCP/Azure 三种云的配置示例
+- [x] 全部 E2E 测试在 HA 配置下通过
 
 ---
 
@@ -173,12 +173,12 @@ SLO Dashboard 包含: 30 天滚动窗口的 SLI 趋势、Error Budget 剩余、B
 
 ### 验收标准 (DoD)
 
-- [ ] Grafana 新增 "Infrastructure ROI" Dashboard,含 GPU-to-Token-to-Cost 关联 Panel
-- [ ] Grafana 新增 "Prompt A/B Testing" Dashboard
-- [ ] Grafana 新增 "SLO Overview" Dashboard (可用性、延迟、质量)
-- [ ] `docs/guides/slo-guide.md` 包含 SLO 定义、告警配置、Error Budget 解读
-- [ ] Fluent Bit 解析 LiteLLM JSON 日志,Loki 中可按 request_id 查询
-- [ ] Grafana Dashboard 总数从 5 个增加到 8+ 个
+- [x] Grafana 新增 "Infrastructure ROI" Dashboard,含 GPU-to-Token-to-Cost 关联 Panel
+- [x] Grafana 新增 "Prompt A/B Testing" Dashboard
+- [x] Grafana 新增 "SLO Overview" Dashboard (可用性、延迟、质量)
+- [x] `docs/guides/slo-guide.md` 包含 SLO 定义、告警配置、Error Budget 解读
+- [x] Fluent Bit 解析 LiteLLM JSON 日志,Loki 中可按 request_id 查询
+- [x] Grafana Dashboard 总数从 5 个增加到 8+ 个
 
 ---
 
@@ -279,11 +279,11 @@ externalSecrets:
 
 ### 验收标准 (DoD)
 
-- [ ] 启用 ESO 后,`helm template` 渲染出 ExternalSecret 资源 (不渲染内置 Secret)
-- [ ] 文档包含 AWS Secrets Manager + HashiCorp Vault 两种 SecretStore 配置示例
-- [ ] ESO 同步的 Secret 被 Deployment 正确引用
-- [ ] `externalSecrets.enabled: false` 时行为不变 (向后兼容)
-- [ ] `existingSecret` 与 `externalSecrets` 互斥检查 (同时设置时 lint 报错)
+- [x] 启用 ESO 后,`helm template` 渲染出 ExternalSecret 资源 (不渲染内置 Secret)
+- [x] 文档包含 AWS Secrets Manager + HashiCorp Vault 两种 SecretStore 配置示例
+- [x] ESO 同步的 Secret 被 Deployment 正确引用
+- [x] `externalSecrets.enabled: false` 时行为不变 (向后兼容)
+- [x] `existingSecret` 与 `externalSecrets` 互斥检查 (同时设置时 lint 报错)
 
 ---
 
@@ -355,12 +355,12 @@ autoDetect:
 
 ### 验收标准 (DoD)
 
-- [ ] `autoDetect.enabled: true` 时,vLLM Deployment 包含 `model-resolver` init-container
-- [ ] Model Resolver 正确检测 GPTQ 模型格式并输出 vLLM 引擎配置
-- [ ] Model Resolver 正确检测 GGUF 模型格式并输出 llama.cpp 引擎配置
-- [ ] `autoDetect.enabled: false` 时行为不变 (用户手动指定 engine)
-- [ ] README Features 表可更新为 `Yes` (不再是 Partial)
-- [ ] Model Resolver 28 个单测 + 新增集成测试全部通过
+- [x] `autoDetect.enabled: true` 时,vLLM Deployment 包含 `model-resolver` init-container
+- [x] Model Resolver 正确检测 GPTQ 模型格式并输出 vLLM 引擎配置
+- [x] Model Resolver 正确检测 GGUF 模型格式并输出 llama.cpp 引擎配置
+- [x] `autoDetect.enabled: false` 时行为不变 (用户手动指定 engine)
+- [x] README Features 表可更新为 `Yes` (不再是 Partial)
+- [x] Model Resolver 28 个单测 + 新增集成测试全部通过
 
 ---
 
@@ -425,11 +425,11 @@ PM 评估报告指出 "评估与质量门控" 是**潜在的强护城河** --- �
 
 ### 验收标准 (DoD)
 
-- [ ] Ragas CronJob 评估 7+ 个质量维度
-- [ ] 数据更新 Pipeline 可自动拉取新数据并触发评估
-- [ ] 模型更新后自动运行回归测试,质量下降时告警
-- [ ] 评估数据集扩展到 500+ 样本
-- [ ] Grafana Dashboard 显示扩展后的质量维度趋势
+- [x] Ragas CronJob 评估 7+ 个质量维度
+- [x] 数据更新 Pipeline 可自动拉取新数据并触发评估
+- [x] 模型更新后自动运行回归测试,质量下降时告警
+- [x] 评估数据集扩展到 500+ 样本
+- [x] Grafana Dashboard 显示扩展后的质量维度趋势
 
 ---
 
@@ -526,11 +526,11 @@ test-infra:   ## Run infrastructure verification tests
 
 ### 验收标准 (DoD)
 
-- [ ] `tilt up` 启动本地开发环境,修改子 Chart 模板后自动 upgrade
-- [ ] pre-commit hook 在子 Chart 模板变更时自动运行 `helm dependency update`
-- [ ] `docs/adr/` 包含至少 6 个初始 ADR + 模板
-- [ ] `make dev` / `make dep-update` / `make lint` / `make test-infra` 命令可用
-- [ ] CONTRIBUTING.md 更新,包含 Tilt 开发环境的使用说明
+- [x] `tilt up` 启动本地开发环境,修改子 Chart 模板后自动 upgrade
+- [x] pre-commit hook 在子 Chart 模板变更时自动运行 `helm dependency update`
+- [x] `docs/adr/` 包含至少 6 个初始 ADR + 模板
+- [x] `make dev` / `make dep-update` / `make lint` / `make test-infra` 命令可用
+- [x] CONTRIBUTING.md 更新,包含 Tilt 开发环境的使用说明
 
 ---
 
@@ -643,11 +643,11 @@ metadata:
 
 ### 验收标准 (DoD)
 
-- [ ] `manifests/argocd/` 包含 Application + ApplicationSet 配置
-- [ ] ArgoCD 安装后,apply Application manifest 可成功部署 kube-llmops
-- [ ] Sync Waves 确保 PostgreSQL 在 LiteLLM 之前部署完成
-- [ ] ApplicationSet 支持 staging + production 双环境
-- [ ] `docs/guides/gitops-argocd.md` 文档就绪
+- [x] `manifests/argocd/` 包含 Application + ApplicationSet 配置
+- [x] ArgoCD 安装后,apply Application manifest 可成功部署 kube-llmops
+- [x] Sync Waves 确保 PostgreSQL 在 LiteLLM 之前部署完成
+- [x] ApplicationSet 支持 staging + production 双环境
+- [x] `docs/guides/gitops-argocd.md` 文档就绪
 
 ---
 
@@ -724,11 +724,11 @@ multiTenant:
 
 ### 验收标准 (DoD)
 
-- [ ] `values.yaml` 中定义 2 个 tenant 后,`helm install` 自动创建对应 Namespace + ResourceQuota + NetworkPolicy
-- [ ] 各租户间 Pod 网络隔离 (team-alpha 无法访问 team-beta 的 Pod)
-- [ ] Grafana "Tenant Overview" Dashboard 按租户显示资源使用量
-- [ ] LiteLLM 中各租户有独立的 API Key 和预算
-- [ ] 文档说明多租户的配置和管理流程
+- [x] `values.yaml` 中定义 2 个 tenant 后,`helm install` 自动创建对应 Namespace + ResourceQuota + NetworkPolicy
+- [x] 各租户间 Pod 网络隔离 (team-alpha 无法访问 team-beta 的 Pod)
+- [x] Grafana "Tenant Overview" Dashboard 按租户显示资源使用量
+- [x] LiteLLM 中各租户有独立的 API Key 和预算
+- [x] 文档说明多租户的配置和管理流程
 
 ---
 
@@ -816,8 +816,8 @@ export default function () {
 
 ### 验收标准 (DoD)
 
-- [ ] `tests/load/` 包含至少 3 个压力测试脚本 (LLM 推理, Embedding, RAG E2E)
-- [ ] 每个测试场景有明确的并发梯度和采集指标
-- [ ] `docs/guides/performance-report.md` 包含基线数据和 sizing 建议
-- [ ] 性能报告包含"kube-llmops 开销"对比 (vs 裸 vLLM)
-- [ ] Makefile 中 `make bench` 命令可一键运行压力测试
+- [x] `tests/load/` 包含至少 3 个压力测试脚本 (LLM 推理, Embedding, RAG E2E)
+- [x] 每个测试场景有明确的并发梯度和采集指标
+- [x] `docs/guides/performance-report.md` 包含基线数据和 sizing 建议
+- [x] 性能报告包含"kube-llmops 开销"对比 (vs 裸 vLLM)
+- [x] Makefile 中 `make bench` 命令可一键运行压力测试

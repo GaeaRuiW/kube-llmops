@@ -82,3 +82,10 @@ customCACert:
   enabled: false
   configMapName: ""           # Name of ConfigMap with CA cert files
   mountPath: /usr/local/share/ca-certificates/custom
+
+# Model auto-detection (via Model Resolver)
+autoDetect:
+  enabled: false
+  image:
+    repository: ghcr.io/gaearuiw/kube-llmops/model-resolver
+    tag: latest
