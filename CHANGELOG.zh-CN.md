@@ -7,6 +7,71 @@
 本文件格式基于 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)，
 并且本项目遵循 [语义化版本](https://semver.org/spec/v2.0.0.html) 规范。
 
+## [0.3.0] - 2026-03-25
+
+### 新增
+
+#### RAG 基础设施（全栈）
+- Dify v1.13.2 全栈部署（API + Web + Worker + Plugin Daemon + Redis）
+- Dify Plugin Daemon，PVC 持久化 + `.difypkg` 插件内嵌 Secret
+- 自动化 Setup Job：创建管理员账户、安装插件、配置 LLM + Embedding 模型提供者
+- Dify 单域名 path-based Ingress 路由（兼容 SameSite cookie 认证）
+- TEI Embedding 服务，`bge-small-en-v1.5`（384 维）自动下载
+- TEI Reranking 服务，`bge-reranker-base`，`/rerank` 端点
+- LiteLLM Embedding 路由（`huggingface/bge-small-en` + `drop_params: true`）
+
+#### RAG 评估与质量
+- Ragas CronJob，4 项指标：faithfulness、answer_relevancy、context_precision、context_recall
+- 105 条评估样本（15 篇文档 × 9 类别，含标准答案）
+- Ragas 指标 → Pushgateway → Prometheus → Grafana 流水线
+- 质量门控 Helm pre-upgrade hook（质量回退时阻断部署）
+- 5 条 Prometheus 告警规则：FaithfulnessLow/Critical、RelevancyLow、QualityRegression、EvalStale
+
+#### RAG 安全与企业级功能
+- LLM-Guard PromptInjection 扫描器（拦截直接 + 隐蔽注入攻击）
+- Presidio PII 检测 + 脱敏（EMAIL/PERSON/URL）
+- LightRAG 知识图谱 + Neo4j 后端
+- Milvus 向量数据库（单机模式，gRPC + HTTP + 监控）
+- 多租户 Namespace 隔离（ResourceQuota + NetworkPolicy 按团队隔离）
+
+#### 可观测性（9 个 Grafana 仪表盘）
+- RAG 质量仪表盘（4 个仪表 + 趋势 + 历史）
+- 基础设施 ROI 仪表盘
+- SLO 概览仪表盘
+- 租户概览仪表盘
+- 成本与用量仪表盘
+- AlertManager 集成 + 通知渠道
+- 共 9 个仪表盘（vLLM、LiteLLM、GPU、RAG Quality、Cost、SLO、Infra ROI、Tenant、Milvus）
+
+#### 基础设施加固（27 项 CTO 改进）
+- 所有 14+ 组件的 PodDisruptionBudget
+- 凭证随机化 + `existingSecret` 支持
+- Prometheus Kubernetes 服务发现（RBAC + `kubernetes_sd_configs`）
+- PostgreSQL 拆分架构（operator-pg + app-pg）
+- `values.schema.json` 配置校验
+- NetworkPolicy 补全（PG/Redis/MinIO/LiteLLM）
+- PostgreSQL 备份 CronJob
+- External Secrets Operator 模板（Vault 后端）
+- ArgoCD Application + ApplicationSet（sync waves 1-6）
+- Makefile：`dev`、`lint`、`test-infra`、`bench` 目标
+- 6 个架构决策记录（ADR）
+- 3 个性能测试脚本 + 报告模板
+- HA 生产配置（多副本 + remote_write）
+
+#### 测试
+- Playwright E2E：Model Provider（5/5 PASS）+ RAG E2E（9/9 PASS）
+- Smoke Test Job：5/5 PASS（embedding + LLM + Langfuse + trace + reranker）
+
+### 变更
+- PostgreSQL 镜像：`postgres:16-alpine` → `pgvector/pgvector:pg16`，自动启用 `vector` 扩展
+- PostgreSQL 初始化脚本创建 4 个数据库：litellm、langfuse、dify、dify_plugin
+- `.gitignore` 更新：新增 `Chart.lock`、`screenshots/`、`test-report` 模式
+
+### 修复
+- Dify 401 认证问题：从跨域路由切换为单域名 path-based 路由（SameSite=Lax cookies）
+- LiteLLM TEI Embedding：需要 `huggingface/` 前缀（不是 `openai/`），`drop_params: true`，无 `/v1` 后缀
+- Helm `.tgz` 缓存：子 chart 模板修改被过期的归档文件覆盖
+
 ## [0.2.0] - 2026-03-21
 
 ### 新增

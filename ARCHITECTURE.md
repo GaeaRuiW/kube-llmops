@@ -448,13 +448,15 @@ spec:
 - **Canary rollout**: A/B split between model versions via InferenceModel CRD
 - **Flow control**: Priority + fairness between workloads
 
-### Tier 2 Rollout Strategy
+### Tier 2 Rollout Strategy (Future)
+
+> Note: Tier 2 gateway is a future roadmap item. Current architecture uses LiteLLM as the sole gateway.
 
 ```
-Phase 1 (MVP):     LiteLLM -> vLLM directly (no Tier 2)
-Phase 2:           LiteLLM -> Envoy AI Gateway (basic) -> vLLM
-Phase 3:           LiteLLM -> Envoy + IGW (full inference scheduling) -> vLLM
-Phase 4 (future):  LiteLLM -> IGW + llm-d (disaggregated P/D serving)
+Current:           LiteLLM -> vLLM directly (no Tier 2)
+Future Phase 1:    LiteLLM -> Envoy AI Gateway (basic) -> vLLM
+Future Phase 2:    LiteLLM -> Envoy + IGW (full inference scheduling) -> vLLM
+Future Phase 3:    LiteLLM -> IGW + llm-d (disaggregated P/D serving)
 ```
 
 ---

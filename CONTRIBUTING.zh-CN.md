@@ -112,7 +112,6 @@ alerting/                   # Prometheus 告警规则
 otel/                       # OpenTelemetry Collector 配置
 images/                     # Docker 镜像源码
   model-resolver/           # 引擎自动选择逻辑
-  model-loader/             # 模型权重下载器
 scripts/                    # 自动化脚本
 docs/                       # 文档
 examples/                   # 使用示例

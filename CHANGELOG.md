@@ -7,6 +7,71 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-03-25
+
+### Added
+
+#### RAG Infrastructure (Full Stack)
+- Dify v1.13.2 full-stack deployment (API + Web + Worker + Plugin Daemon + Redis)
+- Dify Plugin Daemon with PVC persistence and embedded `.difypkg` plugin
+- Automated Setup Job: admin account creation, plugin install, LLM + embedding provider config
+- Single-domain path-based Ingress routing for Dify (SameSite cookie auth compatible)
+- TEI embedding service with `bge-small-en-v1.5` (384 dims) auto-download
+- TEI reranking service with `bge-reranker-base`, `/rerank` endpoint
+- LiteLLM embedding route (`huggingface/bge-small-en` + `drop_params: true`)
+
+#### RAG Evaluation & Quality
+- Ragas CronJob with 4 metrics: faithfulness, answer_relevancy, context_precision, context_recall
+- 105-sample evaluation dataset (15 docs x 9 categories with ground truth)
+- Ragas metrics → Pushgateway → Prometheus → Grafana pipeline
+- Quality gate Helm pre-upgrade hook (blocks deployment on quality regression)
+- 5 Prometheus alert rules: FaithfulnessLow/Critical, RelevancyLow, QualityRegression, EvalStale
+
+#### RAG Safety & Enterprise
+- LLM-Guard with PromptInjection scanner (blocks direct + subtle injection)
+- Presidio PII detection + anonymization (EMAIL/PERSON/URL)
+- LightRAG knowledge graph with Neo4j backend
+- Milvus vector database (standalone, gRPC + HTTP + monitoring)
+- Multi-tenant namespace isolation (ResourceQuota + NetworkPolicy per team)
+
+#### Observability (9 Grafana Dashboards)
+- RAG Quality dashboard (4 gauges + trend + history)
+- Infrastructure ROI dashboard
+- SLO Overview dashboard
+- Tenant Overview dashboard
+- Cost & Usage dashboard
+- AlertManager integration with notification channels
+- 6 additional dashboards (total 9: vLLM, LiteLLM, GPU, RAG Quality, Cost, SLO, Infra ROI, Tenant, Milvus)
+
+#### Infrastructure Hardening (27 CTO Stories)
+- PodDisruptionBudget for all 14+ components
+- Credential randomization + `existingSecret` support
+- Prometheus Kubernetes service discovery (RBAC + `kubernetes_sd_configs`)
+- PostgreSQL split architecture (operator-pg + app-pg)
+- `values.schema.json` for configuration validation
+- NetworkPolicy completion (PG/Redis/MinIO/LiteLLM)
+- Backup CronJob for PostgreSQL
+- External Secrets Operator templates (Vault backend)
+- ArgoCD Application + ApplicationSet (sync waves 1-6)
+- Makefile with `dev`, `lint`, `test-infra`, `bench` targets
+- 6 Architecture Decision Records (ADRs)
+- 3 load test scripts + performance report template
+- HA production profile with replicas + remote_write
+
+#### Testing
+- Playwright E2E: Model Provider (5/5 PASS) + RAG E2E (9/9 PASS)
+- Smoke Test Job: 5/5 PASS (embedding + LLM + Langfuse + trace + reranker)
+
+### Changed
+- PostgreSQL image: `postgres:16-alpine` → `pgvector/pgvector:pg16` with auto `vector` extension
+- PostgreSQL init script now creates 4 databases: litellm, langfuse, dify, dify_plugin
+- `.gitignore` updated: added `Chart.lock`, `screenshots/`, `test-report` patterns
+
+### Fixed
+- Dify 401 auth issue: switched from cross-domain to single-domain path-based routing (SameSite=Lax cookies)
+- LiteLLM TEI embedding: `huggingface/` prefix required (not `openai/`), `drop_params: true`, no `/v1` suffix
+- Helm `.tgz` cache: subchart template changes were being overridden by stale archives
+
 ## [0.2.0] - 2026-03-21
 
 ### Added

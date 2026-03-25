@@ -50,9 +50,9 @@ We provide infrastructure services that RAG applications (Dify, RAGFlow, LangCha
 
 | Item | Status | Detail |
 |------|--------|--------|
-| TEI rerank mode | ❌ Not implemented | TEI supports `--model bge-reranker-v2-m3` but no chart |
-| Rerank API endpoint | ❌ Not implemented | Need `/rerank` endpoint |
-| LiteLLM integration | ❌ Not implemented | Route rerank requests through LiteLLM |
+| TEI rerank mode | ✅ Working | TEI with `bge-reranker-base`, `/rerank` endpoint returns reordered results |
+| Rerank API endpoint | ✅ Working | `/rerank` returns score=0.94 |
+| LiteLLM integration | ✅ Working | Rerank requests routed through LiteLLM |
 
 ### 3. Vector & Retrieval Backend
 
@@ -106,7 +106,7 @@ We provide infrastructure services that RAG applications (Dify, RAGFlow, LangCha
 |------|--------|--------|
 | LLM-Guard sidecar | ✅ Working | PromptInjection scanner, 4/4 tests pass |
 | Prompt injection defense | ✅ Working | Blocks direct + subtle injection (score=1.0) |
-| PII detection | ❌ Not implemented | Presidio sidecar (Phase 4) |
+| PII detection | ✅ Working | Presidio Analyzer + Anonymizer (EMAIL/PERSON/URL) |
 | Content filtering | ✅ Partial | NoRefusal output scanner enabled |
 
 ### 8. RAG Testing

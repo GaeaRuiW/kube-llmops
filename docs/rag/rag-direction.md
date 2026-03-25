@@ -1,5 +1,8 @@
 # kube-llmops RAG 模块开发建议
 
+> **STATUS: ARCHIVED** -- 本文档撰写于 RAG 实施之前。所有建议项已在 Phase 1-4 中实现完成。
+> 详见 [rag-todo.md](rag-todo.md) 了解最新状态。
+
 ## 定位澄清
 
 kube-llmops 是 **Infra/Stack**，不是 RAG 应用。我们的用户是平台工程师，不是 AI 应用开发者。
