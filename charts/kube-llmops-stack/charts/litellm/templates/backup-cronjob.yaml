@@ -1,0 +1,60 @@
+{{- if .Values.backup.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-pg-backup
+  labels:
+    app.kubernetes.io/name: pg-backup
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: {{ .Values.backup.storageSize | default "5Gi" }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-pg-backup
+  labels:
+    app.kubernetes.io/name: pg-backup
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  schedule: {{ .Values.backup.schedule | default "0 3 * * *" | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: {{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag }}
+              command: ["/bin/bash", "-c"]
+              args:
+                - |
+                  TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+                  BACKUP_FILE="/backups/pg_dump_${TIMESTAMP}.sql.gz"
+                  echo "Starting backup: $BACKUP_FILE"
+                  PGPASSWORD="{{ .Values.postgresql.auth.password }}" pg_dumpall \
+                    -h {{ .Release.Name }}-litellm-pg \
+                    -U {{ .Values.postgresql.auth.username }} \
+                    | gzip > "$BACKUP_FILE"
+                  echo "Backup complete: $(ls -lh $BACKUP_FILE)"
+                  # Retention: delete backups older than N days
+                  find /backups -name "pg_dump_*.sql.gz" -mtime +{{ .Values.backup.retentionDays | default 7 }} -delete
+                  echo "Retention applied ({{ .Values.backup.retentionDays | default 7 }} days)"
+                  ls -lh /backups/
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+          volumes:
+            - name: backups
+              persistentVolumeClaim:
+                claimName: {{ .Release.Name }}-pg-backup
+{{- end }}

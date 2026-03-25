@@ -47,5 +47,8 @@ dependencies:
 - name: lightrag
   repository: file://charts/lightrag
   version: 0.1.0
-digest: sha256:5af7e527ba68181e2c15feb8bca23546e55d86f5a0976a732bd378e960905f87
-generated: "2026-03-25T09:48:36.205245092+08:00"
+- name: postgresql
+  repository: file://charts/postgresql
+  version: 0.1.0
+digest: sha256:209140b067a313c1195a9a84fe164936a8adfdbf04e6261f7b13cb702afee7fb
+generated: "2026-03-25T10:03:56.160714088+08:00"

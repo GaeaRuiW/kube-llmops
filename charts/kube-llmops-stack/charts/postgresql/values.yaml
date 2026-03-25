@@ -1,0 +1,47 @@
+enabled: true
+
+# Operator PG — hot path (LiteLLM API key validation, rate limiting)
+operatorPg:
+  image:
+    repository: pgvector/pgvector
+    tag: "pg16"
+  database: litellm
+  username: litellm
+  password: ""  # Auto-generated if empty
+  storage:
+    size: 5Gi
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+
+# App PG — application data (Langfuse, Dify, dify_plugin)
+appPg:
+  image:
+    repository: pgvector/pgvector
+    tag: "pg16"
+  databases:
+    - name: langfuse
+      username: langfuse
+      password: ""
+    - name: dify
+      username: dify
+      password: ""
+    - name: dify_plugin
+      username: dify_plugin
+      password: ""
+  storage:
+    size: 10Gi
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+
+pdb:
+  enabled: true

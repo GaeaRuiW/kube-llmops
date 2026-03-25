@@ -94,3 +94,32 @@ jobs:
       - name: Helm uninstall
         run: helm uninstall kube-llmops
         if: always()
+
+  # Story 2.7: Run QA verification after chart install
+  qa-verification:
+    runs-on: ubuntu-latest
+    needs: [chart-install-test]
+    if: success()
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate values.schema.json
+        run: |
+          python3 -c "
+          import json
+          with open('charts/kube-llmops-stack/values.schema.json') as f:
+              schema = json.load(f)
+          print(f'Schema valid: {len(schema.get(\"properties\",{}))} top-level properties')
+          "
+      - name: Validate eval dataset
+        run: |
+          python3 -c "
+          import json
+          with open('examples/eval/eval-dataset-v2.json') as f:
+              d = json.load(f)
+          assert len(d['corpus']) >= 10
+          assert len(d['samples']) >= 35
+          print(f'Eval dataset OK: {len(d[\"corpus\"])} docs, {len(d[\"samples\"])} samples')
+          "

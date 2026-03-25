@@ -293,3 +293,7 @@ ingress:
                              # Leave empty to access all services without a domain
   tls: false
   annotations: {}
+
+# -- PostgreSQL Infrastructure (split: operator-pg + app-pg)
+postgresql:
+  enabled: false  # Enable for split PG architecture

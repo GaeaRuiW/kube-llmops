@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "global": {
+      "type": "object",
+      "properties": {
+        "gpu": {"type": "boolean"},
+        "imagePullPolicy": {"type": "string", "enum": ["Always", "IfNotPresent", "Never"]}
+      }
+    },
+    "vllm": {
+      "type": "object",
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "models": {"type": "array"}
+      }
+    },
+    "litellm": {
+      "type": "object",
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "masterKey": {"type": "string"},
+        "models": {"type": "array"},
+        "embeddingModels": {"type": "array"}
+      }
+    },
+    "observability": {
+      "type": "object",
+      "properties": {
+        "enabled": {"type": "boolean"}
+      }
+    },
+    "langfuse": {
+      "type": "object",
+      "properties": {
+        "enabled": {"type": "boolean"}
+      }
+    },
+    "dify": {
+      "type": "object",
+      "properties": {
+        "enabled": {"type": "boolean"}
+      }
+    },
+    "tei": {
+      "type": "object",
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "models": {"type": "array"}
+      }
+    },
+    "keycloak": {
+      "type": "object",
+      "properties": {
+        "enabled": {"type": "boolean"}
+      }
+    },
+    "security": {
+      "type": "object",
+      "properties": {
+        "enabled": {"type": "boolean"}
+      }
+    },
+    "milvus": {
+      "type": "object",
+      "properties": {
+        "enabled": {"type": "boolean"}
+      }
+    },
+    "lightrag": {
+      "type": "object",
+      "properties": {
+        "enabled": {"type": "boolean"}
+      }
+    },
+    "ingress": {
+      "type": "object",
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "className": {"type": "string"},
+        "host": {"type": "string"}
+      }
+    }
+  }
+}

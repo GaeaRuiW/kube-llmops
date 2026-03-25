@@ -1,0 +1,5 @@
+apiVersion: v2
+name: postgresql
+description: PostgreSQL infrastructure — separate operator-pg and app-pg instances
+version: 0.1.0
+type: application

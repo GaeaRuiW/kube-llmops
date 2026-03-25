@@ -1,0 +1,58 @@
+{
+  "uid": "cost-usage",
+  "title": "Cost & Usage - LLM Operations",
+  "tags": ["cost", "usage", "llm"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "panels": [
+    {
+      "id": 1, "title": "Token Consumption Trend", "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "sum(rate(vllm:prompt_tokens_total[5m]))", "legendFormat": "Prompt Tokens/s"},
+        {"expr": "sum(rate(vllm:generation_tokens_total[5m]))", "legendFormat": "Generation Tokens/s"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "ops"}}
+    },
+    {
+      "id": 2, "title": "Request Volume by Model", "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "sum by (model)(rate(vllm:request_success_total[5m]))", "legendFormat": "{{model}}"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "reqps"}}
+    },
+    {
+      "id": 3, "title": "Total Requests (24h)", "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum(increase(vllm:request_success_total[24h]))"}],
+      "fieldConfig": {"defaults": {"thresholds": {"steps": [{"color": "green", "value": null}]}}}
+    },
+    {
+      "id": 4, "title": "Total Prompt Tokens (24h)", "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum(increase(vllm:prompt_tokens_total[24h]))"}],
+      "fieldConfig": {"defaults": {"thresholds": {"steps": [{"color": "blue", "value": null}]}}}
+    },
+    {
+      "id": 5, "title": "Total Generation Tokens (24h)", "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum(increase(vllm:generation_tokens_total[24h]))"}],
+      "fieldConfig": {"defaults": {"thresholds": {"steps": [{"color": "purple", "value": null}]}}}
+    },
+    {
+      "id": 6, "title": "Avg Tokens per Request", "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum(increase(vllm:generation_tokens_total[24h])) / sum(increase(vllm:request_success_total[24h]))"}],
+      "fieldConfig": {"defaults": {"thresholds": {"steps": [{"color": "green", "value": null}]}}}
+    }
+  ],
+  "time": {"from": "now-24h", "to": "now"},
+  "refresh": "30s"
+}
