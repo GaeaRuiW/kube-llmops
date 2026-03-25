@@ -50,6 +50,7 @@ dcgmExporter:
       memory: 512Mi
 
 grafana:
+  existingSecret: ""
   enabled: true
   image:
     repository: grafana/grafana
@@ -79,3 +80,6 @@ grafana:
     limits:
       cpu: 500m
       memory: 512Mi
+
+pdb:
+  enabled: true

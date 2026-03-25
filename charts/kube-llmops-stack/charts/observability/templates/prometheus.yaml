@@ -27,12 +27,44 @@ data:
         honor_labels: true
         static_configs:
           - targets: ["{{ $.Release.Name }}-pushgateway:9091"]
-      - job_name: vllm
-        static_configs:
-          - targets: ["vllm-qwen2-5-0-5b:8000"]
       - job_name: milvus
         static_configs:
           - targets: ["{{ $.Release.Name }}-milvus:9091"]
+      # Dynamic service discovery for vLLM and TEI pods
+      - job_name: vllm
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names: ["{{ $.Release.Namespace }}"]
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+            regex: vllm
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_phase]
+            regex: Running
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_ip]
+            target_label: __address__
+            replacement: "$1:8000"
+          - source_labels: [__meta_kubernetes_pod_label_kube_llmops_model]
+            target_label: model
+      - job_name: tei
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names: ["{{ $.Release.Namespace }}"]
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+            regex: tei
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_phase]
+            regex: Running
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_ip]
+            target_label: __address__
+            replacement: "$1:8080"
+          - source_labels: [__meta_kubernetes_pod_label_kube_llmops_model]
+            target_label: model
   rules.yml: |
     groups:
       - name: vllm-alerts
@@ -126,6 +158,46 @@ data:
               summary: "RAG evaluation data is stale (>48h)"
               description: "Last Ragas evaluation was more than 48 hours ago"
 ---
+# RBAC for Prometheus Kubernetes service discovery
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $.Release.Name }}-prometheus
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ $.Release.Name }}-prometheus
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "nodes", "services", "endpoints"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $.Release.Name }}-prometheus
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ $.Release.Name }}-prometheus
+subjects:
+  - kind: ServiceAccount
+    name: {{ $.Release.Name }}-prometheus
+    namespace: {{ $.Release.Namespace }}
+---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -169,6 +241,7 @@ spec:
         app.kubernetes.io/component: observability
         app.kubernetes.io/part-of: kube-llmops
     spec:
+      serviceAccountName: {{ $.Release.Name }}-prometheus
       securityContext:
         fsGroup: 65534
         runAsUser: 65534

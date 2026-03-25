@@ -48,4 +48,4 @@ dependencies:
   repository: file://charts/lightrag
   version: 0.1.0
 digest: sha256:5af7e527ba68181e2c15feb8bca23546e55d86f5a0976a732bd378e960905f87
-generated: "2026-03-24T22:55:52.737666256+08:00"
+generated: "2026-03-25T09:48:36.205245092+08:00"

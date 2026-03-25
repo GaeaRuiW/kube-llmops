@@ -1,31 +1,77 @@
-===============================================================
-  kube-llmops has been installed!
-===============================================================
+================================================================
+  kube-llmops has been deployed!
+================================================================
+
+1. CHECK DEPLOYMENT STATUS:
+   kubectl get pods -l app.kubernetes.io/part-of=kube-llmops --watch
+
+   Wait until all pods show "Running" or "Completed" status.
+{{- if .Values.vllm.enabled }}
+   Note: vLLM model loading may take 3-10 minutes depending on model size.
+{{- end }}
+
+2. ACCESS THE UIs:
+{{- $host := .Values.ingress.host }}
+{{- if $host }}
+   Add to /etc/hosts: <NODE_IP> litellm.{{ $host }} grafana.{{ $host }} langfuse.{{ $host }} dify.{{ $host }} keycloak.{{ $host }}
 
 {{- if .Values.litellm.enabled }}
-
-1. Access the AI Gateway (LiteLLM):
-   kubectl port-forward svc/{{ include "kube-llmops.fullname" . }}-litellm 4000:4000
-
-   curl http://localhost:4000/v1/models \
-     -H "Authorization: Bearer YOUR_MASTER_KEY"
-
+   LiteLLM Gateway:  http://litellm.{{ $host }}
 {{- end }}
-
 {{- if .Values.observability.grafana.enabled }}
-
-2. Access Grafana:
-   kubectl port-forward svc/{{ include "kube-llmops.fullname" . }}-grafana 3000:3000
-   Open http://localhost:3000
-
+   Grafana:           http://grafana.{{ $host }}
 {{- end }}
-
 {{- if .Values.langfuse.enabled }}
-
-3. Access Langfuse:
-   kubectl port-forward svc/{{ include "kube-llmops.fullname" . }}-langfuse 3001:3000
-   Open http://localhost:3001
-
+   Langfuse:          http://langfuse.{{ $host }}
+{{- end }}
+{{- if index .Values "dify" "enabled" }}
+   Dify RAG:          http://dify.{{ $host }}
+{{- end }}
+{{- if .Values.keycloak.enabled }}
+   Keycloak SSO:      http://keycloak.{{ $host }}
+{{- end }}
+{{- else }}
+   kubectl port-forward svc/{{ .Release.Name }}-litellm 4000:4000 &
+   kubectl port-forward svc/{{ .Release.Name }}-grafana 3000:3000 &
+   kubectl port-forward svc/{{ .Release.Name }}-langfuse 3001:3000 &
 {{- end }}
 
-Documentation: https://github.com/GaeaRuiW/kube-llmops
+3. RETRIEVE CREDENTIALS:
+{{- if .Values.litellm.enabled }}
+   LiteLLM Master Key:
+     kubectl get secret {{ .Release.Name }}-litellm-pg-secret -o jsonpath='{.data.password}' | base64 -d
+{{- end }}
+{{- if .Values.observability.grafana.enabled }}
+   Grafana Admin:
+     Username: admin
+     Password: (configured in values)
+{{- end }}
+
+4. QUICK VERIFICATION:
+{{- if .Values.litellm.enabled }}
+   # Test LLM inference
+   curl -s http://localhost:4000/v1/chat/completions \
+     -H "Authorization: Bearer <MASTER_KEY>" \
+     -H "Content-Type: application/json" \
+     -d '{"model":"{{ (first .Values.litellm.models).name | default "qwen2-5-0-5b" }}","messages":[{"role":"user","content":"Hello"}],"max_tokens":10}'
+{{- end }}
+
+5. DEPLOYED COMPONENTS:
+{{- if .Values.litellm.enabled }}   [x] LiteLLM AI Gateway (port 4000){{ end }}
+{{- if .Values.vllm.enabled }}   [x] vLLM Model Serving{{ end }}
+{{- if .Values.observability.enabled }}   [x] Prometheus + Grafana{{ end }}
+{{- if .Values.langfuse.enabled }}   [x] Langfuse Tracing{{ end }}
+{{- if index .Values "dify" "enabled" }}   [x] Dify RAG Platform{{ end }}
+{{- if .Values.tei.enabled }}   [x] TEI Embedding + Reranking{{ end }}
+{{- if .Values.keycloak.enabled }}   [x] Keycloak SSO{{ end }}
+{{- if .Values.logging.enabled }}   [x] Loki + Fluent Bit Logging{{ end }}
+{{- if .Values.security.enabled }}   [x] LLM-Guard + Presidio Security{{ end }}
+{{- if .Values.milvus.enabled }}   [x] Milvus Vector Database{{ end }}
+{{- if .Values.lightrag.enabled }}   [x] LightRAG Knowledge Graph{{ end }}
+{{- if index .Values "rag-eval" "enabled" }}   [x] RAG Evaluation (Ragas CronJob){{ end }}
+
+6. NEXT STEPS:
+   - View metrics:     Grafana dashboards (vLLM, LiteLLM, RAG Quality)
+   - Check traces:     Langfuse → Tracing
+   - Upload documents: Dify → Knowledge Base
+   - Full docs:        https://github.com/GaeaRuiW/kube-llmops

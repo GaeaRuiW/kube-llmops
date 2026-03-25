@@ -101,3 +101,9 @@ service:
   type: ClusterIP
   webPort: 3000
   apiPort: 5001
+
+pdb:
+  enabled: true
+
+# Use an existing Secret instead of auto-generated credentials
+existingSecret: ""

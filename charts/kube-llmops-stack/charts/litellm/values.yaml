@@ -111,3 +111,9 @@ resources:
   limits:
     cpu: "2"
     memory: 1Gi
+
+pdb:
+  enabled: true
+
+# Use an existing Secret instead of auto-generated credentials
+existingSecret: ""

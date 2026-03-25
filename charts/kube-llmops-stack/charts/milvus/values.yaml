@@ -30,3 +30,13 @@ etcd:
     tag: v3.5.18
   storage:
     size: 2Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+pdb:
+  enabled: true

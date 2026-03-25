@@ -59,6 +59,13 @@ spec:
             initialDelaySeconds: 30
             periodSeconds: 10
             failureThreshold: 20
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 7474
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 5
           resources:
             requests:
               cpu: {{ .Values.neo4j.resources.requests.cpu }}
@@ -180,6 +187,20 @@ spec:
               value: "0.0.0.0"
             - name: LIGHTRAG_PORT
               value: "9621"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 9621
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 9621
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 3
           resources:
             requests:
               cpu: {{ .Values.resources.requests.cpu }}

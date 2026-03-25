@@ -60,6 +60,13 @@ spec:
           volumeMounts:
             - name: etcd-data
               mountPath: /etcd-data
+          resources:
+            requests:
+              cpu: {{ .Values.etcd.resources.requests.cpu }}
+              memory: {{ .Values.etcd.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.etcd.resources.limits.cpu | quote }}
+              memory: {{ .Values.etcd.resources.limits.memory }}
   volumeClaimTemplates:
     - metadata:
         name: etcd-data

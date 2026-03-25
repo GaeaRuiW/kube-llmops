@@ -113,6 +113,12 @@ CRITICAL_COMPONENTS=(
     "app.kubernetes.io/name=prometheus:Prometheus"
     "app.kubernetes.io/name=llm-guard:LLM-Guard"
     "app.kubernetes.io/name=loki:Loki"
+    # Phase 4 新增组件
+    "app.kubernetes.io/name=lightrag:LightRAG"
+    "app.kubernetes.io/name=neo4j:Neo4j"
+    "app.kubernetes.io/name=milvus:Milvus"
+    "app.kubernetes.io/name=presidio-analyzer:Presidio-Analyzer"
+    "app.kubernetes.io/name=presidio-anonymizer:Presidio-Anonymizer"
 )
 
 for comp in "${CRITICAL_COMPONENTS[@]}"; do
@@ -181,6 +187,13 @@ SERVICES=(
     "kube-llmops-dify-api:5001:Dify-API"
     "kube-llmops-llm-guard:8000:LLM-Guard"
     "kube-llmops-loki:3100:Loki"
+    # Phase 4 新增
+    "kube-llmops-lightrag:9621:LightRAG"
+    "kube-llmops-neo4j:7687:Neo4j-Bolt"
+    "kube-llmops-milvus:19530:Milvus"
+    "kube-llmops-presidio-analyzer:3000:Presidio-Analyzer"
+    "kube-llmops-presidio-anonymizer:3000:Presidio-Anonymizer"
+    # 模型服务
     "vllm-qwen2-5-0-5b:8000:vLLM"
     "tei-bge-small-en:8080:TEI-Embed"
     "tei-bge-reranker-base:8080:TEI-Reranker"
@@ -265,6 +278,11 @@ HEALTH_CHECKS=(
     "http://kube-llmops-dify-api:5001/health:Dify-API"
     "http://kube-llmops-llm-guard:8000/healthz:LLM-Guard"
     "http://kube-llmops-loki:3100/ready:Loki"
+    # Phase 4 新增
+    "http://kube-llmops-neo4j:7474:Neo4j"
+    "http://kube-llmops-milvus:9091/healthz:Milvus"
+    "http://kube-llmops-presidio-analyzer:3000/health:Presidio-Analyzer"
+    "http://kube-llmops-presidio-anonymizer:3000/health:Presidio-Anonymizer"
 )
 
 for check in "${HEALTH_CHECKS[@]}"; do
