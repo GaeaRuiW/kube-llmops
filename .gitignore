@@ -23,7 +23,7 @@ Thumbs.db
 
 # Helm
 charts/kube-llmops-stack/charts/*.tgz
-*.tgz
+Chart.lock
 
 # Build outputs
 dist/
@@ -37,7 +37,11 @@ build/
 # HuggingFace token
 .hf_token
 
+# Test artifacts
+tests/e2e/screenshots/
+test-report*.json
+test-report-*.txt
+
 # Temporary
 tmp/
 .tmp/
-charts/kube-llmops-stack/charts/*.tgz

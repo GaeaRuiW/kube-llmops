@@ -1,4 +1,0 @@
-kube-llmops Infra Test Report - Tue Mar 24 22:03:12 CST 2026
-Namespace: default | Release: kube-llmops
-==========================================
-[PASS] kubectl 连接集群成功
