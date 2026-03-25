@@ -118,3 +118,9 @@ s3:
   accessKeyId: minioadmin
   secretAccessKey: minioadmin
   # endpoint defaults to http://<release>-minio:9000
+
+pdb:
+  enabled: true
+
+# Use an existing Secret instead of auto-generated credentials
+existingSecret: ""

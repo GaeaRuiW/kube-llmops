@@ -52,10 +52,7 @@ jobs:
   chart-install-test:
     runs-on: ubuntu-latest
     needs: [helm-template, python-tests]
-    # Best-effort: kind cluster on GitHub Actions is resource-constrained.
-    # Image pulls for LiteLLM (~1.5GB) often exceed timeout.
-    # Core validation (template rendering + unit tests) is in jobs above.
-    continue-on-error: true
+    # Install test MUST pass — no continue-on-error
     steps:
       - uses: actions/checkout@v4
       - uses: azure/setup-helm@v4
@@ -65,28 +62,35 @@ jobs:
         uses: helm/kind-action@v1
       - name: Helm dependency update
         run: helm dependency update charts/kube-llmops-stack/
+      - name: Pre-pull critical images
+        run: |
+          docker pull ghcr.io/berriai/litellm:main-v1.82.3-stable || true
+          docker pull pgvector/pgvector:pg16 || true
+          kind load docker-image ghcr.io/berriai/litellm:main-v1.82.3-stable || true
+          kind load docker-image pgvector/pgvector:pg16 || true
       - name: Install with CI profile
         run: |
           helm install kube-llmops charts/kube-llmops-stack/ \
             -f charts/kube-llmops-stack/values-ci.yaml \
-            --timeout 10m
+            --wait --timeout 10m
+        timeout-minutes: 12
       - name: Wait for core pods
         run: |
           echo "Waiting for PostgreSQL..."
           kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=litellm-postgresql --timeout=600s
           echo "Waiting for LiteLLM..."
-          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=litellm --timeout=600s || {
-            echo "::warning::LiteLLM pod not ready within timeout (likely slow image pull)"
-            kubectl get pods -o wide
-            kubectl describe pod -l app.kubernetes.io/name=litellm | tail -20
-            exit 1
-          }
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=litellm --timeout=600s
           kubectl get pods
       - name: Verify LiteLLM health
         run: |
           kubectl port-forward svc/kube-llmops-litellm 4000:4000 &
           sleep 10
           curl -sf http://localhost:4000/health/liveliness
+      - name: Verify PDBs exist
+        run: |
+          PDB_COUNT=$(kubectl get pdb --no-headers 2>/dev/null | wc -l)
+          echo "PDB count: $PDB_COUNT"
+          [ "$PDB_COUNT" -ge 2 ] || (echo "FAIL: expected >=2 PDBs" && exit 1)
       - name: Helm uninstall
         run: helm uninstall kube-llmops
         if: always()

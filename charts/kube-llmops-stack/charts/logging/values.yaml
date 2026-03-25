@@ -31,3 +31,6 @@ fluentbit:
     limits:
       cpu: 200m
       memory: 128Mi
+
+pdb:
+  enabled: true

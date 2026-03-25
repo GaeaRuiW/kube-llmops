@@ -47,3 +47,6 @@ alluxio:
   jvmOptions:
     - "-Xmx4g"
     - "-Xms2g"
+
+pdb:
+  enabled: true

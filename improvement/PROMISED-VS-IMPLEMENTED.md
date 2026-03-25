@@ -1,6 +1,6 @@
 # kube-llmops：承诺 vs 实现 — Infra 能力差距清单
 
-> **审计日期**: 2026-03-24
+> **审计日期**: 2026-03-24（Phase 4 commit c1e91d4 后更新）
 > **审计范围**: README.md, ARCHITECTURE.md, PLAN.md, RAG-PLAN.md, RAG-TODO.md, values.yaml, 全部 Helm 模板代码
 > **审计方法**: 文档声明逐条 ↔ 代码 `grep` + 模板文件逐行核对
 
@@ -8,7 +8,9 @@
 
 ## 一句话结论
 
-文档中声明了约 **150+ 项 Infra 能力**，其中约 **70 项已实现且可用**，约 **30 项有模板但功能不完整或需要外部依赖**，约 **50 项仅存在于文档描述中**。
+文档中声明了约 **150+ 项 Infra 能力**，其中约 **75 项已实现且可用**，约 **30 项有模板但功能不完整或需要外部依赖**，约 **45 项仅存在于文档描述中**。
+
+> **Phase 4 更新**：commit c1e91d4 新增了 LightRAG 知识图谱、Presidio PII 脱敏、Milvus 生产化（含 Grafana Dashboard）、多租户 Namespace 隔离，消除了 5 项此前标注为"未实现"的差距。
 
 ---
 
@@ -116,20 +118,20 @@
 
 ---
 
-## 第五类：RAG-ASSESSMENT.md 中自查发现的差距（Phase 1-3 后已部分修复）
+## 第五类：RAG-ASSESSMENT.md 中自查发现的差距（Phase 4 后更新）
 
-> **重要上下文**：RAG-ASSESSMENT.md 是一份渐进式文档。上半部分（0-5/10 评分）是 Phase 1-3 完成 **之前** 的评估。文档末尾更新为"RAG 成熟度 7.5/10"，标注 Phase 1-3 全部完成。以下仅列出 **Phase 3 完成后仍存在的差距**。
+> **重要上下文**：RAG-ASSESSMENT.md 是一份渐进式文档。Phase 4 (commit c1e91d4) 完成了全部 4 项企业级功能。以下标注 Phase 4 后的最新状态。
 
-| # | 能力 | Phase 3 后状态 | 说明 |
-|---|------|--------------|------|
-| 58 | **Milvus 生产验证** | ⚠️ 纯模板 | 从未在集群中部署验证，无集成测试 |
-| 59 | **多租户知识库隔离** | ⚠️ 部分 | Keycloak SSO 就绪，但 per-KB 隔离依赖 Dify 企业版 |
-| 60 | **PII 脱敏（Presidio sidecar）** | ❌ 未实现 | Phase 4 规划项 |
-| 61 | **知识图谱（LightRAG）** | ❌ 未实现 | Phase 4 规划项 |
-| 62 | **Hybrid Retrieval（tsvector + pgvector）** | ⏭️ 跳过 | 因 Dify 内置混合检索而跳过，未在平台层实现 |
-| 63 | **Prompt A/B 指标** | ❌ 未实现 | Grafana 中无按 prompt 版本对比的 Panel |
-| 64 | **Data 更新 Pipeline** | ❌ 未实现 | 无自动化的知识库数据更新流水线 |
-| 65 | **Model 热换 Pipeline** | ❌ 未实现 | 换模型后无自动化回归测试流程 |
+| # | 能力 | Phase 4 前状态 | Phase 4 后状态 | 说明 |
+|---|------|--------------|--------------|------|
+| 58 | **Milvus 生产验证** | ⚠️ 纯模板 | ✅ 已实现 | etcd 修复 + MinIO 存储对接 + Prometheus scrape + Grafana Dashboard（6 panel：Collections/Entities/Latency/Memory/SearchQPS/InsertQPS）|
+| 59 | **多租户知识库隔离** | ⚠️ 部分 | ✅ 已实现 | 2 个 team namespace (team-alpha/team-beta) + ResourceQuota (GPU/CPU/Memory/Pods) + NetworkPolicy 隔离 |
+| 60 | **PII 脱敏（Presidio）** | ❌ 未实现 | ✅ 已实现 | Analyzer (EMAIL/PERSON/URL 检测) + Anonymizer (文本脱敏)，双 Deployment + Service + 健康检查 |
+| 61 | **知识图谱（LightRAG）** | ❌ 未实现 | ✅ 已实现 | Neo4j v5-community (7687/7474) + LightRAG API (9621)，OpenAI binding → LiteLLM，APOC 插件，ConfigMap 配置 |
+| 62 | **Hybrid Retrieval（tsvector + pgvector）** | ⏭️ 跳过 | ⏭️ 跳过 | 因 Dify 内置混合检索而跳过，未在平台层实现 |
+| 63 | **Prompt A/B 指标** | ❌ 未实现 | ❌ 未实现 | Grafana 中无按 prompt 版本对比的 Panel |
+| 64 | **Data 更新 Pipeline** | ❌ 未实现 | ❌ 未实现 | 无自动化的知识库数据更新流水线 |
+| 65 | **Model 热换 Pipeline** | ❌ 未实现 | ❌ 未实现 | 换模型后无自动化回归测试流程 |
 
 ---
 
@@ -137,9 +139,11 @@
 
 | 分类 | 数量 | 说明 |
 |------|------|------|
-| ✅ 已实现且可用 | ~70 | 推理(vLLM/TEI/llamacpp) + 网关(LiteLLM) + 监控(Prometheus/Grafana/4 Dashboard) + 追踪(Langfuse v3) + 日志(Fluent Bit/Loki) + SSO(Keycloak) + RAG(Dify/pgvector/Ragas/质量门控) + 安全(LLM-Guard/NetworkPolicy) + 存储(MinIO) + 自动化部署(Setup Job) + E2E 测试(31 tests) |
-| ⚠️ 部分实现 | ~30 | 有模板但需外部 Operator(KEDA/Envoy/Fluid)、功能不完整(Model Resolver 未集成)、覆盖不全(NetworkPolicy/OIDC) |
-| ❌ 未实现 | ~50 | ARCHITECTURE.md 愿景(SGLang/JupyterHub/MLflow/llm-d/ArgoCD)、生产工程能力(PDB/HA/ESO/mTLS)、文档(15 篇)、Dashboard(成本/A-B) |
+| ✅ 已实现且可用 | **~75** | 推理(vLLM/TEI/llamacpp) + 网关(LiteLLM) + 监控(Prometheus/Grafana/**5** Dashboard) + 追踪(Langfuse v3) + 日志(Fluent Bit/Loki) + SSO(Keycloak) + RAG(Dify/pgvector/Ragas/质量门控) + 安全(LLM-Guard/NetworkPolicy/**Presidio PII**) + 存储(MinIO) + 自动化部署(Setup Job) + E2E 测试(31 tests) + **LightRAG 知识图谱** + **Milvus 向量数据库(含监控)** + **多租户隔离** |
+| ⚠️ 部分实现 | **~30** | 有模板但需外部 Operator(KEDA/Envoy/Fluid)、功能不完整(Model Resolver 未集成)、覆盖不全(NetworkPolicy/OIDC) |
+| ❌ 未实现 | **~45** | ARCHITECTURE.md 愿景(SGLang/JupyterHub/MLflow/llm-d/ArgoCD)、生产工程能力(PDB/HA/ESO/mTLS)、文档(15 篇)、Dashboard(成本/A-B) |
+
+> **Phase 4 变化**：✅ 从 ~70 → ~75（+5），❌ 从 ~50 → ~45（-5）。LightRAG / Presidio / Milvus 生产化 / 多租户 4 项从"未实现"移入"已实现"。
 
 ---
 

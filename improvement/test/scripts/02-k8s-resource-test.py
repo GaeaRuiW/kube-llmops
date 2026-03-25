@@ -116,6 +116,12 @@ def test_pod_status(v1: client.CoreV1Api, namespace: str, release: str):
         "dify-api":   {"label": "app.kubernetes.io/name=dify-api", "min": 1},
         "grafana":    {"label": "app.kubernetes.io/name=grafana", "min": 1},
         "prometheus":  {"label": "app.kubernetes.io/name=prometheus", "min": 1},
+        # Phase 4 新增
+        "lightrag":   {"label": "app.kubernetes.io/name=lightrag", "min": 1},
+        "neo4j":      {"label": "app.kubernetes.io/name=neo4j", "min": 1},
+        "milvus":     {"label": "app.kubernetes.io/name=milvus", "min": 1},
+        "presidio-analyzer":  {"label": "app.kubernetes.io/name=presidio-analyzer", "min": 1},
+        "presidio-anonymizer": {"label": "app.kubernetes.io/name=presidio-anonymizer", "min": 1},
     }
 
     for name, spec in critical.items():
@@ -293,6 +299,13 @@ def test_service_endpoints(v1: client.CoreV1Api, namespace: str):
         "kube-llmops-dify-api",
         "kube-llmops-llm-guard",
         "kube-llmops-loki",
+        # Phase 4
+        "kube-llmops-lightrag",
+        "kube-llmops-neo4j",
+        "kube-llmops-milvus",
+        "kube-llmops-presidio-analyzer",
+        "kube-llmops-presidio-anonymizer",
+        # Model serving
         "vllm-qwen2-5-0-5b",
         "tei-bge-small-en",
         "tei-bge-reranker-base",
@@ -356,6 +369,11 @@ def test_health_endpoints(v1: client.CoreV1Api, namespace: str):
         "Dify-API":     "http://kube-llmops-dify-api:5001/health",
         "LLM-Guard":    "http://kube-llmops-llm-guard:8000/healthz",
         "Loki":         "http://kube-llmops-loki:3100/ready",
+        # Phase 4
+        "Neo4j":        "http://kube-llmops-neo4j:7474",
+        "Milvus":       "http://kube-llmops-milvus:9091/healthz",
+        "Presidio-Analyzer":   "http://kube-llmops-presidio-analyzer:3000/health",
+        "Presidio-Anonymizer": "http://kube-llmops-presidio-anonymizer:3000/health",
     }
 
     for label, url in health_endpoints.items():

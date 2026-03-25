@@ -441,30 +441,36 @@ kube-llmops 不应该试图和 Dify（应用层）或 vLLM（引擎层）竞争�
 ## 附录：基于 AI Infra / DevOps 视角的修正
 
 > **背景**：初版报告从传统互联网产品经理视角出发，用"功能完备性"和"应用层深度"来衡量项目。但 kube-llmops 的战略定位是 **AI Infrastructure / DevOps 平台**——它做平台，不做开发；提供基础设施层，不实现应用逻辑。以下对初版评估中偏离这一定位的论点进行修正。
+>
+> **Phase 4 更新 (commit c1e91d4)**：Phase 4 新增 LightRAG 知识图谱 (Neo4j)、Presidio PII 脱敏、Milvus 生产化 (含 Grafana Dashboard)、多租户 Namespace 隔离，使 RAG Infra 覆盖度进一步提升。
 
 ### 修正 1：RAG 覆盖度评估不公平
 
 **原论点**："38 项 RAG 技术覆盖率仅 9%，深度不足。"
 
-**修正**：这 38 项技术中，Query Rewriting、HyDE、Multi-Query、Chunking 策略、文档解析、知识图谱、Agentic RAG 等均属于 **RAG 应用层**，由 Dify / RAGFlow / LangChain 实现。kube-llmops 的职责是提供这些应用运行所需的 **基础设施层**。
+**修正**：这 38 项技术中，Query Rewriting、HyDE、Multi-Query、Chunking 策略、文档解析、Agentic RAG 等均属于 **RAG 应用层**，由 Dify / RAGFlow / LangChain 实现。kube-llmops 的职责是提供这些应用运行所需的 **基础设施层**。
 
-从 Infra 维度重新评估 RAG 基础设施覆盖度：
+从 Infra 维度重新评估 RAG 基础设施覆盖度（Phase 4 后更新）：
 
 | RAG 基础设施组件 | 状态 | 说明 |
 |-----------------|------|------|
 | Embedding 服务 (TEI) | ✅ Done | bge-small-en-v1.5 via LiteLLM 网关 |
 | 向量存储 (pgvector) | ✅ Done | PostgreSQL + pgvector 扩展 |
+| **专业向量数据库 (Milvus)** | ✅ Done | **Phase 4 新增** — etcd + MinIO 后端 + Grafana 6-panel Dashboard + Prometheus 采集 |
 | Reranking 服务 (TEI) | ✅ Done | bge-reranker-base |
 | LLM 推理 (vLLM) | ✅ Done | 通过 LiteLLM 统一 API |
+| **知识图谱 (LightRAG + Neo4j)** | ✅ Done | **Phase 4 新增** — Neo4j v5 + LightRAG API, OpenAI binding → LiteLLM |
 | 全链路追踪 (Langfuse) | ✅ Done | LiteLLM → Langfuse v3 callbacks |
 | 质量评估流水线 (Ragas) | ✅ Done | CronJob + 4 指标 + 105 样本集 |
 | 质量门控 (Helm Hook) | ✅ Done | Pre-upgrade 检查 Ragas 阈值 |
 | 质量监控 (Grafana) | ✅ Done | RAG Quality Dashboard + 5 条告警 |
 | 安全防护 (LLM-Guard) | ✅ Done | Prompt Injection 检测 |
+| **PII 脱敏 (Presidio)** | ✅ Done | **Phase 4 新增** — Analyzer (EMAIL/PERSON/URL) + Anonymizer |
+| **多租户隔离** | ✅ Done | **Phase 4 新增** — Namespace + ResourceQuota (GPU/CPU/Mem) + NetworkPolicy |
 | RAG 应用平台 (Dify) | ✅ Done | 自动化 Setup Job，零手动 |
 | 对象存储 (MinIO) | ✅ Done | 文档/模型/media blob 存储 |
 
-**修正后的 RAG Infra 覆盖度：11/11 = 100%**（基础设施层全部覆盖）。"深度不足" 的问题实际存在于 Dify 等应用层，而非 kube-llmops 的基础设施层。
+**修正后的 RAG Infra 覆盖度：15/15 = 100%**（基础设施层全部覆盖，含 Phase 4 企业级组件）。
 
 ### 修正 2：广度是平台工程的核心价值，不是缺点
 
@@ -472,16 +478,16 @@ kube-llmops 不应该试图和 Dify（应用层）或 vLLM（引擎层）竞争�
 
 **修正**：对于一个 AI Infra 平台来说，**广度恰恰就是核心价值主张**。平台工程师的痛点是："我要把 vLLM、Prometheus、Grafana、Langfuse、Keycloak、Loki 全部在 K8s 上跑起来并打通"——这是一个集成工程问题，不是功能深度问题。
 
-正确的评估维度应该是 **每个 Infra 组件的工程质量**：
+正确的评估维度应该是 **每个 Infra 组件的工程质量**（Phase 4 后更新）：
 
 | 维度 | 评估 | 说明 |
 |------|------|------|
 | 自动化程度 | **8/10** | helm install → Setup Job → 零手动步骤，这在 Infra 项目中是高水准 |
-| 组件间连通性 | **8/10** | LiteLLM↔vLLM↔TEI↔Langfuse↔Prometheus 全部自动接通 |
-| 可观测性覆盖 | **8/10** | GPU指标 + LLM指标 + 日志 + 追踪 + RAG质量，维度完整 |
-| 安全基线 | **5/10** | 有 NetworkPolicy + LLM-Guard + SSO，但密码硬编码、无 mTLS |
-| 高可用 | **3/10** | 全部单副本，无 PDB，这是真实短板 |
-| Day-2 运维 | **5/10** | 有 backup/restore 脚本，但缺升级指南、无 runbook |
+| 组件间连通性 | **8.5/10** | LiteLLM↔vLLM↔TEI↔Langfuse↔Prometheus 全部自动接通。Phase 4：Milvus↔MinIO↔Prometheus、LightRAG↔Neo4j↔LiteLLM 也已打通 |
+| 可观测性覆盖 | **8.5/10** | GPU指标 + LLM指标 + 日志 + 追踪 + RAG质量 + **Milvus 向量DB 监控 (Phase 4)**，维度完整。Grafana **5** 个 Dashboard |
+| 安全基线 | **6/10** | NetworkPolicy + LLM-Guard + SSO + **Presidio PII 脱敏 (Phase 4)** + **多租户 ResourceQuota (Phase 4)**。但密码仍硬编码、无 mTLS |
+| 高可用 | **3/10** | 全部单副本，无 PDB，这是真实短板（Phase 4 未改善此项）|
+| Day-2 运维 | **5/10** | 有 backup/restore 脚本，但缺升级指南、无 runbook（Phase 4 未改善此项）|
 
 **修正后的评估**：广度本身是高价值的——问题不在于 "覆盖太多维度"，而在于每个维度的 **Infra 工程质量**（HA、PDB、服务发现等）还有提升空间。
 
@@ -491,7 +497,7 @@ kube-llmops 不应该试图和 Dify（应用层）或 vLLM（引擎层）竞争�
 
 **修正**：在 AI Infra 平台的语境下，保留 disabled-by-default 的基础设施模板是标准做法（类似 Rancher 的可选组件）。平台团队需要为未来的基础设施需求预留扩展点：
 
-- **Milvus**：当 pgvector 在百万级向量时性能不足，平台需要提供专业向量数据库选项
+- **Milvus**：~~当 pgvector 在百万级向量时性能不足，平台需要提供专业向量数据库选项~~ → **Phase 4 已完成**：etcd + MinIO 后端 + Prometheus 采集 + Grafana Dashboard
 - **Harbor**：当企业需要私有模型仓库（特别是 air-gapped 环境），Harbor 是合理的 Infra 组件
 - **Alluxio/Fluid**：当多节点需要共享模型缓存以加速冷启动，分布式缓存是 Infra 层的合理解法
 - **Envoy AI Gateway**：当需要 KV-cache-aware 路由等推理级负载均衡时，Envoy 是 LiteLLM 之上的合理 Tier-2
@@ -533,16 +539,16 @@ kube-llmops 不应该试图和 Dify（应用层）或 vLLM（引擎层）竞争�
 
 **修正**：RAG-ASSESSMENT.md 是一份**渐进式文档**，早期版本的自我评估（2.5/10）反映的是 Phase 1-3 完成之前的状态。文档末尾已更新为 "RAG 成熟度 7.5/10"，标注了 Phase 1-3 全部完成。初版报告选择性引用了过时的评分，对项目不公平。
 
-### 修正后的评分
+### 修正后的评分（Phase 4 后更新）
 
-| 维度 | 原评分 | 修正评分 | 修正原因 |
-|------|--------|---------|---------|
-| **功能完备性** | 5.5 | **7/10** | 从 Infra 覆盖度而非应用功能深度评估，11/11 基础设施组件到位 |
-| **竞争壁垒/护城河** | 4 | **5.5/10** | 平台工程护城河是运维经验累积，比产品护城河更隐性但同样有效 |
-| **产品定位清晰度** | 6.5 | **7.5/10** | "只做平台不做开发" 的定位实际非常清晰，是评估者误读 |
-| **核心流程闭环** | 7 | **7.5/10** | RAG Infra 层闭环完整度高于初版评估 |
+| 维度 | 原评分 | Infra 修正 | Phase 4 后 | 修正原因 |
+|------|--------|-----------|-----------|---------|
+| **功能完备性** | 5.5 | 7 | **7.5/10** | Infra 15/15 覆盖（+4 企业级组件：Milvus/LightRAG/Presidio/多租户）|
+| **竞争壁垒/护城河** | 4 | 5.5 | **6/10** | 知识图谱 + PII 脱敏 + 向量数据库监控 进一步拉开与 "手工搭建" 的差距 |
+| **产品定位清晰度** | 6.5 | 7.5 | **7.5/10** | 不变 |
+| **核心流程闭环** | 7 | 7.5 | **8/10** | Phase 4 全部完成，RAG 从基础到企业级完整闭环 |
 
-**修正后综合评分：6.5/10**（原 5.5/10）
+**修正后综合评分：7/10**（原 5.5 → Infra 修正 6.5 → Phase 4 后 7）
 
 ### 修正后的一句话总结
 
