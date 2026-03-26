@@ -1,5 +1,18 @@
-{{- if .Values.enabled }}
-{{- range $idx, $model := (index .Values "vllmModels" | default list) }}
+{{/*
+Fluid Dataset + AlluxioRuntime per model.
+Requires Fluid operator to be installed in the cluster.
+Creates a FUSE-mounted PVC per model for zero-copy shared access.
+
+When Fluid is enabled, engine pods mount model-cache-<name> PVC
+instead of using model-loader init containers.
+*/}}
+{{- if and .Values.enabled .Values.fluidCache.enabled }}
+{{- $models := (index .Values "vllmModels" | default list) }}
+{{- if and $.Values.global $.Values.global.models }}
+{{- $models = $.Values.global.models }}
+{{- end }}
+{{- range $idx, $model := $models }}
+{{- $slug := replace "/" "--" $model.source }}
 ---
 apiVersion: fluid.io/v1alpha1
 kind: Dataset
@@ -12,12 +25,13 @@ metadata:
     kube-llmops/model: {{ $model.name }}
 spec:
   mounts:
-    - mountPoint: s3://models/{{ $model.name }}
+    - mountPoint: s3://{{ $.Values.minio.bucket | default "models" }}/{{ $slug }}/
       name: {{ $model.name }}
       options:
-        fs.s3a.endpoint: http://{{ $.Release.Name }}-minio:9000
+        fs.s3a.endpoint: http://{{ $.Release.Name }}-minio:{{ $.Values.minio.service.port | default 9000 }}
         fs.s3a.access.key: {{ $.Values.minio.accessKey }}
         fs.s3a.secret.key: {{ $.Values.minio.secretKey }}
+        fs.s3a.path.style.access: "true"
 ---
 apiVersion: fluid.io/v1alpha1
 kind: AlluxioRuntime
@@ -44,5 +58,7 @@ spec:
   worker:
     jvmOptions:
       {{- toYaml $.Values.alluxio.jvmOptions | nindent 6 }}
+  fuse:
+    global: true
 {{- end }}
 {{- end }}

@@ -1,5 +1,9 @@
 enabled: false
 
+# Fluid Dataset + AlluxioRuntime for model caching (requires Fluid operator)
+fluidCache:
+  enabled: false
+
 # MinIO for S3-compatible model storage backend
 minio:
   enabled: true

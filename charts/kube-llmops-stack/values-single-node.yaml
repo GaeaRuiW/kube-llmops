@@ -51,6 +51,7 @@ global:
     bucket: models
     accessKey: minioadmin
     secretKey: minioadmin
+    image: kube-llmops/model-loader:latest   # pre-built with minio+huggingface_hub
   # HuggingFace token for gated models (Llama, Gemma, etc.)
   # hfToken: hf_xxxxxxxxxxxxxxxxxxxx
 

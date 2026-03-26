@@ -89,8 +89,8 @@ spec:
               mountPath: /ca-out
         {{- end }}
         - name: model-loader
-          image: "{{ $.Values.modelLoader.image.repository }}:{{ $.Values.modelLoader.image.tag }}"
-          imagePullPolicy: {{ $.Values.modelLoader.image.pullPolicy }}
+          image: {{ (default dict (default dict $.Values.global).modelStore).image | default "kube-llmops/model-loader:latest" }}
+          imagePullPolicy: IfNotPresent
           command: ["bash", "-c"]
           args:
             - |

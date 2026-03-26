@@ -1,0 +1,47 @@
+{{/*
+Model preload Job — runs once on helm install/upgrade.
+Downloads all models from HuggingFace to MinIO so engine pods
+get fast local cache hits instead of slow HF downloads.
+*/}}
+{{- if and .Values.global .Values.global.models .Values.global.modelStore }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-model-preload
+  labels:
+    app.kubernetes.io/name: model-preload
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "-10"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: model-preload
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      {{- range $idx, $model := .Values.global.models }}
+        - name: load-{{ $model.name | replace "." "-" }}
+          image: {{ ($.Values.global.modelStore).image | default "kube-llmops/model-loader:latest" }}
+          imagePullPolicy: IfNotPresent
+          command: ["bash", "-c"]
+          args:
+            - |
+{{ include "kube-llmops.modelLoaderScript" $ | indent 14 }}
+          env:
+{{ include "kube-llmops.modelLoaderEnv" (dict "model" $model "root" $ "mountPath" "/tmp/models") | indent 12 }}
+          resources:
+            requests:
+              cpu: "1"
+              memory: 2Gi
+            limits:
+              cpu: "4"
+              memory: 8Gi
+      {{- end }}
+{{- end }}
