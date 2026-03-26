@@ -39,6 +39,26 @@ spec:
         kube-llmops/model: {{ $model.name }}
         kube-llmops/engine: tei
     spec:
+      initContainers:
+        - name: model-loader
+          image: python:3.13-slim
+          imagePullPolicy: IfNotPresent
+          command: ["bash", "-c"]
+          args:
+            - |
+{{ include "kube-llmops.modelLoaderScript" . | indent 14 }}
+          env:
+{{ include "kube-llmops.modelLoaderEnv" (dict "model" $model "root" $ "mountPath" "/data") | indent 12 }}
+          volumeMounts:
+            - name: model-cache
+              mountPath: /data
+          resources:
+            requests:
+              cpu: "1"
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
       containers:
         - name: tei
           image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag }}"
@@ -47,6 +67,7 @@ spec:
             - name: http
               containerPort: 8080
               protocol: TCP
+          {{- $slug := replace "/" "--" $model.source }}
           args:
             - "--model-id"
             - {{ $model.source | quote }}

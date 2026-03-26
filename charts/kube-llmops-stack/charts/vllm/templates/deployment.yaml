@@ -88,74 +88,15 @@ spec:
             - name: ca-bundle
               mountPath: /ca-out
         {{- end }}
-        {{- if $.Values.modelLoader.enabled }}
         - name: model-loader
           image: "{{ $.Values.modelLoader.image.repository }}:{{ $.Values.modelLoader.image.tag }}"
           imagePullPolicy: {{ $.Values.modelLoader.image.pullPolicy }}
           command: ["bash", "-c"]
           args:
             - |
-              pip install -q minio huggingface_hub 2>/dev/null
-              python3 -c "
-              import os, sys, logging
-              from pathlib import Path
-              logging.basicConfig(level=logging.INFO, format='%(asctime)s [model-loader] %(levelname)s %(message)s')
-              log = logging.getLogger('model-loader')
-              source = os.environ.get('MODEL_SOURCE', '')
-              target = Path(os.environ.get('MODEL_DIR', '/models'))
-              target.mkdir(parents=True, exist_ok=True)
-              if not source:
-                  log.error('MODEL_SOURCE required'); sys.exit(1)
-              if source.startswith('s3://'):
-                  from minio import Minio
-                  parts = source.replace('s3://', '').split('/', 1)
-                  bucket, prefix = parts[0], parts[1] if len(parts)>1 else ''
-                  endpoint = os.environ.get('S3_ENDPOINT', '{{ $.Release.Name }}-minio:9000')
-                  client = Minio(endpoint, access_key=os.environ.get('S3_ACCESS_KEY','minioadmin'), secret_key=os.environ.get('S3_SECRET_KEY','minioadmin'), secure=False)
-                  dest = target / prefix.rstrip('/').split('/')[-1]
-                  dest.mkdir(parents=True, exist_ok=True)
-                  for obj in client.list_objects(bucket, prefix=prefix+'/', recursive=True):
-                      fname = obj.object_name.split('/')[-1]
-                      if not fname: continue
-                      fpath = dest / fname
-                      if fpath.exists() and fpath.stat().st_size == obj.size:
-                          log.info(f'  Cached: {fname}')
-                          continue
-                      log.info(f'  Downloading: {fname} ({obj.size/(1024**3):.2f} GB)')
-                      client.fget_object(bucket, obj.object_name, str(fpath))
-                  log.info(f'S3 sync complete: {dest}')
-              else:
-                  from huggingface_hub import snapshot_download
-                  cached = target / source.replace('/', '--')
-                  if cached.exists() and list(cached.glob('*.safetensors')):
-                      log.info(f'Using cached model at {cached}')
-                  else:
-                      log.info(f'Downloading from HuggingFace: {source}')
-                      snapshot_download(repo_id=source, local_dir=str(cached), local_dir_use_symlinks=False)
-              log.info('Model loader done.')
-              "
+{{ include "kube-llmops.modelLoaderScript" . | indent 14 }}
           env:
-            - name: MODEL_SOURCE
-              value: {{ $model.source | quote }}
-            - name: MODEL_DIR
-              value: /models
-            - name: HF_HOME
-              value: /models/huggingface
-          {{- if or $.Values.modelLoader.hfToken (and $.Values.global $.Values.global.hfToken) }}
-            - name: HF_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ $.Release.Name }}-hf-token
-                  key: token
-          {{- end }}
-          {{- if $.Values.customCACert.enabled }}
-            - name: REQUESTS_CA_BUNDLE
-              value: /ca-out/ca-certificates.crt
-            - name: SSL_CERT_FILE
-              value: /ca-out/ca-certificates.crt
-            - name: CURL_CA_BUNDLE
-              value: /ca-out/ca-certificates.crt
-          {{- end }}
+{{ include "kube-llmops.modelLoaderEnv" (dict "model" $model "root" $ "mountPath" "/models" "hfToken" $.Values.modelLoader.hfToken) | indent 12 }}
           volumeMounts:
             - name: model-cache
               mountPath: /models
@@ -171,7 +112,6 @@ spec:
             limits:
               cpu: "4"
               memory: 8Gi
-        {{- end }}
       containers:
         - name: vllm
           image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag }}"
@@ -183,12 +123,12 @@ spec:
           command: ["/bin/bash", "-c"]
           args:
             - |
-              {{- if hasPrefix "s3://" $model.source }}
-              {{- $s3parts := splitList "/" (trimPrefix "s3://" $model.source) }}
-              MODEL_PATH="/models/{{ last $s3parts }}"
-              {{- else }}
-              MODEL_PATH="{{ $model.source }}"
-              {{- end }}
+              {{- $slug := replace "/" "--" $model.source }}
+              MODEL_PATH="/models/{{ $slug }}"
+              # Fallback: if model-loader didn't populate, use HF repo ID
+              if [ ! -d "$MODEL_PATH" ] || [ -z "$(ls -A "$MODEL_PATH" 2>/dev/null)" ]; then
+                MODEL_PATH="{{ $model.source }}"
+              fi
 
               # ── Auto-compute max-model-len if not explicitly set ──
               {{- $hasMaxLen := false }}
