@@ -59,10 +59,10 @@ We provide infrastructure services that RAG applications (Dify, RAGFlow, LangCha
 | Item | Status | Detail |
 |------|--------|--------|
 | pgvector extension | ✅ Auto-enabled | pgvector/pgvector:pg16, init script runs `CREATE EXTENSION IF NOT EXISTS vector` |
-| tsvector full-text | ❌ Not configured | PostgreSQL has it but no index/function setup |
-| Hybrid search function | ❌ Not implemented | Need SQL function for dense+sparse+RRF |
-| Milvus chart | ✅ Template exists | Not tested in cluster |
-| pg_trgm extension | ❌ Not enabled | Needed for fuzzy text matching |
+| tsvector full-text | ⏭️ Deferred | PostgreSQL has native tsvector, but Dify handles full-text search internally |
+| Hybrid search function | ⏭️ Deferred | Dify built-in hybrid search covers this; standalone SQL function not needed |
+| Milvus chart | ✅ Deployed | Standalone mode with etcd + MinIO, gRPC 19530 + HTTP 9091, Grafana dashboard |
+| pg_trgm extension | ⏭️ Deferred | Dify handles fuzzy matching; not needed at infra level |
 
 ### 4. RAG Application Platform
 
@@ -125,7 +125,7 @@ We provide infrastructure services that RAG applications (Dify, RAGFlow, LangCha
 | Langfuse prompt management | ✅ Working | Langfuse v3 native feature |
 | RAG prompt templates | ✅ Created | 5 templates in examples/prompts/ |
 | Prompt sync script | ✅ Working | sync-prompts.sh + GitHub Action |
-| Prompt A/B metrics | ❌ Not implemented | Grafana panel by prompt version |
+| Prompt A/B metrics | ✅ Working | Grafana panel comparing quality metrics by prompt version (Langfuse tags) |
 
 ---
 
