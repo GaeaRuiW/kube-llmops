@@ -420,25 +420,11 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Compare RAG quality metrics across different prompt versions. Tag evaluations with prompt_version label to populate this panel.",
+      "description": "Side-by-side comparison of all RAG quality metrics. When using multiple prompt versions, tag evaluations with a prompt_version label to see per-version bars.",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisLabel": "Score",
-            "barAlignment": 0,
-            "drawStyle": "bars",
-            "fillOpacity": 60,
-            "gradientMode": "none",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" }
+            "mode": "continuous-GrYlRd"
           },
           "decimals": 2,
           "max": 1,
@@ -453,7 +439,24 @@
           },
           "unit": "percentunit"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Faithfulness" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "#73BF69", "mode": "fixed" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Answer Relevancy" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "#FADE2A", "mode": "fixed" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Context Precision" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "#5794F2", "mode": "fixed" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Context Recall" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "#FF9830", "mode": "fixed" } }]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -463,49 +466,69 @@
       },
       "id": 7,
       "options": {
-        "barRadius": 0.1,
-        "barWidth": 0.8,
-        "fullHighlight": false,
-        "groupWidth": 0.7,
-        "legend": { "calcs": ["lastNotNull"], "displayMode": "table", "placement": "right" },
+        "displayMode": "gradient",
+        "maxVizHeight": 300,
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
         "orientation": "horizontal",
-        "showValue": "always",
-        "stacking": "none",
-        "tooltip": { "mode": "multi", "sort": "desc" },
-        "xTickLabelRotation": 0
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "valueMode": "color"
       },
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "editorMode": "code",
+          "exemplar": false,
           "expr": "ragas_faithfulness",
+          "format": "time_series",
+          "instant": true,
           "legendFormat": "Faithfulness",
+          "range": false,
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "editorMode": "code",
+          "exemplar": false,
           "expr": "ragas_answer_relevancy",
+          "format": "time_series",
+          "instant": true,
           "legendFormat": "Answer Relevancy",
+          "range": false,
           "refId": "B"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "editorMode": "code",
+          "exemplar": false,
           "expr": "ragas_context_precision",
+          "format": "time_series",
+          "instant": true,
           "legendFormat": "Context Precision",
+          "range": false,
           "refId": "C"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "editorMode": "code",
+          "exemplar": false,
           "expr": "ragas_context_recall",
+          "format": "time_series",
+          "instant": true,
           "legendFormat": "Context Recall",
+          "range": false,
           "refId": "D"
         }
       ],
       "title": "Prompt A/B Quality Comparison",
-      "type": "barchart"
+      "type": "bargauge"
     }
   ],
   "schemaVersion": 39,
