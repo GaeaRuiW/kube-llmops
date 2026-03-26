@@ -2,7 +2,11 @@
 This template renders one Deployment per model entry that uses vllm engine.
 It is called from the parent chart with model-specific context.
 */}}
-{{- range $idx, $model := .Values.models }}
+{{- $models := .Values.models }}
+{{- if and .Values.global .Values.global.models }}
+{{- $models = .Values.global.models }}
+{{- end }}
+{{- range $idx, $model := $models }}
 {{- $resolvedEngine := include "kube-llmops.resolveEngine" $model | trim }}
 {{- if eq $resolvedEngine "vllm" }}
 {{- $resources := default dict $model.resources }}

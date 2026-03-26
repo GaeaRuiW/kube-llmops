@@ -88,3 +88,27 @@ Usage:
   {{- end -}}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Resolve model type: "embedding", "reranker", or "llm".
+Used by LiteLLM configmap to choose prefix (huggingface/ vs openai/).
+*/}}
+{{- define "kube-llmops.resolveModelType" -}}
+{{- $src := default "" .source | lower -}}
+{{- if contains "rerank" $src -}}
+  reranker
+{{- else if or
+  (contains "/bge-" $src)
+  (contains "/e5-" $src)
+  (contains "/gte-" $src)
+  (contains "minilm" $src)
+  (contains "/jina-embed" $src)
+  (contains "/nomic-embed" $src)
+  (contains "/all-mpnet" $src)
+  (contains "embedding" $src)
+-}}
+  embedding
+{{- else -}}
+  llm
+{{- end -}}
+{{- end -}}

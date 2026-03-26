@@ -1,6 +1,7 @@
 {{/*
 Generate LiteLLM config from models list.
 Maps each model to its internal vLLM/llamacpp/TEI service endpoint.
+Supports global.models (unified list) or per-subchart models + embeddingModels.
 */}}
 apiVersion: v1
 kind: ConfigMap
@@ -13,6 +14,34 @@ metadata:
 data:
   config.yaml: |
     model_list:
+    {{/* --- Global models: auto-detect engine + model type --- */}}
+    {{- if and .Values.global .Values.global.models }}
+    {{- range $idx, $model := .Values.global.models }}
+      {{- $engine := include "kube-llmops.resolveEngine" $model | trim }}
+      {{- $modelType := include "kube-llmops.resolveModelType" $model | trim }}
+      {{- $port := "8000" }}
+      {{- $prefix := "vllm" }}
+      {{- $litellmPrefix := "openai" }}
+      {{- $apiSuffix := "/v1" }}
+      {{- if eq $engine "llamacpp" }}
+        {{- $port = "8080" }}
+        {{- $prefix = "llamacpp" }}
+      {{- else if eq $engine "tei" }}
+        {{- $port = "8080" }}
+        {{- $prefix = "tei" }}
+        {{- if eq $modelType "embedding" }}
+          {{- $litellmPrefix = "huggingface" }}
+          {{- $apiSuffix = "" }}
+        {{- end }}
+      {{- end }}
+      - model_name: {{ $model.name }}
+        litellm_params:
+          model: {{ $litellmPrefix }}/{{ $model.name }}
+          api_base: http://{{ $prefix }}-{{ $model.name }}.{{ $.Release.Namespace }}.svc.cluster.local:{{ $port }}{{ $apiSuffix }}
+          api_key: "no-key-needed"
+    {{- end }}
+    {{/* --- Legacy: per-subchart models + embeddingModels --- */}}
+    {{- else }}
     {{- range $idx, $model := .Values.models }}
       {{- $engine := include "kube-llmops.resolveEngine" $model | trim }}
       {{- $port := "8000" }}
@@ -37,8 +66,9 @@ data:
           api_base: {{ $emb.apiBase }}
           api_key: {{ $emb.apiKey | default "no-key-needed" | quote }}
     {{- end }}
+    {{- end }}
 
-    {{- if .Values.models }}
+    {{- if or .Values.models (and .Values.global .Values.global.models) }}
     router_settings:
       routing_strategy: simple-shuffle
       num_retries: {{ .Values.routerSettings.numRetries | default 3 }}
