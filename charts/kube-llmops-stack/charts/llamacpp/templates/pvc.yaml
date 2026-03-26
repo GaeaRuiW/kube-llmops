@@ -1,4 +1,8 @@
-{{- range $idx, $model := .Values.models }}
+{{- $models := .Values.models }}
+{{- if and .Values.global .Values.global.models }}
+{{- $models = .Values.global.models }}
+{{- end }}
+{{- range $idx, $model := $models }}
 {{- $resolvedEngine := include "kube-llmops.resolveEngine" $model | trim }}
 {{- if eq $resolvedEngine "llamacpp" }}
 {{- if and $.Values.modelCache.enabled (not $.Values.modelCache.existingClaim) }}

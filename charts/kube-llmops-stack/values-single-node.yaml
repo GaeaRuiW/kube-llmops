@@ -11,15 +11,17 @@ ingress:
   className: traefik
   host: llmops.local
 
-# ========== Model Serving ==========
-vllm:
-  enabled: true
-  modelLoader:
-    enabled: false
+# ========== Models (unified list — engine auto-detected from source) ==========
+# Just list your models here. The system auto-selects the engine:
+#   Qwen/*, Llama-*, Mistral-* etc.           → vLLM
+#   BAAI/bge-*, intfloat/e5-*, *embedding*    → TEI
+#   *rerank*                                   → TEI
+#   *GGUF*                                     → llama.cpp
+# To override: add `engine: vllm` / `engine: tei` / `engine: llamacpp`
+global:
   models:
     - name: qwen2-5-0-5b
       source: Qwen/Qwen2.5-0.5B-Instruct
-      # engine: auto-detected → vllm (default for non-embedding/non-GGUF models)
       replicas: 1
       resources:
         gpu: 1
@@ -28,17 +30,8 @@ vllm:
         --gpu-memory-utilization: "0.8"
         --max-model-len: "4096"
         --enforce-eager: ""
-
-llamacpp:
-  enabled: true
-  models: []
-
-tei:
-  enabled: true
-  models:
     - name: bge-small-en
       source: BAAI/bge-small-en-v1.5
-      # engine: auto-detected → tei (source contains /bge-)
       replicas: 1
       resources:
         gpu: 0
@@ -46,12 +39,23 @@ tei:
         memory: 256Mi
     - name: bge-reranker-base
       source: BAAI/bge-reranker-base
-      # engine: auto-detected → tei (source contains rerank)
       replicas: 1
       resources:
         gpu: 0
         cpu: "1"
         memory: 1Gi
+
+# ========== Engine Settings ==========
+vllm:
+  enabled: true
+  modelLoader:
+    enabled: false
+
+llamacpp:
+  enabled: true
+
+tei:
+  enabled: true
 
 # ========== AI Gateway ==========
 litellm:
@@ -62,12 +66,6 @@ litellm:
   langfuseSecretKey: "sk-lf-kube-llmops"
   rateLimiting:
     enabled: true
-  models:
-    - name: qwen2-5-0-5b
-      source: Qwen/Qwen2.5-0.5B-Instruct
-  embeddingModels:
-    - name: bge-small-en
-      apiBase: http://tei-bge-small-en:8080
   postgresql:
     enabled: true
     image:
