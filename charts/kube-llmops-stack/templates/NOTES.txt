@@ -24,7 +24,7 @@
 {{- if .Values.langfuse.enabled }}
    Langfuse:          http://langfuse.{{ $host }}
 {{- end }}
-{{- if index .Values "dify" "enabled" }}
+{{- if (index .Values "dify" | default dict).enabled }}
    Dify RAG:          http://dify.{{ $host }}
 {{- end }}
 {{- if .Values.keycloak.enabled }}
@@ -61,14 +61,14 @@
 {{- if .Values.vllm.enabled }}   [x] vLLM Model Serving{{ end }}
 {{- if .Values.observability.enabled }}   [x] Prometheus + Grafana{{ end }}
 {{- if .Values.langfuse.enabled }}   [x] Langfuse Tracing{{ end }}
-{{- if index .Values "dify" "enabled" }}   [x] Dify RAG Platform{{ end }}
+{{- if (index .Values "dify" | default dict).enabled }}   [x] Dify RAG Platform{{ end }}
 {{- if .Values.tei.enabled }}   [x] TEI Embedding + Reranking{{ end }}
 {{- if .Values.keycloak.enabled }}   [x] Keycloak SSO{{ end }}
 {{- if .Values.logging.enabled }}   [x] Loki + Fluent Bit Logging{{ end }}
 {{- if .Values.security.enabled }}   [x] LLM-Guard + Presidio Security{{ end }}
 {{- if .Values.milvus.enabled }}   [x] Milvus Vector Database{{ end }}
 {{- if .Values.lightrag.enabled }}   [x] LightRAG Knowledge Graph{{ end }}
-{{- if index .Values "rag-eval" "enabled" }}   [x] RAG Evaluation (Ragas CronJob){{ end }}
+{{- if (index .Values "rag-eval" | default dict).enabled }}   [x] RAG Evaluation (Ragas CronJob){{ end }}
 
 6. NEXT STEPS:
    - View metrics:     Grafana dashboards (vLLM, LiteLLM, RAG Quality)
