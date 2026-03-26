@@ -64,6 +64,14 @@ spec:
             - {{ $val | quote }}
             {{- end }}
             {{- end }}
+          {{- if and $.Values.global $.Values.global.hfToken }}
+          env:
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Release.Name }}-hf-token
+                  key: token
+          {{- end }}
           readinessProbe:
             httpGet:
               path: /health

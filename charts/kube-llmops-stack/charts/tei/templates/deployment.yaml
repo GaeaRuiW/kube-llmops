@@ -67,6 +67,13 @@ spec:
               value: /data
             - name: HF_HUB_OFFLINE
               value: "{{ if $.Values.offlineMode }}1{{ else }}0{{ end }}"
+          {{- if and $.Values.global $.Values.global.hfToken }}
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Release.Name }}-hf-token
+                  key: token
+          {{- end }}
           readinessProbe:
             httpGet:
               path: /health

@@ -141,7 +141,7 @@ spec:
               value: /models
             - name: HF_HOME
               value: /models/huggingface
-          {{- if $.Values.modelLoader.hfToken }}
+          {{- if or $.Values.modelLoader.hfToken (and $.Values.global $.Values.global.hfToken) }}
             - name: HF_TOKEN
               valueFrom:
                 secretKeyRef:
@@ -268,7 +268,7 @@ spec:
           env:
             - name: HF_HOME
               value: /models/huggingface
-          {{- if $.Values.modelLoader.hfToken }}
+          {{- if or $.Values.modelLoader.hfToken (and $.Values.global $.Values.global.hfToken) }}
             - name: HF_TOKEN
               valueFrom:
                 secretKeyRef:
