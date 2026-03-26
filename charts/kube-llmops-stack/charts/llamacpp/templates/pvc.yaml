@@ -1,5 +1,6 @@
 {{- range $idx, $model := .Values.models }}
-{{- if eq (default "" $model.engine) "llamacpp" }}
+{{- $resolvedEngine := include "kube-llmops.resolveEngine" $model | trim }}
+{{- if eq $resolvedEngine "llamacpp" }}
 {{- if and $.Values.modelCache.enabled (not $.Values.modelCache.existingClaim) }}
 ---
 apiVersion: v1

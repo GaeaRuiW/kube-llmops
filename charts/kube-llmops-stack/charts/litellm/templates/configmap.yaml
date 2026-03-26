@@ -14,7 +14,7 @@ data:
   config.yaml: |
     model_list:
     {{- range $idx, $model := .Values.models }}
-      {{- $engine := default "vllm" $model.engine }}
+      {{- $engine := include "kube-llmops.resolveEngine" $model | trim }}
       {{- $port := "8000" }}
       {{- $prefix := "vllm" }}
       {{- if eq $engine "llamacpp" }}

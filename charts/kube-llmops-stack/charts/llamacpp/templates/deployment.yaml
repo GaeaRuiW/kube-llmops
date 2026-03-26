@@ -1,5 +1,6 @@
 {{- range $idx, $model := .Values.models }}
-{{- if eq (default "" $model.engine) "llamacpp" }}
+{{- $resolvedEngine := include "kube-llmops.resolveEngine" $model | trim }}
+{{- if eq $resolvedEngine "llamacpp" }}
 {{- $resources := default dict $model.resources }}
 {{- $gpu := ternary (int $resources.gpu) 0 (hasKey $resources "gpu") }}
 {{- $memory := default "8Gi" $resources.memory }}
