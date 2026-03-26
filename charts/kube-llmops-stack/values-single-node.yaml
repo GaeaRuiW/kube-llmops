@@ -44,6 +44,15 @@ global:
         gpu: 0
         cpu: "1"
         memory: 1Gi
+  # Model store: MinIO acts as central cache for model files.
+  # Flow: check MinIO → fallback to HuggingFace → upload back to MinIO
+  modelStore:
+    endpoint: kube-llmops-minio:9000
+    bucket: models
+    accessKey: minioadmin
+    secretKey: minioadmin
+  # HuggingFace token for gated models (Llama, Gemma, etc.)
+  # hfToken: hf_xxxxxxxxxxxxxxxxxxxx
 
 # ========== Engine Settings ==========
 vllm:
@@ -185,6 +194,9 @@ fluid:
   enabled: true
   minio:
     enabled: true
+    defaultBuckets:
+      - langfuse
+      - models
     storage:
       size: 50Gi
 

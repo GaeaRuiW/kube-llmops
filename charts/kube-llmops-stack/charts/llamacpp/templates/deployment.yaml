@@ -39,6 +39,43 @@ spec:
         kube-llmops/model: {{ $model.name }}
         kube-llmops/engine: llamacpp
     spec:
+      initContainers:
+        - name: model-loader
+          image: python:3.13-slim
+          imagePullPolicy: IfNotPresent
+          command: ["bash", "-c"]
+          args:
+            - |
+{{ include "kube-llmops.modelLoaderScript" . | indent 14 }}
+              # GGUF: find the .gguf file and symlink to expected path
+              python3 -c "
+              import os, glob
+              from pathlib import Path
+              slug = '{{ replace "/" "--" $model.source }}'
+              src_dir = Path('/models') / slug
+              gguf_files = list(src_dir.glob('**/*.gguf')) + list(src_dir.glob('**/*.GGUF'))
+              if gguf_files:
+                  target = Path('/models/{{ $model.name }}.gguf')
+                  if not target.exists():
+                      os.symlink(str(gguf_files[0]), str(target))
+                      print(f'Linked {gguf_files[0]} → {target}')
+                  else:
+                      print(f'GGUF already at {target}')
+              else:
+                  print(f'WARNING: No .gguf file found in {src_dir}')
+              "
+          env:
+{{ include "kube-llmops.modelLoaderEnv" (dict "model" $model "root" $ "mountPath" "/models") | indent 12 }}
+          volumeMounts:
+            - name: model-cache
+              mountPath: /models
+          resources:
+            requests:
+              cpu: "1"
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
       containers:
         - name: llamacpp
           image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag }}"
@@ -64,14 +101,6 @@ spec:
             - {{ $val | quote }}
             {{- end }}
             {{- end }}
-          {{- if and $.Values.global $.Values.global.hfToken }}
-          env:
-            - name: HF_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ $.Release.Name }}-hf-token
-                  key: token
-          {{- end }}
           readinessProbe:
             httpGet:
               path: /health
