@@ -48,3 +48,43 @@ Selector labels
 app.kubernetes.io/name: {{ include "kube-llmops.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
+
+{{/*
+Resolve engine for a model based on its source name.
+Input: a model dict with .source (required) and .engine (optional).
+Output: one of "vllm", "tei", "llamacpp".
+
+Priority:
+  1. Explicit .engine value (if set and not "" or "auto") — user override
+  2. Heuristic detection from .source name patterns
+  3. Fallback: vllm
+
+Usage:
+  {{- $engine := include "kube-llmops.resolveEngine" $model | trim -}}
+*/}}
+{{- define "kube-llmops.resolveEngine" -}}
+{{- $engine := default "" .engine -}}
+{{- if and (ne $engine "") (ne $engine "auto") -}}
+  {{- $engine -}}
+{{- else -}}
+  {{- $src := default "" .source | lower -}}
+  {{- if or (contains "gguf" $src) (hasSuffix "-gguf" $src) -}}
+    llamacpp
+  {{- else if or (contains "rerank" $src) -}}
+    tei
+  {{- else if or
+    (contains "/bge-" $src)
+    (contains "/e5-" $src)
+    (contains "/gte-" $src)
+    (contains "minilm" $src)
+    (contains "/jina-embed" $src)
+    (contains "/nomic-embed" $src)
+    (contains "/all-mpnet" $src)
+    (contains "embedding" $src)
+  -}}
+    tei
+  {{- else -}}
+    vllm
+  {{- end -}}
+{{- end -}}
+{{- end -}}
