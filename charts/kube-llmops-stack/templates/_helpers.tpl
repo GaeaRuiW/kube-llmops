@@ -121,7 +121,7 @@ Expects env vars: MODEL_SOURCE, MODEL_DIR, S3_ENDPOINT, S3_ACCESS_KEY,
                   S3_SECRET_KEY, S3_BUCKET, HF_TOKEN (optional)
 */}}
 {{- define "kube-llmops.modelLoaderScript" -}}
-pip install -q minio huggingface_hub 2>/dev/null
+pip install -q minio huggingface_hub 2>/dev/null || true
 python3 -c "
 import os, sys, logging
 from pathlib import Path

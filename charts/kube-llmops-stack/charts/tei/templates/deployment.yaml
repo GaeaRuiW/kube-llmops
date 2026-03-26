@@ -41,7 +41,7 @@ spec:
     spec:
       initContainers:
         - name: model-loader
-          image: python:3.13-slim
+          image: {{ (default dict (default dict $.Values.global).modelStore).image | default "kube-llmops/model-loader:latest" }}
           imagePullPolicy: IfNotPresent
           command: ["bash", "-c"]
           args:
