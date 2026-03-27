@@ -83,6 +83,14 @@ spec:
             - name: GF_INSTALL_PLUGINS
               value: ""
             {{- if .Values.grafana.oidc.enabled }}
+            {{- $np := (default dict (default dict .Values.global).nodePort) }}
+            {{- $npEnabled := and $np.enabled $np.host }}
+            {{- $keycloakUrl := .Values.grafana.oidc.issuerUrl }}
+            {{- $grafanaRoot := .Values.grafana.oidc.grafanaRootUrl | default "http://localhost:3000" }}
+            {{- if $npEnabled }}
+              {{- $keycloakUrl = printf "http://%s:%v/realms/kube-llmops" $np.host (default 30808 $np.keycloak) }}
+              {{- $grafanaRoot = printf "http://%s:%v" $np.host (default 30300 $np.grafana) }}
+            {{- end }}
             - name: GF_AUTH_GENERIC_OAUTH_ENABLED
               value: "true"
             - name: GF_AUTH_GENERIC_OAUTH_NAME
@@ -94,15 +102,15 @@ spec:
             - name: GF_AUTH_GENERIC_OAUTH_SCOPES
               value: "openid profile email"
             - name: GF_AUTH_GENERIC_OAUTH_AUTH_URL
-              value: "{{ .Values.grafana.oidc.issuerUrl }}/protocol/openid-connect/auth"
+              value: "{{ $keycloakUrl }}/protocol/openid-connect/auth"
             - name: GF_AUTH_GENERIC_OAUTH_TOKEN_URL
-              value: "{{ .Values.grafana.oidc.internalIssuerUrl | default .Values.grafana.oidc.issuerUrl }}/protocol/openid-connect/token"
+              value: "{{ .Values.grafana.oidc.internalIssuerUrl | default $keycloakUrl }}/protocol/openid-connect/token"
             - name: GF_AUTH_GENERIC_OAUTH_API_URL
-              value: "{{ .Values.grafana.oidc.internalIssuerUrl | default .Values.grafana.oidc.issuerUrl }}/protocol/openid-connect/userinfo"
+              value: "{{ .Values.grafana.oidc.internalIssuerUrl | default $keycloakUrl }}/protocol/openid-connect/userinfo"
             - name: GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH
               value: {{ .Values.grafana.oidc.roleAttributePath | default "contains(realm_access.roles[*], 'admin') && 'Admin' || 'Viewer'" | quote }}
             - name: GF_SERVER_ROOT_URL
-              value: {{ .Values.grafana.oidc.grafanaRootUrl | default "http://localhost:3000" | quote }}
+              value: {{ $grafanaRoot | quote }}
             {{- end }}
           readinessProbe:
             httpGet:
