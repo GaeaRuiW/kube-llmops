@@ -40,8 +40,14 @@ spec:
               value: {{ .Values.auth.nextAuthSecret | quote }}
             - name: SALT
               value: {{ .Values.auth.salt | quote }}
+            {{- $np := (default dict (default dict .Values.global).nodePort) }}
+            {{- $npEnabled := and $np.enabled $np.host }}
+            {{- $langfuseUrl := .Values.externalUrl | default (printf "http://%s-langfuse:%v" $.Release.Name (.Values.service.port | int)) }}
+            {{- if $npEnabled }}
+              {{- $langfuseUrl = printf "http://%s:%v" $np.host (default 30301 $np.langfuse) }}
+            {{- end }}
             - name: NEXTAUTH_URL
-              value: {{ .Values.externalUrl | default (printf "http://%s-langfuse:%v" $.Release.Name (.Values.service.port | int)) | quote }}
+              value: {{ $langfuseUrl | quote }}
             - name: DATABASE_URL
               {{- if .Values.postgresql.enabled }}
               value: "postgresql://{{ .Values.postgresql.auth.username }}:{{ .Values.postgresql.auth.password }}@{{ $.Release.Name }}-langfuse-pg:5432/{{ .Values.postgresql.auth.database }}"
@@ -117,12 +123,16 @@ spec:
               value: {{ .Values.init.userPassword | default "admin" | quote }}
             {{- end }}
             {{- if .Values.oidc.enabled }}
+            {{- $keycloakIssuer := .Values.oidc.issuerUrl }}
+            {{- if $npEnabled }}
+              {{- $keycloakIssuer = printf "http://%s:%v/realms/kube-llmops" $np.host (default 30808 $np.keycloak) }}
+            {{- end }}
             - name: AUTH_KEYCLOAK_CLIENT_ID
               value: {{ .Values.oidc.clientId | quote }}
             - name: AUTH_KEYCLOAK_CLIENT_SECRET
               value: {{ .Values.oidc.clientSecret | quote }}
             - name: AUTH_KEYCLOAK_ISSUER
-              value: {{ .Values.oidc.issuerUrl | quote }}
+              value: {{ $keycloakIssuer | quote }}
             - name: AUTH_KEYCLOAK_ALLOW_ACCOUNT_LINKING
               value: "true"
             {{- end }}
