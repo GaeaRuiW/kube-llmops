@@ -35,6 +35,29 @@
    kubectl port-forward svc/{{ .Release.Name }}-grafana 3000:3000 &
    kubectl port-forward svc/{{ .Release.Name }}-langfuse 3001:3000 &
 {{- end }}
+{{- if and .Values.global .Values.global.nodePort .Values.global.nodePort.enabled }}
+{{- $np := .Values.global.nodePort }}
+
+   NodePort access (--set global.nodePort.enabled=true):
+   NODE_IP=$(kubectl get node -o jsonpath='{.items[0].status.addresses[0].address}')
+{{- if .Values.litellm.enabled }}
+   LiteLLM:     http://$NODE_IP:{{ $np.litellm | default 30400 }}
+{{- end }}
+{{- if .Values.observability.grafana.enabled }}
+   Grafana:     http://$NODE_IP:{{ $np.grafana | default 30300 }}
+{{- end }}
+{{- if .Values.langfuse.enabled }}
+   Langfuse:    http://$NODE_IP:{{ $np.langfuse | default 30301 }}
+{{- end }}
+{{- if (index .Values "dify" | default dict).enabled }}
+   Dify:        http://$NODE_IP:{{ $np.dify | default 30500 }}
+{{- end }}
+{{- if .Values.keycloak.enabled }}
+   Keycloak:    http://$NODE_IP:{{ $np.keycloak | default 30808 }}
+{{- end }}
+   Prometheus:  http://$NODE_IP:{{ $np.prometheus | default 30909 }}
+   MinIO:       http://$NODE_IP:{{ $np.minio | default 30900 }}
+{{- end }}
 
 3. RETRIEVE CREDENTIALS:
 {{- if .Values.litellm.enabled }}
