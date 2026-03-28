@@ -47,30 +47,6 @@ spec:
         kube-llmops/engine: vllm
     spec:
       initContainers:
-        {{- if $.Values.unifiedMemory.enabled }}
-        - name: drop-cache
-          image: busybox:latest
-          command: ["sh", "-c"]
-          args:
-            - |
-              # Unified memory GPU: model file reads fill page cache, which CUDA
-              # reports as "used" GPU memory. Drop it to reclaim space for vLLM.
-              # Auto-verify: only act if GPU driver confirms unified memory.
-              UNIFIED=false
-              for f in /proc/driver/nvidia/gpus/*/information; do
-                [ -f "$f" ] && grep -qi "blackwell\|gb[0-9]\|grace" "$f" 2>/dev/null && UNIFIED=true
-              done
-              if [ "$UNIFIED" = "true" ]; then
-                echo "[drop-cache] Unified memory GPU confirmed, dropping page cache..."
-                echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
-                cat /proc/meminfo | head -3
-              else
-                echo "[drop-cache] WARNING: unifiedMemory.enabled=true but no unified GPU detected. Dropping cache anyway."
-                echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
-              fi
-          securityContext:
-            privileged: true
-        {{- end }}
         {{- if $.Values.customCACert.enabled }}
         - name: ca-cert-installer
           image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag }}"
@@ -112,6 +88,30 @@ spec:
             limits:
               cpu: "4"
               memory: 8Gi
+        {{- if $.Values.unifiedMemory.enabled }}
+        - name: drop-cache
+          image: busybox:latest
+          command: ["sh", "-c"]
+          args:
+            - |
+              # Unified memory GPU: model-loader reads/writes fill page cache,
+              # which CUDA reports as "used" GPU memory. Drop it AFTER model
+              # download so vLLM can allocate GPU memory cleanly.
+              UNIFIED=false
+              for f in /proc/driver/nvidia/gpus/*/information; do
+                [ -f "$f" ] && grep -qi "blackwell\|gb[0-9]\|grace" "$f" 2>/dev/null && UNIFIED=true
+              done
+              if [ "$UNIFIED" = "true" ]; then
+                echo "[drop-cache] Unified memory GPU confirmed, dropping page cache..."
+                echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
+                cat /proc/meminfo | head -3
+              else
+                echo "[drop-cache] WARNING: unifiedMemory.enabled=true but no unified GPU detected. Dropping cache anyway."
+                echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
+              fi
+          securityContext:
+            privileged: true
+        {{- end }}
       containers:
         - name: vllm
           image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag }}"
