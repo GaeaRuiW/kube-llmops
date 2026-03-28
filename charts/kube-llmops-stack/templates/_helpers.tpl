@@ -271,7 +271,10 @@ log.info('Model loader done.')
 
 {{/*
 Model-loader init-container env vars.
-Call with: include "kube-llmops.modelLoaderEnv" (dict "model" $model "root" $)
+Call with: include "kube-llmops.modelLoaderEnv" (dict "model" $model "root" $ "mountPath" "/models")
+Optional: "hfHome" to override HF_HOME (set different from mountPath to force direct-mode download).
+vLLM should use hfHome="/models/huggingface" so model-loader downloads to /models/<slug>/ directly.
+TEI should omit hfHome (defaults to mountPath) to use HF cache layout that TEI expects.
 */}}
 {{- define "kube-llmops.modelLoaderEnv" -}}
 - name: MODEL_SOURCE
@@ -279,7 +282,7 @@ Call with: include "kube-llmops.modelLoaderEnv" (dict "model" $model "root" $)
 - name: MODEL_DIR
   value: {{ .mountPath | default "/models" | quote }}
 - name: HF_HOME
-  value: {{ .mountPath | default "/models" | quote }}
+  value: {{ .hfHome | default (.mountPath | default "/models") | quote }}
 - name: HF_HUB_ENABLE_HF_TRANSFER
   value: "1"
 {{- if and .root.Values.global .root.Values.global.modelStore }}

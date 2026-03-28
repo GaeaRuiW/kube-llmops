@@ -65,7 +65,7 @@ spec:
                   print(f'WARNING: No .gguf file found in {src_dir}')
               "
           env:
-{{ include "kube-llmops.modelLoaderEnv" (dict "model" $model "root" $ "mountPath" "/models") | indent 12 }}
+{{ include "kube-llmops.modelLoaderEnv" (dict "model" $model "root" $ "mountPath" "/models" "hfHome" "/models/huggingface") | indent 12 }}
           volumeMounts:
             - name: model-cache
               mountPath: /models
