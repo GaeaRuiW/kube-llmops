@@ -1,7 +1,7 @@
 ---
 name: kube-llmops
 description: "Deploy, manage, debug, and query the kube-llmops LLMOps platform — installation, model management, monitoring, RAG, troubleshooting"
-argument-hint: "[install|status|models|logs|eval|debug|chat|embed]"
+argument-hint: "[install|status|models|logs|eval|debug|chat|embed|dashboard]"
 allowed-tools:
   - read
   - grep
@@ -291,6 +291,112 @@ print(f'Model: {d[\"model\"]}')
 print(f'Dimensions: {len(v)}')
 print(f'First 5: {v[:5]}')
 "
+```
+
+---
+
+### `dashboard` — List or Query Grafana Dashboards
+
+If invoked with no argument (`/kube-llmops dashboard`), list all dashboards.
+If invoked with a dashboard name or uid (`/kube-llmops dashboard rag-quality`), show that dashboard's panel details and current data.
+
+**Available dashboards:**
+
+| UID | Title | Focus |
+|-----|-------|-------|
+| `vllm-overview` | vLLM Model Serving Overview | Request latency, throughput, KV cache, GPU |
+| `litellm-gateway` | LiteLLM AI Gateway | Routing, cost, tokens, rate limiting |
+| `gpu-overview` | GPU & Infrastructure Overview | DCGM metrics, utilization, memory |
+| `rag-quality` | RAG Quality - Ragas Metrics | Faithfulness, relevancy, precision, recall |
+| `cost-usage` | Cost & Usage | Per-model cost tracking |
+| `slo-overview` | SLO Overview | Availability, latency, quality SLOs |
+| `infra-roi` | Infrastructure ROI | GPU-to-token-to-cost efficiency |
+| `tenant-overview` | Tenant Overview | Per-team resource usage |
+| `milvus-overview` | Milvus Vector Database | Milvus collection, search, insert metrics |
+
+**List all dashboards:**
+
+```bash
+kubectl exec deploy/kube-llmops-litellm -- python3 -c "
+import urllib.request, json, base64
+creds = base64.b64encode(b'admin:admin123!').decode()
+req = urllib.request.Request('http://kube-llmops-grafana:3000/api/search?type=dash-db',
+    headers={'Authorization': f'Basic {creds}'})
+dashboards = json.loads(urllib.request.urlopen(req).read())
+print(f'Grafana Dashboards ({len(dashboards)} total):')
+print(f'{\"UID\":22s} {\"Title\":50s} {\"URL\":<s}')
+print('-' * 100)
+NODE_IP = '$(kubectl get node -o jsonpath=\"{.items[0].status.addresses[0].address}\")'
+for d in dashboards:
+    url = f'http://{NODE_IP}:30300/d/{d[\"uid\"]}'
+    print(f'{d[\"uid\"]:22s} {d[\"title\"]:50s} {url}')
+"
+```
+
+**Get a specific dashboard's panels and live data:**
+
+Use the `$ARGUMENTS` after `dashboard` as the UID. For example: `/kube-llmops dashboard rag-quality`
+
+```bash
+DASH_UID="${ARGUMENTS#dashboard }"
+DASH_UID="${DASH_UID:-rag-quality}"   # default
+
+kubectl exec deploy/kube-llmops-litellm -- python3 -c "
+import urllib.request, json, base64
+
+uid = '$DASH_UID'.strip()
+creds = base64.b64encode(b'admin:admin123!').decode()
+
+# Get dashboard definition
+req = urllib.request.Request(f'http://kube-llmops-grafana:3000/api/dashboards/uid/{uid}',
+    headers={'Authorization': f'Basic {creds}'})
+try:
+    data = json.loads(urllib.request.urlopen(req).read())
+except Exception as e:
+    print(f'Dashboard \"{uid}\" not found. Use /kube-llmops dashboard to list all.')
+    exit(1)
+
+dash = data['dashboard']
+print(f'Dashboard: {dash[\"title\"]}')
+print(f'UID: {uid}')
+print(f'Panels: {len(dash.get(\"panels\",[]))}')
+print()
+
+# Show each panel and query its live data
+for panel in dash.get('panels', []):
+    pid = panel.get('id', '?')
+    title = panel.get('title', 'Untitled')
+    ptype = panel.get('type', '?')
+    print(f'  Panel {pid}: {title} ({ptype})')
+
+    # Try to query each target's expr from Prometheus
+    for t in panel.get('targets', []):
+        expr = t.get('expr', '')
+        if not expr:
+            continue
+        try:
+            prom_url = f'http://kube-llmops-prometheus:9090/api/v1/query?query={urllib.parse.quote(expr)}'
+            pr = json.loads(urllib.request.urlopen(prom_url, timeout=3).read())
+            results = pr.get('data', {}).get('result', [])
+            if results:
+                for r in results[:3]:
+                    labels = ', '.join(f'{k}={v}' for k, v in r['metric'].items() if k != '__name__')
+                    val = r['value'][1]
+                    legend = t.get('legendFormat', '').replace('{{ \"{{\" }}', '').replace('{{ \"}}\" }}', '') or labels
+                    print(f'    {legend}: {val}')
+            else:
+                print(f'    {expr}: (no data)')
+        except:
+            print(f'    {expr}: (query failed)')
+    print()
+"
+```
+
+**Open a dashboard in browser (print URL):**
+
+```bash
+NODE_IP=$(kubectl get node -o jsonpath='{.items[0].status.addresses[0].address}')
+echo "Open: http://$NODE_IP:30300/d/${DASH_UID:-rag-quality}"
 ```
 
 ---
