@@ -269,4 +269,6 @@ Call with: include "kube-llmops.modelLoaderEnv" (dict "model" $model "root" $)
       name: {{ .root.Release.Name }}-hf-token
       key: token
 {{- end }}
+- name: HF_HUB_DISABLE_XET
+  value: "1"
 {{- end -}}
