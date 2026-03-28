@@ -121,7 +121,8 @@ Expects env vars: MODEL_SOURCE, MODEL_DIR, S3_ENDPOINT, S3_ACCESS_KEY,
                   S3_SECRET_KEY, S3_BUCKET, HF_TOKEN (optional)
 */}}
 {{- define "kube-llmops.modelLoaderScript" -}}
-pip install -q minio huggingface_hub 2>/dev/null || true
+pip install -q minio huggingface_hub hf-transfer 2>/dev/null || true
+export HF_HUB_ENABLE_HF_TRANSFER=1
 python3 -c "
 import os, sys, logging
 from pathlib import Path
@@ -186,6 +187,7 @@ def download_from_minio():
 
 def download_from_hf():
     from huggingface_hub import snapshot_download
+    import shutil
     # If HF_HOME is set to model dir, use default cache layout (for TEI compatibility)
     hf_home = os.environ.get('HF_HOME', '')
     if hf_home and hf_home == str(target):
@@ -197,11 +199,33 @@ def download_from_hf():
         log.info(f'Downloading from HuggingFace (cache mode): {source}')
         snapshot_download(repo_id=source, cache_dir=str(cache_dir))
     else:
-        if local_dir.exists() and any(local_dir.glob('*')):
+        # Check if model files already complete (has a large file >10MB)
+        if local_dir.exists() and any(f.stat().st_size > 10_000_000 for f in local_dir.rglob('*') if f.is_file() and not f.name.startswith('.')):
             log.info(f'Using PVC cache: {local_dir}')
             return
         log.info(f'Downloading from HuggingFace: {source}')
-        snapshot_download(repo_id=source, local_dir=str(local_dir))
+        # Download to HF cache first, then copy to local_dir
+        # This avoids the symlink/pointer issue with newer huggingface_hub
+        cache_dir = target / '.hf_cache'
+        snap_path = snapshot_download(repo_id=source, cache_dir=str(cache_dir))
+        log.info(f'Downloaded to cache: {snap_path}')
+        local_dir.mkdir(parents=True, exist_ok=True)
+        # Copy real files from snapshot to local_dir
+        snap = Path(snap_path)
+        for f in snap.rglob('*'):
+            if not f.is_file(): continue
+            rel = f.relative_to(snap)
+            dst = local_dir / rel
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            # Resolve symlinks to get the real file
+            real_f = f.resolve()
+            if dst.exists() and dst.stat().st_size == real_f.stat().st_size:
+                continue
+            shutil.copy2(str(real_f), str(dst))
+            log.info(f'  Copied: {rel} ({real_f.stat().st_size/(1024**2):.1f} MB)')
+        # Clean up cache to save space
+        shutil.rmtree(str(cache_dir), ignore_errors=True)
+        log.info(f'Model ready at {local_dir}')
 
 def upload_to_minio():
     c = mc()
@@ -212,7 +236,11 @@ def upload_to_minio():
     for fpath in local_dir.rglob('*'):
         if not fpath.is_file():
             continue
-        obj_name = s3_prefix() + str(fpath.relative_to(local_dir))
+        rel = str(fpath.relative_to(local_dir))
+        # Skip cache/metadata dirs and lock/incomplete files
+        if rel.startswith('.cache') or rel.startswith('.hf_cache') or rel.endswith('.lock') or '.incomplete' in rel:
+            continue
+        obj_name = s3_prefix() + rel
         # Skip if already exists with same size
         try:
             stat = c.stat_object(bucket, obj_name)
@@ -252,6 +280,8 @@ Call with: include "kube-llmops.modelLoaderEnv" (dict "model" $model "root" $)
   value: {{ .mountPath | default "/models" | quote }}
 - name: HF_HOME
   value: {{ .mountPath | default "/models" | quote }}
+- name: HF_HUB_ENABLE_HF_TRANSFER
+  value: "1"
 {{- if and .root.Values.global .root.Values.global.modelStore }}
 - name: S3_ENDPOINT
   value: {{ .root.Values.global.modelStore.endpoint | quote }}

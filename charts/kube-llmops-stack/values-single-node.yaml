@@ -60,6 +60,8 @@ vllm:
   enabled: true
   modelLoader:
     enabled: false
+  unifiedMemory:
+    enabled: true      # RTX PRO 2000 Blackwell (WSL2) uses unified memory
 
 llamacpp:
   enabled: true
