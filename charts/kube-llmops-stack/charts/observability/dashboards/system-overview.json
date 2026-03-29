@@ -1,0 +1,124 @@
+{
+  "annotations": { "list": [] },
+  "description": "System-level resource usage — CPU, memory, network, disk per container",
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "max": 1, "min": 0,
+          "thresholds": { "mode": "absolute", "steps": [{"color":"green","value":null},{"color":"yellow","value":0.7},{"color":"red","value":0.9}] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 }, "id": 1,
+      "options": { "minVizHeight": 75, "minVizWidth": 75, "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showThresholdLabels": false, "showThresholdMarkers": true },
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"default\"}[5m]))", "legendFormat": "Total CPU", "refId": "A" }],
+      "title": "Total CPU Usage (cores)", "type": "gauge"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "unit": "bytes", "min": 0,
+          "thresholds": { "mode": "absolute", "steps": [{"color":"green","value":null},{"color":"yellow","value":16000000000},{"color":"red","value":28000000000}] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 }, "id": 2,
+      "options": { "minVizHeight": 75, "minVizWidth": 75, "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showThresholdLabels": false, "showThresholdMarkers": true },
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum(container_memory_working_set_bytes{namespace=\"default\"})", "legendFormat": "Total Memory", "refId": "A" }],
+      "title": "Total Memory Usage", "type": "gauge"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "unit": "short", "thresholds": { "mode": "absolute", "steps": [{"color":"green","value":null}] } }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 }, "id": 3,
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto", "wideLayout": true },
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "count(container_cpu_usage_seconds_total{namespace=\"default\"})", "legendFormat": "Containers", "refId": "A" }],
+      "title": "Running Containers", "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "unit": "short", "thresholds": { "mode": "absolute", "steps": [{"color":"green","value":null}] } }, "overrides": [] },
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 0 }, "id": 4,
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto", "wideLayout": true },
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "count(count by (pod) (container_cpu_usage_seconds_total{namespace=\"default\"}))", "legendFormat": "Pods", "refId": "A" }],
+      "title": "Running Pods", "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "axisBorderShow": false, "axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "CPU cores", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 20, "gradientMode": "none", "hideFrom": { "legend": false, "tooltip": false, "viz": false }, "insertNulls": false, "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "scaleDistribution": { "type": "linear" }, "showPoints": "auto", "spanNulls": false, "stacking": { "group": "A", "mode": "normal" }, "thresholdsStyle": { "mode": "off" } },
+          "min": 0,
+          "thresholds": { "mode": "absolute", "steps": [{"color":"green","value":null}] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 }, "id": 5,
+      "options": { "legend": { "calcs": ["mean","lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"default\"}[5m])) by (pod)", "legendFormat": "{{pod}}", "range": true, "refId": "A" }],
+      "title": "CPU Usage by Pod", "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "axisBorderShow": false, "axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 20, "gradientMode": "none", "hideFrom": { "legend": false, "tooltip": false, "viz": false }, "insertNulls": false, "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "scaleDistribution": { "type": "linear" }, "showPoints": "auto", "spanNulls": false, "stacking": { "group": "A", "mode": "normal" }, "thresholdsStyle": { "mode": "off" } },
+          "unit": "bytes", "min": 0,
+          "thresholds": { "mode": "absolute", "steps": [{"color":"green","value":null}] }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 }, "id": 6,
+      "options": { "legend": { "calcs": ["mean","lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum(container_memory_working_set_bytes{namespace=\"default\"}) by (pod)", "legendFormat": "{{pod}}", "range": true, "refId": "A" }],
+      "title": "Memory Usage by Pod", "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Top resource consumers sorted by memory",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "inspect": false },
+          "thresholds": { "mode": "absolute", "steps": [{"color":"green","value":null}] }
+        },
+        "overrides": [
+          { "matcher": {"id":"byName","options":"CPU (cores)"}, "properties": [{"id":"unit","value":"short"},{"id":"decimals","value":3},{"id":"custom.width","value":120}] },
+          { "matcher": {"id":"byName","options":"Memory"}, "properties": [{"id":"unit","value":"bytes"},{"id":"custom.width","value":120}] },
+          { "matcher": {"id":"byName","options":"Pod"}, "properties": [{"id":"custom.width","value":450}] }
+        ]
+      },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 14 }, "id": 7,
+      "options": { "cellHeight": "sm", "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false }, "showHeader": true, "sortBy": [{"displayName":"Memory","desc":true}] },
+      "targets": [
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "exemplar": false, "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"default\"}[5m])) by (pod)", "format": "table", "instant": true, "legendFormat": "", "range": false, "refId": "A" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "exemplar": false, "expr": "sum(container_memory_working_set_bytes{namespace=\"default\"}) by (pod)", "format": "table", "instant": true, "legendFormat": "", "range": false, "refId": "B" }
+      ],
+      "title": "Resource Usage Table — All Pods",
+      "transformations": [
+        { "id": "merge", "options": {} },
+        { "id": "organize", "options": { "excludeByName": {"Time":true,"Time 1":true,"Time 2":true}, "renameByName": {"Value #A":"CPU (cores)","Value #B":"Memory","pod":"Pod"} } }
+      ],
+      "type": "table"
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["system", "resources", "infrastructure"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "System Overview - CPU, Memory, Network, Disk",
+  "uid": "system-overview",
+  "version": 1
+}
