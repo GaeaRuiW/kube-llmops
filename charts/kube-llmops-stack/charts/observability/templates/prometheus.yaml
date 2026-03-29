@@ -34,6 +34,28 @@ data:
       - job_name: milvus
         static_configs:
           - targets: ["{{ $.Release.Name }}-milvus:9091"]
+      # Kubelet cAdvisor — container CPU, memory, network, disk metrics
+      - job_name: kubelet-cadvisor
+        scheme: https
+        tls_config:
+          insecure_skip_verify: true
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        kubernetes_sd_configs:
+          - role: node
+        relabel_configs:
+          - target_label: __address__
+            replacement: kubernetes.default.svc:443
+          - source_labels: [__meta_kubernetes_node_name]
+            regex: (.+)
+            target_label: __metrics_path__
+            replacement: /api/v1/nodes/$1/proxy/metrics/cadvisor
+          - source_labels: [__meta_kubernetes_node_name]
+            target_label: node
+        metric_relabel_configs:
+          # Only keep metrics from kube-llmops namespace
+          - source_labels: [namespace]
+            regex: "default"
+            action: keep
       # Dynamic service discovery for vLLM and TEI pods
       - job_name: vllm
         kubernetes_sd_configs:
@@ -182,7 +204,7 @@ metadata:
     app.kubernetes.io/part-of: kube-llmops
 rules:
   - apiGroups: [""]
-    resources: ["pods", "nodes", "services", "endpoints"]
+    resources: ["pods", "nodes", "services", "endpoints", "nodes/metrics", "nodes/proxy"]
     verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
