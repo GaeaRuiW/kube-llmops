@@ -186,8 +186,11 @@ def download_from_minio():
     log.info(f'MinIO sync complete → {local_dir}')
 
 def download_from_hf():
+    import time as _time
     from huggingface_hub import snapshot_download
     import shutil
+    MAX_RETRIES = int(os.environ.get('HF_DOWNLOAD_RETRIES', '5'))
+    RETRY_DELAY = int(os.environ.get('HF_RETRY_DELAY', '30'))
     # If HF_HOME is set to model dir, use default cache layout (for TEI compatibility)
     hf_home = os.environ.get('HF_HOME', '')
     if hf_home and hf_home == str(target):
@@ -197,7 +200,16 @@ def download_from_hf():
             log.info(f'Using HF cache: {marker}')
             return
         log.info(f'Downloading from HuggingFace (cache mode): {source}')
-        snapshot_download(repo_id=source, cache_dir=str(cache_dir))
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                snapshot_download(repo_id=source, cache_dir=str(cache_dir))
+                return
+            except Exception as e:
+                if attempt == MAX_RETRIES:
+                    raise
+                log.warning(f'Download attempt {attempt}/{MAX_RETRIES} failed: {e}')
+                log.info(f'Retrying in {RETRY_DELAY}s... (snapshot_download resumes partial files)')
+                _time.sleep(RETRY_DELAY)
     else:
         # Check if model files already complete (has a large file >10MB)
         if local_dir.exists() and any(f.stat().st_size > 10_000_000 for f in local_dir.rglob('*') if f.is_file() and not f.name.startswith('.')):
@@ -207,7 +219,16 @@ def download_from_hf():
         # Download to HF cache first, then copy to local_dir
         # This avoids the symlink/pointer issue with newer huggingface_hub
         cache_dir = target / '.hf_cache'
-        snap_path = snapshot_download(repo_id=source, cache_dir=str(cache_dir))
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                snap_path = snapshot_download(repo_id=source, cache_dir=str(cache_dir))
+                break
+            except Exception as e:
+                if attempt == MAX_RETRIES:
+                    raise
+                log.warning(f'Download attempt {attempt}/{MAX_RETRIES} failed: {e}')
+                log.info(f'Retrying in {RETRY_DELAY}s... (snapshot_download resumes partial files)')
+                _time.sleep(RETRY_DELAY)
         log.info(f'Downloaded to cache: {snap_path}')
         local_dir.mkdir(parents=True, exist_ok=True)
         # Copy real files from snapshot to local_dir
