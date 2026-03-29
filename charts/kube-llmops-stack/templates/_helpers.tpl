@@ -131,7 +131,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s [model-loader] %(lev
 log = logging.getLogger('model-loader')
 
 # ── Patch hf-transfer concurrency (no env var exposed by default) ──
-_hf_concurrency = int(os.environ.get('HF_TRANSFER_CONCURRENCY', '3'))
+_hf_concurrency = int(os.environ.get('HF_TRANSFER_CONCURRENCY', '8'))
 try:
     import hf_transfer as _hft
     _orig_dl = _hft.download
@@ -204,7 +204,7 @@ def download_from_hf():
     import shutil
     MAX_RETRIES = int(os.environ.get('HF_DOWNLOAD_RETRIES', '5'))
     RETRY_DELAY = int(os.environ.get('HF_RETRY_DELAY', '30'))
-    MAX_WORKERS = int(os.environ.get('HF_MAX_WORKERS', '8'))
+    MAX_WORKERS = int(os.environ.get('HF_MAX_WORKERS', '3'))
     log.info(f'Download config: max_workers={MAX_WORKERS}, retries={MAX_RETRIES}, retry_delay={RETRY_DELAY}s')
     # If HF_HOME is set to model dir, use default cache layout (for TEI compatibility)
     hf_home = os.environ.get('HF_HOME', '')
