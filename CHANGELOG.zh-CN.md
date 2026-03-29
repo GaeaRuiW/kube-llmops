@@ -7,6 +7,56 @@
 本文件格式基于 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)，
 并且本项目遵循 [语义化版本](https://semver.org/spec/v2.0.0.html) 规范。
 
+## [0.3.1] - 2026-03-29
+
+### 新增
+
+#### 引擎自动选择
+- `resolveEngine` Helm 模板：根据模型 source 名称自动选择 vllm/tei/llamacpp
+- `resolveModelType` 模板：自动检测 embedding/reranker/llm，用于 LiteLLM 路由前缀
+- `global.models` 统一模型列表：一处定义所有模型，无需按子 chart 分散
+- `engine:` 字段现在可选（显式设置时仍可覆盖自动检测）
+
+#### 统一模型分发
+- 预构建 `model-loader` Docker 镜像（`images/model-loader/Dockerfile`）
+- 三个引擎（vllm/tei/llamacpp）均配备 model-loader init-container
+- MinIO 优先下载：检查 MinIO 缓存 → 回退 HuggingFace → 上传回 MinIO
+- `hf-transfer` 多线程下载（Rust 实现，速度提升 3-5 倍）
+- 模型预加载 Helm Job（post-install/post-upgrade hook，批量填充 MinIO）
+- `global.hfToken` 全局 HF Token（一个 Token 供所有引擎使用）
+- 可配置并行下载数和每文件并发数
+- 断点续传重试
+
+#### NodePort 访问
+- `global.nodePort.enabled=true` 一键暴露所有服务到固定端口（30400-30909）
+- NodePort SSO：OIDC URL 根据 `global.nodePort.host` 自动计算
+- 7 个服务暴露：LiteLLM、Grafana、Langfuse、Dify、Keycloak、Prometheus、MinIO
+
+#### 系统监控
+- Node Exporter DaemonSet（`quay.io/prometheus/node-exporter:v1.9.0`）
+- Kube State Metrics Deployment（`rancher/mirrored-kube-state-metrics:v2.15.0`）
+- System Overview Grafana 仪表盘：CPU、内存、磁盘、网络、Pod 数量、资源表
+- 仪表盘总数：9 → 10
+
+#### 开发者体验
+- `examples/curl/` — API 调用示例（chat、embedding、rerank、health、traces）
+- `examples/python/` — Python SDK 示例（chat、streaming、Langfuse tracing）
+- RAG Quality 仪表盘新增 Prompt A/B 质量对比面板
+- `/kube-llmops` Devin Skill（9 个子命令）
+
+### 变更
+- `values-single-node.yaml`：模型定义迁移至 `global.models`（原为按子 chart 分散）
+- `values-single-node.yaml`：新增 `global.modelStore` MinIO 端点配置
+- 所有子 chart 模板：读取 `global.models`，回退 `.Values.models`
+- Prometheus：自定义 cAdvisor 采集替换为 node-exporter + kube-state-metrics
+- Prometheus RBAC：权限范围调整为 pod/node/service/endpoint
+
+### 修复
+- Helm NOTES.txt 在 dify/rag-eval 未配置时 nil pointer 崩溃
+- vLLM drop-cache init-container 顺序修正（移至 model-loader 之后）
+- xet 协议在 arm64 大模型下载时卡死
+- Prompt A/B 面板：从 barchart 切换为 bargauge（instant 查询）
+
 ## [0.3.0] - 2026-03-25
 
 ### 新增

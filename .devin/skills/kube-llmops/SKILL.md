@@ -300,7 +300,7 @@ print(f'First 5: {v[:5]}')
 If invoked with no argument (`/kube-llmops dashboard`), list all dashboards.
 If invoked with a dashboard name or uid (`/kube-llmops dashboard rag-quality`), show that dashboard's panel details and current data.
 
-**Available dashboards:**
+**Available dashboards (10):**
 
 | UID | Title | Focus |
 |-----|-------|-------|
@@ -313,6 +313,7 @@ If invoked with a dashboard name or uid (`/kube-llmops dashboard rag-quality`), 
 | `infra-roi` | Infrastructure ROI | GPU-to-token-to-cost efficiency |
 | `tenant-overview` | Tenant Overview | Per-team resource usage |
 | `milvus-overview` | Milvus Vector Database | Milvus collection, search, insert metrics |
+| `system-overview` | System Overview | Node CPU, memory, disk, network, pod resource table |
 
 **List all dashboards:**
 
@@ -409,5 +410,9 @@ If the user doesn't provide a subcommand, or asks a general question about kube-
 - **Add model**: Edit `global.models` in values-single-node.yaml, then upgrade
 - **Change port**: `--set global.nodePort.grafana=31000`
 - **Enable HF token**: `--set global.hfToken=hf_xxx`
+- **Enable NodePort**: `--set global.nodePort.enabled=true --set global.nodePort.host=<NODE_IP>`
+- **Build model-loader**: `docker build -t kube-llmops/model-loader:latest images/model-loader/`
 - **Run E2E tests**: `uv run tests/e2e/test_dify_model_provider.py`
 - **Check smoke test**: `kubectl logs -l app.kubernetes.io/name=rag-smoke-test --tail=30`
+- **System metrics**: node-exporter (CPU/mem/disk) + kube-state-metrics (pod/deploy status)
+- **10 dashboards**: vllm, litellm, gpu, rag-quality, cost, slo, infra-roi, tenant, milvus, system-overview
