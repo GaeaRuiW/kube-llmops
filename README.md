@@ -11,13 +11,14 @@
 
 `kube-llmops` is an opinionated, batteries-included Helm chart that deploys a complete LLM operations stack on Kubernetes:
 
-- **Model Serving** -- vLLM, llama.cpp, or TEI, auto-selected based on model format
+- **Model Serving** -- vLLM, llama.cpp, or TEI, auto-selected based on model format (engine auto-detection from source name)
 - **AI Gateway** -- LiteLLM for unified OpenAI-compatible API, key management, rate limiting, budget control
-- **Observability** -- Prometheus + Grafana (9 dashboards + 5 alert rules) + Langfuse v3 LLM tracing (ClickHouse + Redis + Worker)
+- **Observability** -- Prometheus + Grafana (10 dashboards + 5 alert rules) + Langfuse v3 LLM tracing + node-exporter + kube-state-metrics
 - **Logging** -- Fluent Bit + Loki, queryable in Grafana Explore
 - **Autoscaling** -- KEDA scales vLLM pods based on queue depth and latency
 - **Security** -- Keycloak SSO for Grafana/Langfuse, LLM-Guard prompt injection defense, NetworkPolicy isolation
 - **RAG Infrastructure** -- Dify platform + pgvector + TEI embedding/reranking + Ragas evaluation + quality gate
+- **Model Distribution** -- MinIO model cache + HuggingFace fallback + hf-transfer multi-threaded downloads
 - **Storage** -- MinIO S3-compatible model storage, PVC model cache
 
 ```bash
@@ -148,7 +149,7 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &
 | Engine auto-selection (GPTQ->vLLM, GGUF->llama.cpp) | Yes | N/A | No | No |
 | AI Gateway (key mgmt, cost tracking, rate limit) | Yes | No | No | No |
 | LLM tracing (prompt, tokens, cost per request) | Yes | No | No | No |
-| Pre-built Grafana dashboards (9) + alert rules (5+) | Yes | No | No | No |
+| Pre-built Grafana dashboards (10) + alert rules (5+) | Yes | No | No | No |
 | GPU monitoring (DCGM) | Yes | DIY | No | No |
 | KEDA autoscaling (queue depth, TTFT) | Yes | No | No | Partial |
 | SSO integration (Keycloak OIDC) | Yes | No | No | No |

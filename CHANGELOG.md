@@ -7,6 +7,56 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-03-29
+
+### Added
+
+#### Engine Auto-Detection
+- `resolveEngine` Helm template: auto-selects vllm/tei/llamacpp from model source name
+- `resolveModelType` template: auto-detects embedding/reranker/llm for LiteLLM routing
+- `global.models` unified list: define all models in one place, no per-subchart duplication
+- `engine:` field is now optional (backward compatible when set explicitly)
+
+#### Unified Model Distribution
+- Pre-built `model-loader` Docker image (`images/model-loader/Dockerfile`)
+- Model-loader init-container for all 3 engines (vllm, tei, llamacpp)
+- MinIO-first download: check MinIO cache → fallback HuggingFace → upload back to MinIO
+- `hf-transfer` multi-threaded downloads (Rust-based, 3-5x faster)
+- Model-preload Helm Job (post-install/post-upgrade hook, batch populate MinIO)
+- `global.hfToken` for gated models (single token for all engines)
+- Configurable parallel workers and per-file concurrency
+- Retry with resume for interrupted downloads
+
+#### NodePort Access
+- `global.nodePort.enabled=true` exposes all services on fixed ports (30400-30909)
+- NodePort SSO: OIDC URLs auto-computed from `global.nodePort.host`
+- 7 services exposed: LiteLLM, Grafana, Langfuse, Dify, Keycloak, Prometheus, MinIO
+
+#### System Monitoring
+- Node Exporter DaemonSet (`quay.io/prometheus/node-exporter:v1.9.0`)
+- Kube State Metrics Deployment (`rancher/mirrored-kube-state-metrics:v2.15.0`)
+- System Overview Grafana dashboard: CPU, memory, disk, network, pod count, resource table
+- Total dashboards: 9 → 10
+
+#### Developer Experience
+- `examples/curl/` — API usage examples (chat, embedding, rerank, health, traces)
+- `examples/python/` — Python SDK examples (chat, streaming, Langfuse tracing)
+- Prompt A/B Quality Comparison panel in RAG Quality dashboard
+- `/kube-llmops` Devin skill with 9 subcommands
+
+### Changed
+- `values-single-node.yaml`: models defined in `global.models` (was per-subchart)
+- `values-single-node.yaml`: `global.modelStore` config for MinIO endpoint
+- All subchart templates: read `global.models` with fallback to `.Values.models`
+- Prometheus: replaced custom cAdvisor scrape with node-exporter + kube-state-metrics
+- Prometheus RBAC: scoped to pod/node/service/endpoint (removed nodes/proxy)
+
+### Fixed
+- Helm NOTES.txt nil pointer when dify/rag-eval not in values
+- vLLM drop-cache init-container ordering (after model-loader)
+- xet protocol stall on arm64 with large models
+- Prompt A/B panel: switched from barchart to bargauge (instant queries)
+
 ## [0.3.0] - 2026-03-25
 
 ### Added

@@ -11,13 +11,14 @@
 
 `kube-llmops` 是一个开箱即用的 Helm Chart，可在 Kubernetes 上一键部署完整的 LLM 运维栈：
 
-- **模型推理服务** -- vLLM、llama.cpp 或 TEI，根据模型格式自动选择推理引擎
+- **模型推理服务** -- vLLM、llama.cpp 或 TEI，根据模型名称自动选择推理引擎
 - **AI 网关** -- LiteLLM 提供统一的 OpenAI 兼容 API、Key 管理、速率限制、预算控制
-- **可观测性** -- Prometheus + Grafana（9 个仪表盘 + 5 条告警规则）+ Langfuse v3 LLM 调用追踪（ClickHouse + Redis + Worker）
+- **可观测性** -- Prometheus + Grafana（10 个仪表盘 + 5 条告警规则）+ Langfuse v3 LLM 调用追踪 + node-exporter + kube-state-metrics
 - **日志** -- Fluent Bit + Loki，在 Grafana Explore 中查询
 - **自动扩缩** -- KEDA 根据队列深度和延迟自动扩缩 vLLM Pod
 - **安全** -- Keycloak SSO 登录 Grafana/Langfuse，LLM-Guard Prompt 注入防护，NetworkPolicy 网络隔离
 - **RAG 基础设施** -- Dify 平台 + pgvector + TEI 嵌入/重排序 + Ragas 评估 + 质量门控
+- **模型分发** -- MinIO 模型缓存 + HuggingFace 回退 + hf-transfer 多线程下载
 - **存储** -- MinIO S3 兼容模型存储，PVC 模型缓存
 
 ```bash
@@ -148,7 +149,7 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &
 | 推理引擎自动选择（GPTQ→vLLM、GGUF→llama.cpp） | 支持 | 不适用 | 不支持 | 不支持 |
 | AI 网关（Key 管理、成本追踪、速率限制） | 支持 | 不支持 | 不支持 | 不支持 |
 | LLM 调用追踪（Prompt、Token、每次请求费用） | 支持 | 不支持 | 不支持 | 不支持 |
-| 预置 Grafana 仪表盘（9 个）+ 告警规则（5 条） | 支持 | 不支持 | 不支持 | 不支持 |
+| 预置 Grafana 仪表盘（10 个）+ 告警规则（5 条） | 支持 | 不支持 | 不支持 | 不支持 |
 | GPU 监控（DCGM） | 支持 | 需自行搭建 | 不支持 | 不支持 |
 | KEDA 自动扩缩（队列深度、TTFT） | 支持 | 不支持 | 不支持 | 部分支持 |
 | SSO 集成（Keycloak OIDC） | 支持 | 不支持 | 不支持 | 不支持 |
