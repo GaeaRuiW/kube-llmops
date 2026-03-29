@@ -191,6 +191,8 @@ def download_from_hf():
     import shutil
     MAX_RETRIES = int(os.environ.get('HF_DOWNLOAD_RETRIES', '5'))
     RETRY_DELAY = int(os.environ.get('HF_RETRY_DELAY', '30'))
+    MAX_WORKERS = int(os.environ.get('HF_MAX_WORKERS', '8'))
+    log.info(f'Download config: max_workers={MAX_WORKERS}, retries={MAX_RETRIES}, retry_delay={RETRY_DELAY}s')
     # If HF_HOME is set to model dir, use default cache layout (for TEI compatibility)
     hf_home = os.environ.get('HF_HOME', '')
     if hf_home and hf_home == str(target):
@@ -202,7 +204,7 @@ def download_from_hf():
         log.info(f'Downloading from HuggingFace (cache mode): {source}')
         for attempt in range(1, MAX_RETRIES + 1):
             try:
-                snapshot_download(repo_id=source, cache_dir=str(cache_dir))
+                snapshot_download(repo_id=source, cache_dir=str(cache_dir), max_workers=MAX_WORKERS)
                 return
             except Exception as e:
                 if attempt == MAX_RETRIES:
@@ -221,7 +223,7 @@ def download_from_hf():
         cache_dir = target / '.hf_cache'
         for attempt in range(1, MAX_RETRIES + 1):
             try:
-                snap_path = snapshot_download(repo_id=source, cache_dir=str(cache_dir))
+                snap_path = snapshot_download(repo_id=source, cache_dir=str(cache_dir), max_workers=MAX_WORKERS)
                 break
             except Exception as e:
                 if attempt == MAX_RETRIES:
