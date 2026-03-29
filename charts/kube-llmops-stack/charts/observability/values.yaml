@@ -84,6 +84,34 @@ grafana:
 pdb:
   enabled: true
 
+nodeExporter:
+  enabled: true
+  image:
+    repository: quay.io/prometheus/node-exporter
+    tag: v1.9.0
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 50m
+      memory: 32Mi
+    limits:
+      cpu: 250m
+      memory: 64Mi
+
+kubeStateMetrics:
+  enabled: true
+  image:
+    repository: rancher/mirrored-kube-state-metrics-kube-state-metrics
+    tag: v2.15.0
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 128Mi
+
 alertmanager:
   enabled: true
   slack:
