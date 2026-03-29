@@ -130,6 +130,19 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [model-loader] %(levelname)s %(message)s')
 log = logging.getLogger('model-loader')
 
+# ── Patch hf-transfer concurrency (no env var exposed by default) ──
+_hf_concurrency = int(os.environ.get('HF_TRANSFER_CONCURRENCY', '3'))
+try:
+    import hf_transfer as _hft
+    _orig_dl = _hft.download
+    def _patched_dl(*a, **kw):
+        kw['max_files'] = _hf_concurrency
+        return _orig_dl(*a, **kw)
+    _hft.download = _patched_dl
+    log.info(f'hf-transfer concurrency per file: {_hf_concurrency}')
+except Exception:
+    pass
+
 source   = os.environ.get('MODEL_SOURCE', '')
 target   = Path(os.environ.get('MODEL_DIR', '/models'))
 endpoint = os.environ.get('S3_ENDPOINT', '')
