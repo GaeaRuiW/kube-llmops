@@ -252,6 +252,8 @@ spec:
         app.kubernetes.io/instance: {{ $.Release.Name }}
         app.kubernetes.io/component: observability
         app.kubernetes.io/part-of: kube-llmops
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/prometheus.yaml") . | sha256sum }}
     spec:
       serviceAccountName: {{ $.Release.Name }}-prometheus
       securityContext:
