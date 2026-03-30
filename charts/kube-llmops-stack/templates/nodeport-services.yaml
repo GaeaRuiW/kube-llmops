@@ -143,4 +143,25 @@ spec:
       port: 3000
       targetPort: 3000
       nodePort: {{ $np.dify | default 30500 }}
+{{- if (index .Values "finetune" | default dict).enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-mlflow-np
+  labels:
+    app.kubernetes.io/name: mlflow-nodeport
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: mlflow
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports:
+    - name: http
+      port: 5000
+      targetPort: 5000
+      nodePort: {{ $np.mlflow | default 30505 }}
+{{- end }}
 {{- end }}

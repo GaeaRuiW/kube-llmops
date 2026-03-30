@@ -57,6 +57,9 @@
 {{- end }}
    Prometheus:  http://$NODE_IP:{{ $np.prometheus | default 30909 }}
    MinIO:       http://$NODE_IP:{{ $np.minio | default 30900 }}
+{{- if (index .Values "finetune" | default dict).enabled }}
+   MLflow:      http://$NODE_IP:{{ $np.mlflow | default 30505 }}
+{{- end }}
 {{- end }}
 
 3. RETRIEVE CREDENTIALS:

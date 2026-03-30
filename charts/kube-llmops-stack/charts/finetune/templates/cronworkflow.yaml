@@ -1,0 +1,17 @@
+{{- if and .Values.enabled .Values.schedule }}
+apiVersion: argoproj.io/v1alpha1
+kind: CronWorkflow
+metadata:
+  name: {{ .Release.Name }}-finetune-cron
+  labels:
+    app.kubernetes.io/name: finetune
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  schedule: {{ .Values.schedule | quote }}
+  timezone: "UTC"
+  concurrencyPolicy: Forbid
+  workflowSpec:
+    workflowTemplateRef:
+      name: {{ .Release.Name }}-finetune
+{{- end }}

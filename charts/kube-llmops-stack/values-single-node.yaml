@@ -93,6 +93,8 @@ litellm:
         password: dify-default-pw
       - name: dify_plugin
         password: dify-default-pw
+      - name: mlflow
+        password: mlflow-default-pw
 
 # ========== Observability ==========
 observability:
@@ -192,6 +194,17 @@ rag-eval:
   smokeTest:
     enabled: true
 
+# ========== Fine-tuning Pipeline (v0.4.0) ==========
+finetune:
+  enabled: false
+  # baseModel: Qwen/Qwen2.5-0.5B-Instruct
+  # outputName: qwen2-5-0-5b-lora-v1
+  # method: lora
+  # dataSource:
+  #   type: minio
+  #   path: s3://datasets/my-data/
+  #   format: alpaca
+
 # ========== MinIO (Model Storage) ==========
 fluid:
   enabled: true
@@ -200,6 +213,8 @@ fluid:
     defaultBuckets:
       - langfuse
       - models
+      - mlflow
+      - datasets
     storage:
       size: 50Gi
 
