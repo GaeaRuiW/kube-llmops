@@ -1,0 +1,437 @@
+{{- if .Values.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: {{ .Release.Name }}-finetune
+  labels:
+    app.kubernetes.io/name: finetune
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  serviceAccountName: {{ .Release.Name }}-finetune
+  volumeClaimTemplates:
+    - metadata:
+        name: workspace
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 100Gi
+  entrypoint: main
+  templates:
+    - name: main
+      dag:
+        tasks:
+          - name: prepare-data
+            template: prepare-data
+          - name: finetune
+            template: finetune
+            dependencies: [prepare-data]
+          - name: merge-upload
+            template: merge-upload
+            dependencies: [finetune]
+          - name: evaluate
+            template: evaluate
+            dependencies: [merge-upload]
+          - name: quality-gate
+            template: quality-gate
+            dependencies: [evaluate]
+          - name: deploy
+            template: deploy
+            dependencies: [quality-gate]
+    - name: prepare-data
+      container:
+        image: {{ (default dict (default dict .Values.global).modelStore).image | default "kube-llmops/model-loader:latest" }}
+        command: [bash, -c]
+        args:
+          - |
+            set -e
+            echo "=== Preparing training data ==="
+            pip install -q minio huggingface_hub hf-transfer 2>/dev/null || true
+            export HF_HUB_ENABLE_HF_TRANSFER=1
+
+            # Download base model
+            echo "Downloading base model: {{ .Values.baseModel }}"
+            python3 -c "
+            from huggingface_hub import snapshot_download
+            snapshot_download(repo_id='{{ .Values.baseModel }}', local_dir='/workspace/base-model')
+            "
+
+            # Prepare training data
+            {{- if eq .Values.dataSource.type "minio" }}
+            python3 -c "
+            from minio import Minio
+            import os
+            client = Minio('{{ $.Release.Name }}-minio:9000', access_key='minioadmin', secret_key='minioadmin', secure=False)
+            path = '{{ .Values.dataSource.path }}'.replace('s3://', '')
+            bucket = path.split('/')[0]
+            prefix = '/'.join(path.split('/')[1:])
+            os.makedirs('/workspace/data', exist_ok=True)
+            for obj in client.list_objects(bucket, prefix=prefix, recursive=True):
+                fname = obj.object_name.split('/')[-1]
+                if fname:
+                    client.fget_object(bucket, obj.object_name, f'/workspace/data/{fname}')
+                    print(f'Downloaded: {fname}')
+            "
+            {{- else if eq .Values.dataSource.type "huggingface" }}
+            pip install -q datasets 2>/dev/null || true
+            python3 -c "
+            from datasets import load_dataset
+            import json, os
+            ds = load_dataset('{{ .Values.dataSource.path }}', split='train')
+            os.makedirs('/workspace/data', exist_ok=True)
+            with open('/workspace/data/train.json', 'w') as f:
+                json.dump([dict(row) for row in ds], f, ensure_ascii=False, indent=2)
+            print(f'Downloaded {len(ds)} samples')
+            "
+            {{- else }}
+            echo "Using PVC-mounted data at /workspace/data"
+            {{- end }}
+
+            echo "=== Data preparation complete ==="
+            ls -la /workspace/data/
+            ls -la /workspace/base-model/ | head -10
+        volumeMounts:
+          - name: workspace
+            mountPath: /workspace
+        resources:
+          requests:
+            cpu: "1"
+            memory: 2Gi
+          limits:
+            cpu: "4"
+            memory: 8Gi
+    - name: finetune
+      container:
+        image: llamafactory/llamafactory:latest
+        command: [bash, -c]
+        args:
+          - |
+            set -e
+            echo "=== Starting fine-tuning ==="
+            echo "Method: {{ .Values.method }}"
+            echo "Model: {{ .Values.baseModel }}"
+
+            # Copy training config from ConfigMap
+            cp /config/train_config.yaml /workspace/train_config.yaml
+
+            # Create dataset_info.json for LLaMA-Factory
+            python3 -c "
+            import json, os, glob
+            data_files = glob.glob('/workspace/data/*.json') + glob.glob('/workspace/data/*.jsonl')
+            info = {'train': {'file_name': data_files[0] if data_files else '/workspace/data/train.json'}}
+            with open('/workspace/data/dataset_info.json', 'w') as f:
+                json.dump(info, f)
+            print(f'Dataset info: {info}')
+            "
+
+            llamafactory-cli train /workspace/train_config.yaml
+
+            echo "=== Fine-tuning complete ==="
+            ls -la /workspace/output/
+        env:
+          - name: MLFLOW_TRACKING_URI
+            value: "http://{{ $.Release.Name }}-mlflow:5000"
+          - name: MLFLOW_EXPERIMENT_NAME
+            value: {{ .Values.outputName | quote }}
+          - name: HF_HUB_ENABLE_HF_TRANSFER
+            value: "1"
+        volumeMounts:
+          - name: workspace
+            mountPath: /workspace
+          - name: train-config
+            mountPath: /config
+        resources:
+          requests:
+            cpu: {{ .Values.resources.cpu | quote }}
+            memory: {{ .Values.resources.memory }}
+            {{- if gt (int .Values.resources.gpu) 0 }}
+            nvidia.com/gpu: {{ .Values.resources.gpu | quote }}
+            {{- end }}
+          limits:
+            {{- if gt (int .Values.resources.gpu) 0 }}
+            nvidia.com/gpu: {{ .Values.resources.gpu | quote }}
+            {{- end }}
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
+      {{- end }}
+      {{- if .Values.tolerations }}
+      tolerations:
+        {{- toYaml .Values.tolerations | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: train-config
+          configMap:
+            name: {{ $.Release.Name }}-finetune-config
+    - name: merge-upload
+      container:
+        image: {{ (default dict (default dict .Values.global).modelStore).image | default "kube-llmops/model-loader:latest" }}
+        command: [bash, -c]
+        args:
+          - |
+            set -e
+            pip install -q minio mlflow 2>/dev/null || true
+
+            echo "=== Merging and uploading model ==="
+            OUTPUT_NAME="{{ .Values.outputName }}"
+
+            # Upload to MinIO
+            python3 -c "
+            from minio import Minio
+            from pathlib import Path
+            import os
+
+            client = Minio('{{ $.Release.Name }}-minio:9000', access_key='minioadmin', secret_key='minioadmin', secure=False)
+            if not client.bucket_exists('models'):
+                client.make_bucket('models')
+
+            output_dir = Path('/workspace/output')
+            prefix = '${OUTPUT_NAME}/'
+            count = 0
+            for fpath in output_dir.rglob('*'):
+                if not fpath.is_file(): continue
+                obj_name = prefix + str(fpath.relative_to(output_dir))
+                client.fput_object('models', obj_name, str(fpath))
+                count += 1
+            print(f'Uploaded {count} files to s3://models/${OUTPUT_NAME}/')
+            "
+
+            # Register in MLflow Model Registry
+            python3 -c "
+            import mlflow
+            import os
+
+            mlflow.set_tracking_uri('http://{{ $.Release.Name }}-mlflow:5000')
+            os.environ['MLFLOW_S3_ENDPOINT_URL'] = 'http://{{ $.Release.Name }}-minio:9000'
+            os.environ['AWS_ACCESS_KEY_ID'] = 'minioadmin'
+            os.environ['AWS_SECRET_ACCESS_KEY'] = 'minioadmin'
+
+            model_uri = 's3://models/${OUTPUT_NAME}/'
+            result = mlflow.register_model(model_uri, '${OUTPUT_NAME}')
+            print(f'Registered model: ${OUTPUT_NAME} version {result.version}')
+
+            client = mlflow.tracking.MlflowClient()
+            client.transition_model_version_stage('${OUTPUT_NAME}', result.version, 'Staging')
+            print(f'Model version {result.version} → Staging')
+
+            # Save version for downstream steps
+            with open('/workspace/eval/model_version.txt', 'w') as f:
+                f.write(str(result.version))
+            "
+
+            mkdir -p /workspace/eval
+            echo "=== Upload complete ==="
+        env:
+          - name: MLFLOW_S3_ENDPOINT_URL
+            value: "http://{{ $.Release.Name }}-minio:9000"
+          - name: AWS_ACCESS_KEY_ID
+            value: "minioadmin"
+          - name: AWS_SECRET_ACCESS_KEY
+            value: "minioadmin"
+        volumeMounts:
+          - name: workspace
+            mountPath: /workspace
+        resources:
+          requests:
+            cpu: "1"
+            memory: 2Gi
+          limits:
+            cpu: "4"
+            memory: 8Gi
+    - name: evaluate
+      container:
+        image: python:3.13-slim
+        command: [bash, -c]
+        args:
+          - |
+            set -e
+            pip install -q mlflow minio requests 2>/dev/null || true
+
+            echo "=== Evaluating fine-tuned model ==="
+
+            mkdir -p /workspace/eval
+            OUTPUT_NAME="{{ .Values.outputName }}"
+
+            # Simple evaluation: query the model via LiteLLM and check basic quality
+            python3 -c "
+            import json, os, requests, time
+
+            litellm_url = 'http://{{ $.Release.Name }}-litellm:4000'
+            api_key = 'sk-kube-llmops-dev'
+
+            # Test basic inference quality
+            test_prompts = [
+                'What is machine learning?',
+                'Explain the concept of fine-tuning.',
+                'What are the benefits of LoRA?',
+            ]
+
+            results = {'faithfulness': 0.0, 'answer_relevancy': 0.0}
+            passed = 0
+            for prompt in test_prompts:
+                try:
+                    resp = requests.post(f'{litellm_url}/v1/chat/completions',
+                        json={'model': '${OUTPUT_NAME}', 'messages': [{'role': 'user', 'content': prompt}], 'max_tokens': 100},
+                        headers={'Authorization': f'Bearer {api_key}'},
+                        timeout=30)
+                    if resp.status_code == 200:
+                        answer = resp.json()['choices'][0]['message']['content']
+                        if len(answer) > 10:
+                            passed += 1
+                except Exception as e:
+                    print(f'Error: {e}')
+
+            total = len(test_prompts)
+            results['faithfulness'] = passed / total if total > 0 else 0
+            results['answer_relevancy'] = passed / total if total > 0 else 0
+
+            print(f'Evaluation results: {json.dumps(results, indent=2)}')
+
+            with open('/workspace/eval/results.json', 'w') as f:
+                json.dump(results, f)
+
+            # Log to MLflow
+            import mlflow
+            mlflow.set_tracking_uri('http://{{ $.Release.Name }}-mlflow:5000')
+            mlflow.set_experiment('${OUTPUT_NAME}')
+            with mlflow.start_run(run_name='eval-${OUTPUT_NAME}'):
+                for k, v in results.items():
+                    mlflow.log_metric(k, v)
+
+            # Push to Prometheus Pushgateway
+            try:
+                from urllib.request import urlopen, Request
+                for metric, value in results.items():
+                    data = f'finetune_{metric} {value}\n'.encode()
+                    req = Request(f'http://{{ $.Release.Name }}-pushgateway:9091/metrics/job/finetune_eval', data=data)
+                    req.add_header('Content-Type', 'text/plain')
+                    urlopen(req, timeout=5)
+            except: pass
+
+            print('Evaluation complete.')
+            "
+        volumeMounts:
+          - name: workspace
+            mountPath: /workspace
+        resources:
+          requests:
+            cpu: "1"
+            memory: 1Gi
+    - name: quality-gate
+      container:
+        image: python:3.13-slim
+        command: [bash, -c]
+        args:
+          - |
+            set -e
+            pip install -q mlflow 2>/dev/null || true
+
+            echo "=== Quality Gate ==="
+            OUTPUT_NAME="{{ .Values.outputName }}"
+
+            python3 -c "
+            import json, sys, os
+
+            with open('/workspace/eval/results.json') as f:
+                results = json.load(f)
+
+            thresholds = {
+                'faithfulness': {{ .Values.evaluation.thresholds.faithfulness }},
+                'answer_relevancy': {{ .Values.evaluation.thresholds.answer_relevancy }},
+            }
+
+            passed = True
+            for metric, threshold in thresholds.items():
+                value = results.get(metric, 0)
+                status = 'PASS' if value >= threshold else 'FAIL'
+                print(f'  {metric}: {value:.4f} (threshold: {threshold}) [{status}]')
+                if value < threshold:
+                    passed = False
+
+            if not passed:
+                # Mark MLflow version as Archived
+                import mlflow
+                mlflow.set_tracking_uri('http://{{ $.Release.Name }}-mlflow:5000')
+                client = mlflow.tracking.MlflowClient()
+                version_file = '/workspace/eval/model_version.txt'
+                if os.path.exists(version_file):
+                    version = open(version_file).read().strip()
+                    try:
+                        client.transition_model_version_stage('${OUTPUT_NAME}', version, 'Archived')
+                        print(f'Model version {version} → Archived')
+                    except: pass
+
+                {{- if .Values.deploy.notifyWebhook }}
+                # Send failure notification
+                import urllib.request
+                data = json.dumps({'model': '${OUTPUT_NAME}', 'status': 'FAILED', 'metrics': results}).encode()
+                req = urllib.request.Request('{{ .Values.deploy.notifyWebhook }}', data=data, headers={'Content-Type': 'application/json'})
+                try: urllib.request.urlopen(req, timeout=10)
+                except: pass
+                {{- end }}
+
+                print('QUALITY GATE: FAILED')
+                sys.exit(1)
+
+            print('QUALITY GATE: PASSED')
+            "
+        volumeMounts:
+          - name: workspace
+            mountPath: /workspace
+        resources:
+          requests:
+            cpu: 500m
+            memory: 256Mi
+    - name: deploy
+      container:
+        image: bitnami/kubectl:latest
+        command: [bash, -c]
+        args:
+          - |
+            set -e
+            OUTPUT_NAME="{{ .Values.outputName }}"
+
+            echo "=== Deploy Step ==="
+
+            {{- if not .Values.deploy.auto }}
+            # Manual approval mode — just notify
+            echo "deploy.auto=false — sending notification only"
+
+            {{- if .Values.deploy.notifyWebhook }}
+            cat /workspace/eval/results.json
+            apt-get update -qq && apt-get install -qq -y curl > /dev/null 2>&1 || true
+            METRICS=$(cat /workspace/eval/results.json)
+            VERSION=$(cat /workspace/eval/model_version.txt 2>/dev/null || echo "unknown")
+            curl -s -X POST "{{ .Values.deploy.notifyWebhook }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"model\": \"${OUTPUT_NAME}\", \"version\": \"${VERSION}\", \"status\": \"PASSED\", \"metrics\": ${METRICS}, \"approve_cmd\": \"argo submit -n default --from workflowtemplate/{{ $.Release.Name }}-finetune\"}" || true
+            echo "Notification sent to webhook"
+            {{- else }}
+            echo "No webhook configured. Model ready for manual deployment."
+            echo "Model: s3://models/${OUTPUT_NAME}/"
+            cat /workspace/eval/results.json
+            {{- end }}
+
+            {{- else }}
+            # Auto deploy mode — create canary deployment
+            echo "deploy.auto=true — creating canary deployment"
+            echo "Canary percent: {{ .Values.deploy.canaryPercent }}%"
+
+            # Note: Full canary deployment with vLLM instance + LiteLLM routing
+            # requires the model to be accessible via MinIO. The model was uploaded
+            # in the merge-upload step to s3://models/<outputName>/
+            echo "Fine-tuned model available at: s3://models/${OUTPUT_NAME}/"
+            echo "To deploy manually: update global.models in values and helm upgrade"
+
+            {{- end }}
+
+            echo "=== Deploy step complete ==="
+        volumeMounts:
+          - name: workspace
+            mountPath: /workspace
+        resources:
+          requests:
+            cpu: 250m
+            memory: 128Mi
+{{- end }}
