@@ -1,0 +1,5 @@
+apiVersion: v2
+name: finetune
+description: LLaMA-Factory fine-tuning pipeline with Argo Workflows and MLflow
+version: 0.1.0
+type: application

@@ -1,0 +1,70 @@
+enabled: false
+
+# Base model
+baseModel: ""
+outputName: ""
+
+# Training method
+method: lora              # lora | qlora | full
+loraRank: 8
+loraAlpha: 16
+epochs: 3
+batchSize: 4
+learningRate: 2e-4
+
+# Data source
+dataSource:
+  type: minio             # minio | huggingface | pvc
+  path: ""
+  format: alpaca          # alpaca | sharegpt | custom
+
+# GPU resources
+resources:
+  gpu: 1
+  memory: 16Gi
+  cpu: "4"
+
+# Node scheduling
+nodeSelector: {}
+tolerations: []
+
+# Evaluation + quality gate
+evaluation:
+  enabled: true
+  benchmarks:
+    - ragas
+  thresholds:
+    faithfulness: 0.7
+    answer_relevancy: 0.7
+
+# Deployment strategy
+deploy:
+  auto: false
+  canaryPercent: 20
+  notifyWebhook: ""
+
+# Schedule (empty = manual, cron expression = periodic)
+schedule: ""
+
+# MLflow
+mlflow:
+  enabled: true
+  image:
+    repository: ghcr.io/mlflow/mlflow
+    tag: "2.21.3"
+    pullPolicy: IfNotPresent
+  postgresql:
+    database: mlflow
+    username: mlflow
+    password: mlflow-default-pw
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+# PDB
+pdb:
+  enabled: true
