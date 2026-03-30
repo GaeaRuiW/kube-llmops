@@ -13,11 +13,12 @@
 
 - **Model Serving** -- vLLM, llama.cpp, or TEI, auto-selected based on model format (engine auto-detection from source name)
 - **AI Gateway** -- LiteLLM for unified OpenAI-compatible API, key management, rate limiting, budget control
-- **Observability** -- Prometheus + Grafana (10 dashboards + 5 alert rules) + Langfuse v3 LLM tracing + node-exporter + kube-state-metrics
+- **Observability** -- Prometheus + Grafana (11 dashboards + 5 alert rules) + Langfuse v3 LLM tracing + node-exporter + kube-state-metrics
 - **Logging** -- Fluent Bit + Loki, queryable in Grafana Explore
 - **Autoscaling** -- KEDA scales vLLM pods based on queue depth and latency
 - **Security** -- Keycloak SSO for Grafana/Langfuse, LLM-Guard prompt injection defense, NetworkPolicy isolation
 - **RAG Infrastructure** -- Dify platform + pgvector + TEI embedding/reranking + Ragas evaluation + quality gate
+- **Fine-tuning** -- LLaMA-Factory LoRA/QLoRA/Full fine-tuning with Argo Workflows pipeline + MLflow tracking
 - **Model Distribution** -- MinIO model cache + HuggingFace fallback + hf-transfer multi-threaded downloads
 - **Storage** -- MinIO S3-compatible model storage, PVC model cache
 

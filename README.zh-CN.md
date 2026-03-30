@@ -13,11 +13,12 @@
 
 - **模型推理服务** -- vLLM、llama.cpp 或 TEI，根据模型名称自动选择推理引擎
 - **AI 网关** -- LiteLLM 提供统一的 OpenAI 兼容 API、Key 管理、速率限制、预算控制
-- **可观测性** -- Prometheus + Grafana（10 个仪表盘 + 5 条告警规则）+ Langfuse v3 LLM 调用追踪 + node-exporter + kube-state-metrics
+- **可观测性** -- Prometheus + Grafana（11 个仪表盘 + 5 条告警规则）+ Langfuse v3 LLM 调用追踪 + node-exporter + kube-state-metrics
 - **日志** -- Fluent Bit + Loki，在 Grafana Explore 中查询
 - **自动扩缩** -- KEDA 根据队列深度和延迟自动扩缩 vLLM Pod
 - **安全** -- Keycloak SSO 登录 Grafana/Langfuse，LLM-Guard Prompt 注入防护，NetworkPolicy 网络隔离
 - **RAG 基础设施** -- Dify 平台 + pgvector + TEI 嵌入/重排序 + Ragas 评估 + 质量门控
+- **模型微调** -- LLaMA-Factory LoRA/QLoRA/Full 微调 + Argo Workflows 流水线 + MLflow 实验追踪
 - **模型分发** -- MinIO 模型缓存 + HuggingFace 回退 + hf-transfer 多线程下载
 - **存储** -- MinIO S3 兼容模型存储，PVC 模型缓存
 
