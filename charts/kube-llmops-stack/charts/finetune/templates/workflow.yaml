@@ -43,6 +43,7 @@ spec:
     - name: prepare-data
       container:
         image: {{ (default dict (default dict .Values.global).modelStore).image | default "kube-llmops/model-loader:latest" }}
+        imagePullPolicy: IfNotPresent
         command: [bash, -c]
         args:
           - |
@@ -92,6 +93,16 @@ spec:
             echo "=== Data preparation complete ==="
             ls -la /workspace/data/
             ls -la /workspace/base-model/ | head -10
+        {{- if and .Values.global .Values.global.hfToken }}
+        env:
+          - name: HF_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: {{ $.Release.Name }}-hf-token
+                key: token
+          - name: HF_HUB_ENABLE_HF_TRANSFER
+            value: "1"
+        {{- end }}
         volumeMounts:
           - name: workspace
             mountPath: /workspace
@@ -105,6 +116,7 @@ spec:
     - name: finetune
       container:
         image: llamafactory/llamafactory:latest
+        imagePullPolicy: IfNotPresent
         command: [bash, -c]
         args:
           - |
@@ -137,6 +149,13 @@ spec:
             value: {{ .Values.outputName | quote }}
           - name: HF_HUB_ENABLE_HF_TRANSFER
             value: "1"
+          {{- if and .Values.global .Values.global.hfToken }}
+          - name: HF_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: {{ $.Release.Name }}-hf-token
+                key: token
+          {{- end }}
         volumeMounts:
           - name: workspace
             mountPath: /workspace
@@ -168,6 +187,7 @@ spec:
     - name: merge-upload
       container:
         image: {{ (default dict (default dict .Values.global).modelStore).image | default "kube-llmops/model-loader:latest" }}
+        imagePullPolicy: IfNotPresent
         command: [bash, -c]
         args:
           - |
@@ -243,6 +263,7 @@ spec:
     - name: evaluate
       container:
         image: python:3.13-slim
+        imagePullPolicy: IfNotPresent
         command: [bash, -c]
         args:
           - |
@@ -322,6 +343,7 @@ spec:
     - name: quality-gate
       container:
         image: python:3.13-slim
+        imagePullPolicy: IfNotPresent
         command: [bash, -c]
         args:
           - |
@@ -387,6 +409,7 @@ spec:
     - name: deploy
       container:
         image: bitnami/kubectl:latest
+        imagePullPolicy: IfNotPresent
         command: [bash, -c]
         args:
           - |
