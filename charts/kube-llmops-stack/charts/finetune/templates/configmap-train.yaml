@@ -1,0 +1,51 @@
+{{- if .Values.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-finetune-config
+  labels:
+    app.kubernetes.io/name: finetune
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+data:
+  train_config.yaml: |
+    ### Model
+    model_name_or_path: /workspace/base-model
+    
+    ### Method
+    stage: sft
+    do_train: true
+    finetuning_type: {{ .Values.method }}
+    {{- if or (eq .Values.method "lora") (eq .Values.method "qlora") }}
+    lora_rank: {{ .Values.loraRank }}
+    lora_alpha: {{ .Values.loraAlpha }}
+    lora_target: all
+    {{- end }}
+    {{- if eq .Values.method "qlora" }}
+    quantization_bit: 4
+    quantization_method: bitsandbytes
+    {{- end }}
+    
+    ### Dataset
+    dataset_dir: /workspace/data
+    dataset: train
+    template: default
+    
+    ### Output
+    output_dir: /workspace/output
+    logging_steps: 10
+    save_steps: 500
+    overwrite_output_dir: true
+    
+    ### Training
+    per_device_train_batch_size: {{ .Values.batchSize }}
+    gradient_accumulation_steps: 4
+    learning_rate: {{ .Values.learningRate }}
+    num_train_epochs: {{ .Values.epochs }}
+    lr_scheduler_type: cosine
+    warmup_ratio: 0.1
+    bf16: true
+    
+    ### Reporting
+    report_to: mlflow
+{{- end }}
