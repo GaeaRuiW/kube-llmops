@@ -55,6 +55,8 @@ kubectl logs job/kube-llmops-quality-gate
 │ Node Exporter:9100 + Kube State Metrics:8080      │
 │ LLM-Guard (Security:8000)                         │
 │ Keycloak (SSO:8080)                               │
+│ Argo Workflows + LLaMA-Factory (Fine-tune)          │
+│ MLflow (Experiment Tracking:5000)                    │
 │ MinIO (S3:9000) + PostgreSQL:5432                  │
 └──────────────────────────────────────────────────┘
 ```
@@ -86,6 +88,16 @@ Ports: LiteLLM :30400, Grafana :30300, Langfuse :30301, Dify :30500,
        Keycloak :30808, Prometheus :30909, MinIO :30900/:30901
 
 SSO works automatically — OIDC URLs auto-computed from nodePort.host.
+
+### Fine-tuning Pipeline (v0.4.0)
+- Argo Workflows DAG: prepare-data → finetune → merge-upload → evaluate → quality-gate → deploy
+- LLaMA-Factory: LoRA / QLoRA / Full fine-tuning for all model types
+- MLflow: Experiment tracking + Model Registry (reuses PostgreSQL + MinIO)
+- Data sources: MinIO (s3://), HuggingFace datasets, PVC
+- Quality gate with configurable thresholds
+- Canary deployment via LiteLLM weight routing
+- Human approval via webhook notifications
+- Prerequisite: Argo Workflows operator must be installed separately
 
 ## Critical Gotchas
 
@@ -134,7 +146,7 @@ helm dependency update charts/kube-llmops-stack/
 | Quality Gate | Helm Hook | pass/block | Pre-upgrade check on Ragas thresholds |
 | LLM-Guard | Manual | 4/4 | Normal + direct injection + subtle + benign |
 
-## Grafana Dashboards (10)
+## Grafana Dashboards (11)
 
 | UID | Title |
 |-----|-------|
@@ -148,6 +160,7 @@ helm dependency update charts/kube-llmops-stack/
 | `tenant-overview` | Tenant Overview |
 | `milvus-overview` | Milvus Vector DB |
 | `system-overview` | System CPU/Memory/Disk/Network |
+| `finetune-overview` | Fine-tuning Pipeline |
 
 ## File Layout
 
@@ -171,6 +184,7 @@ charts/kube-llmops-stack/
     security/                 # LLM-Guard + NetworkPolicy
     keycloak/                 # SSO
     logging/                  # Loki + Fluent Bit
+    finetune/                 # LLaMA-Factory + Argo Workflows + MLflow
     fluid/                    # MinIO
 images/
   model-loader/               # Pre-built model downloader (minio + huggingface_hub + hf-transfer)

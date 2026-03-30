@@ -1,7 +1,7 @@
 ---
 name: kube-llmops
 description: "Deploy, manage, debug, and query the kube-llmops LLMOps platform — installation, model management, monitoring, RAG, troubleshooting"
-argument-hint: "[install|status|models|logs|eval|debug|chat|embed|dashboard]"
+argument-hint: "[install|status|models|logs|eval|debug|chat|embed|dashboard|finetune]"
 allowed-tools:
   - read
   - grep
@@ -39,6 +39,8 @@ This skill covers the full lifecycle: installation, model management, monitoring
 │  Langfuse (Trace:3000) ← LiteLLM callbacks         │
 │  Prometheus:9090 + Pushgateway:9091 → Grafana:3000  │
 │  LLM-Guard (Security:8000), Keycloak (SSO:8080)    │
+│  Argo Workflows + LLaMA-Factory (Fine-tune)          │
+│  MLflow (Experiment Tracking:5000)                    │
 │  MinIO (S3:9000) + PostgreSQL:5432                  │
 └──────────────────────────────────────────────────┘
 ```
@@ -295,12 +297,31 @@ print(f'First 5: {v[:5]}')
 
 ---
 
+### `finetune` — Trigger and Monitor Fine-tuning
+
+```bash
+# Submit a fine-tuning workflow
+argo submit -n default --from workflowtemplate/kube-llmops-finetune
+
+# Watch progress
+argo watch -n default @latest
+
+# List workflow runs
+argo list -n default
+
+# Check MLflow experiments
+NODE_IP=$(kubectl get node -o jsonpath='{.items[0].status.addresses[0].address}')
+echo "MLflow UI: http://$NODE_IP:30505"
+```
+
+---
+
 ### `dashboard` — List or Query Grafana Dashboards
 
 If invoked with no argument (`/kube-llmops dashboard`), list all dashboards.
 If invoked with a dashboard name or uid (`/kube-llmops dashboard rag-quality`), show that dashboard's panel details and current data.
 
-**Available dashboards (10):**
+**Available dashboards (11):**
 
 | UID | Title | Focus |
 |-----|-------|-------|
@@ -314,6 +335,7 @@ If invoked with a dashboard name or uid (`/kube-llmops dashboard rag-quality`), 
 | `tenant-overview` | Tenant Overview | Per-team resource usage |
 | `milvus-overview` | Milvus Vector Database | Milvus collection, search, insert metrics |
 | `system-overview` | System Overview | Node CPU, memory, disk, network, pod resource table |
+| `finetune-overview` | Fine-tuning Pipeline | Fine-tuning workflow status, metrics, MLflow |
 
 **List all dashboards:**
 
@@ -414,5 +436,7 @@ If the user doesn't provide a subcommand, or asks a general question about kube-
 - **Build model-loader**: `docker build -t kube-llmops/model-loader:latest images/model-loader/`
 - **Run E2E tests**: `uv run tests/e2e/test_dify_model_provider.py`
 - **Check smoke test**: `kubectl logs -l app.kubernetes.io/name=rag-smoke-test --tail=30`
+- **Fine-tune model**: `argo submit -n default --from workflowtemplate/kube-llmops-finetune`
+- **MLflow UI**: `http://<NODE_IP>:30505`
 - **System metrics**: node-exporter (CPU/mem/disk) + kube-state-metrics (pod/deploy status)
-- **10 dashboards**: vllm, litellm, gpu, rag-quality, cost, slo, infra-roi, tenant, milvus, system-overview
+- **11 dashboards**: vllm, litellm, gpu, rag-quality, cost, slo, infra-roi, tenant, milvus, system-overview, finetune-overview
