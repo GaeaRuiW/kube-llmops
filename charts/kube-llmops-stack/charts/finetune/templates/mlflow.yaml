@@ -39,6 +39,8 @@ spec:
             - "0.0.0.0"
             - "--port"
             - "5000"
+            - "--allowed-hosts"
+            - "*"
           env:
             - name: MLFLOW_S3_ENDPOINT_URL
               value: "http://{{ .Release.Name }}-minio:9000"
@@ -51,14 +53,12 @@ spec:
               containerPort: 5000
               protocol: TCP
           readinessProbe:
-            httpGet:
-              path: /health
+            tcpSocket:
               port: 5000
             initialDelaySeconds: 10
             periodSeconds: 10
           livenessProbe:
-            httpGet:
-              path: /health
+            tcpSocket:
               port: 5000
             initialDelaySeconds: 30
             periodSeconds: 30

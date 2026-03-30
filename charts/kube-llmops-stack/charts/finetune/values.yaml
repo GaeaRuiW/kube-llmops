@@ -50,8 +50,8 @@ schedule: ""
 mlflow:
   enabled: true
   image:
-    repository: ghcr.io/mlflow/mlflow
-    tag: "2.21.3"
+    repository: kube-llmops/mlflow
+    tag: "latest"
     pullPolicy: IfNotPresent
   postgresql:
     database: mlflow
@@ -63,7 +63,7 @@ mlflow:
       memory: 512Mi
     limits:
       cpu: "1"
-      memory: 1Gi
+      memory: 2Gi
 
 # PDB
 pdb:
