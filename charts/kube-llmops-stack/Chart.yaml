@@ -121,3 +121,9 @@ dependencies:
     condition: postgresql.enabled
     tags:
       - database
+  - name: finetune
+    version: 0.1.0
+    repository: "file://charts/finetune"
+    condition: finetune.enabled
+    tags:
+      - ml-platform
