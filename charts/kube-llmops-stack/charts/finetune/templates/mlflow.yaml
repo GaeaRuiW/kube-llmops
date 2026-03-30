@@ -1,0 +1,92 @@
+{{- if .Values.enabled }}
+{{- if .Values.mlflow.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-mlflow
+  labels:
+    app.kubernetes.io/name: mlflow
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: ml-platform
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mlflow
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mlflow
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: ml-platform
+        app.kubernetes.io/part-of: kube-llmops
+    spec:
+      containers:
+        - name: mlflow
+          image: "{{ .Values.mlflow.image.repository }}:{{ .Values.mlflow.image.tag }}"
+          imagePullPolicy: {{ .Values.mlflow.image.pullPolicy }}
+          command:
+            - mlflow
+            - server
+            - "--backend-store-uri"
+            - "postgresql://{{ .Values.mlflow.postgresql.username }}:{{ .Values.mlflow.postgresql.password }}@{{ .Release.Name }}-litellm-pg:5432/{{ .Values.mlflow.postgresql.database }}"
+            - "--default-artifact-root"
+            - "s3://mlflow/"
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - "5000"
+          env:
+            - name: MLFLOW_S3_ENDPOINT_URL
+              value: "http://{{ .Release.Name }}-minio:9000"
+            - name: AWS_ACCESS_KEY_ID
+              value: "minioadmin"
+            - name: AWS_SECRET_ACCESS_KEY
+              value: "minioadmin"
+          ports:
+            - name: http
+              containerPort: 5000
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: {{ .Values.mlflow.resources.requests.cpu }}
+              memory: {{ .Values.mlflow.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.mlflow.resources.limits.cpu | quote }}
+              memory: {{ .Values.mlflow.resources.limits.memory }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-mlflow
+  labels:
+    app.kubernetes.io/name: mlflow
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: ml-platform
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5000
+      targetPort: 5000
+      name: http
+  selector:
+    app.kubernetes.io/name: mlflow
+    app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+{{- end }}
