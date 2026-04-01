@@ -17,7 +17,7 @@ spec:
         accessModes: [ReadWriteOnce]
         resources:
           requests:
-            storage: 100Gi
+            storage: 10Gi
   entrypoint: main
   templates:
     - name: main
@@ -188,10 +188,10 @@ spec:
         resources:
           requests:
             cpu: "1"
-            memory: 2Gi
+            memory: 512Mi
           limits:
             cpu: "4"
-            memory: 8Gi
+            memory: 2Gi
     - name: finetune
       container:
         image: llamafactory/llamafactory:latest
@@ -217,6 +217,12 @@ spec:
             print(f'Dataset info: {info}')
             "
 
+            {{- if eq (int .Values.resources.gpu) 0 }}
+            # Force CPU-only mode to avoid CUDA init crash in GPU containers
+            export CUDA_VISIBLE_DEVICES=""
+            export USE_CPU=1
+            {{- end }}
+
             llamafactory-cli train /workspace/train_config.yaml
 
             echo "=== Fine-tuning complete ==="
@@ -229,6 +235,8 @@ spec:
           {{- if eq (int .Values.resources.gpu) 0 }}
           - name: CUDA_VISIBLE_DEVICES
             value: ""
+          - name: NVIDIA_VISIBLE_DEVICES
+            value: "none"
           {{- end }}
           - name: HF_HUB_ENABLE_HF_TRANSFER
             value: "1"
@@ -339,10 +347,10 @@ spec:
         resources:
           requests:
             cpu: "1"
-            memory: 2Gi
+            memory: 512Mi
           limits:
             cpu: "4"
-            memory: 8Gi
+            memory: 2Gi
     - name: evaluate
       container:
         image: python:3.13-slim

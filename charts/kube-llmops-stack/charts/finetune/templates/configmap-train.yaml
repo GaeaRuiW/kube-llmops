@@ -49,6 +49,7 @@ data:
     {{- else }}
     bf16: false
     fp16: false
+    pure_bf16: false
     {{- end }}
     
     ### Reporting
