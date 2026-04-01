@@ -52,11 +52,80 @@ spec:
             pip install -q minio huggingface_hub hf-transfer 2>/dev/null || true
             export HF_HUB_ENABLE_HF_TRANSFER=1
 
-            # Download base model
+            # Download base model — MinIO first, fallback to HuggingFace
             echo "Downloading base model: {{ .Values.baseModel }}"
             python3 -c "
-            from huggingface_hub import snapshot_download
-            snapshot_download(repo_id='{{ .Values.baseModel }}', local_dir='/workspace/base-model')
+            import os, sys, logging, shutil
+            from pathlib import Path
+            logging.basicConfig(level=logging.INFO, format='%(asctime)s [prepare-data] %(levelname)s %(message)s')
+            log = logging.getLogger('prepare-data')
+
+            source = '{{ .Values.baseModel }}'
+            slug = source.replace('/', '--')
+            target = Path('/workspace/base-model')
+            target.mkdir(parents=True, exist_ok=True)
+
+            endpoint = os.environ.get('S3_ENDPOINT', '')
+            bucket = os.environ.get('S3_BUCKET', 'models')
+            ak = os.environ.get('S3_ACCESS_KEY', 'minioadmin')
+            sk = os.environ.get('S3_SECRET_KEY', 'minioadmin')
+
+            downloaded = False
+
+            # Try MinIO first
+            if endpoint:
+                try:
+                    from minio import Minio
+                    mc = Minio(endpoint, access_key=ak, secret_key=sk, secure=False)
+                    prefix = slug + '/'
+                    objs = list(mc.list_objects(bucket, prefix=prefix, recursive=False))
+                    if objs:
+                        log.info(f'Found in MinIO: s3://{bucket}/{prefix}')
+                        for obj in mc.list_objects(bucket, prefix=prefix, recursive=True):
+                            rel = obj.object_name[len(prefix):]
+                            if not rel: continue
+                            fpath = target / rel
+                            fpath.parent.mkdir(parents=True, exist_ok=True)
+                            if fpath.exists() and fpath.stat().st_size == obj.size:
+                                log.info(f'  Cached: {rel}')
+                                continue
+                            log.info(f'  Downloading from MinIO: {rel} ({obj.size/(1024**2):.1f} MB)')
+                            mc.fget_object(bucket, obj.object_name, str(fpath))
+                        downloaded = True
+                        log.info(f'MinIO sync complete → {target}')
+                except Exception as e:
+                    log.warning(f'MinIO unavailable ({e}), falling back to HuggingFace')
+
+            # Fallback to HuggingFace
+            if not downloaded:
+                log.info(f'Downloading from HuggingFace: {source}')
+                from huggingface_hub import snapshot_download
+                snap = snapshot_download(repo_id=source, cache_dir=str(target / '.hf_cache'))
+                log.info(f'Downloaded to cache: {snap}')
+                snap_path = Path(snap)
+                for f in snap_path.rglob('*'):
+                    if not f.is_file(): continue
+                    rel = f.relative_to(snap_path)
+                    dst = target / rel
+                    dst.parent.mkdir(parents=True, exist_ok=True)
+                    real_f = f.resolve()
+                    if dst.exists() and dst.stat().st_size == real_f.stat().st_size:
+                        continue
+                    shutil.copy2(str(real_f), str(dst))
+
+                # Upload to MinIO for next time
+                if endpoint:
+                    try:
+                        count = 0
+                        for fpath in target.rglob('*'):
+                            if not fpath.is_file() or '.hf_cache' in str(fpath): continue
+                            obj_name = prefix + str(fpath.relative_to(target))
+                            mc.fput_object(bucket, obj_name, str(fpath))
+                            count += 1
+                        log.info(f'Uploaded {count} files to MinIO')
+                    except: pass
+
+            log.info('Base model ready.')
             "
 
             # Prepare training data
@@ -93,16 +162,26 @@ spec:
             echo "=== Data preparation complete ==="
             ls -la /workspace/data/
             ls -la /workspace/base-model/ | head -10
-        {{- if and .Values.global .Values.global.hfToken }}
         env:
+          - name: HF_HUB_ENABLE_HF_TRANSFER
+            value: "1"
+          {{- if and .Values.global .Values.global.modelStore }}
+          - name: S3_ENDPOINT
+            value: {{ .Values.global.modelStore.endpoint | quote }}
+          - name: S3_BUCKET
+            value: {{ .Values.global.modelStore.bucket | default "models" | quote }}
+          - name: S3_ACCESS_KEY
+            value: {{ .Values.global.modelStore.accessKey | default "minioadmin" | quote }}
+          - name: S3_SECRET_KEY
+            value: {{ .Values.global.modelStore.secretKey | default "minioadmin" | quote }}
+          {{- end }}
+          {{- if and .Values.global .Values.global.hfToken }}
           - name: HF_TOKEN
             valueFrom:
               secretKeyRef:
                 name: {{ $.Release.Name }}-hf-token
                 key: token
-          - name: HF_HUB_ENABLE_HF_TRANSFER
-            value: "1"
-        {{- end }}
+          {{- end }}
         volumeMounts:
           - name: workspace
             mountPath: /workspace
@@ -147,6 +226,10 @@ spec:
             value: "http://{{ $.Release.Name }}-mlflow:5000"
           - name: MLFLOW_EXPERIMENT_NAME
             value: {{ .Values.outputName | quote }}
+          {{- if eq (int .Values.resources.gpu) 0 }}
+          - name: CUDA_VISIBLE_DEVICES
+            value: ""
+          {{- end }}
           - name: HF_HUB_ENABLE_HF_TRANSFER
             value: "1"
           {{- if and .Values.global .Values.global.hfToken }}

@@ -44,7 +44,12 @@ data:
     num_train_epochs: {{ .Values.epochs }}
     lr_scheduler_type: cosine
     warmup_ratio: 0.1
+    {{- if gt (int .Values.resources.gpu) 0 }}
     bf16: true
+    {{- else }}
+    bf16: false
+    fp16: false
+    {{- end }}
     
     ### Reporting
     report_to: mlflow
