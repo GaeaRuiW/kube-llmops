@@ -57,6 +57,7 @@ global:
     bucket: models
     accessKey: minioadmin
     secretKey: minioadmin
+    hfTransferConcurrency: 32                # concurrent file downloads (hf-transfer)
     image: kube-llmops/model-loader:latest   # pre-built with minio+huggingface_hub
   # HuggingFace token for gated models (Llama, Gemma, etc.)
   hfToken: ***REMOVED***
