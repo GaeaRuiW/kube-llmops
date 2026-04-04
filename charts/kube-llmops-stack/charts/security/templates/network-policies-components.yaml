@@ -76,4 +76,57 @@ spec:
   ingress:
     - ports:
         - port: 4000
+---
+# MLflow: allow ingress from finetune workflow pods and Prometheus
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-mlflow-ingress
+  labels:
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mlflow
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: kube-llmops
+      ports:
+        - port: 5000
+---
+# MLflow: allow egress to PostgreSQL and MinIO
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-mlflow-egress
+  labels:
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mlflow
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: litellm-postgresql
+      ports:
+        - port: 5432
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: minio
+      ports:
+        - port: 9000
+    - to: # DNS resolution
+        - namespaceSelector: {}
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
 {{- end }}

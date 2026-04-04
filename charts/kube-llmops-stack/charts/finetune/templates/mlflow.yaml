@@ -44,10 +44,17 @@ spec:
           env:
             - name: MLFLOW_S3_ENDPOINT_URL
               value: "http://{{ .Release.Name }}-minio:9000"
+            {{- if and .Values.global .Values.global.modelStore }}
+            - name: AWS_ACCESS_KEY_ID
+              value: {{ .Values.global.modelStore.accessKey | default "minioadmin" | quote }}
+            - name: AWS_SECRET_ACCESS_KEY
+              value: {{ .Values.global.modelStore.secretKey | default "minioadmin" | quote }}
+            {{- else }}
             - name: AWS_ACCESS_KEY_ID
               value: "minioadmin"
             - name: AWS_SECRET_ACCESS_KEY
               value: "minioadmin"
+            {{- end }}
           ports:
             - name: http
               containerPort: 5000

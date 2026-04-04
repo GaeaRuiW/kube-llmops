@@ -164,7 +164,7 @@ helm dependency update charts/kube-llmops-stack/
 | Ragas Eval | K8s CronJob | 4 metrics | faithfulness, relevancy, precision, recall |
 | Quality Gate | Helm Hook | pass/block | Pre-upgrade check on Ragas thresholds |
 | LLM-Guard | Manual | 4/4 | Normal + direct injection + subtle + benign |
-| Finetune Helm Templates | pytest | 25+ | ConfigMap, RBAC, MLflow, PDB, LoRA/QLoRA/Full, profiles |
+| Finetune Helm Templates | pytest | 35+ | ConfigMap, RBAC, MLflow, PDB, LoRA/QLoRA/Full, profiles, validation |
 | Finetune E2E | Python+kubectl | ~26 | MLflow health, WorkflowTemplate, Argo run, Registry, QG, Grafana |
 | Finetune Sample Data | CI | 1 | Alpaca-format validation (>=10 samples) |
 

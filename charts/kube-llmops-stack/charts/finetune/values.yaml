@@ -12,6 +12,10 @@ epochs: 3
 batchSize: 4
 learningRate: 2e-4
 maxSamples: 0               # 0 = use all samples
+gradientAccumulationSteps: 4
+saveSteps: 500
+warmupRatio: 0.1
+loggingSteps: 10
 
 # Data source
 dataSource:
