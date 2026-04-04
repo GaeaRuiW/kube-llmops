@@ -36,17 +36,17 @@ data:
     
     ### Output
     output_dir: /workspace/output
-    logging_steps: 10
-    save_steps: 500
+    logging_steps: {{ .Values.loggingSteps | default 10 }}
+    save_steps: {{ .Values.saveSteps | default 500 }}
     overwrite_output_dir: true
     
     ### Training
     per_device_train_batch_size: {{ .Values.batchSize }}
-    gradient_accumulation_steps: 4
+    gradient_accumulation_steps: {{ .Values.gradientAccumulationSteps | default 4 }}
     learning_rate: {{ .Values.learningRate }}
     num_train_epochs: {{ .Values.epochs }}
     lr_scheduler_type: cosine
-    warmup_ratio: 0.1
+    warmup_ratio: {{ .Values.warmupRatio | default 0.1 }}
     {{- if gt (int .Values.resources.gpu) 0 }}
     bf16: true
     {{- else }}

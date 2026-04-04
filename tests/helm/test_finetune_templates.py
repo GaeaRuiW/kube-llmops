@@ -53,6 +53,7 @@ FINETUNE_BASE = {
     "finetune.outputName": "qwen-ft-test",
     "finetune.method": "lora",
     "finetune.mlflow.enabled": "true",
+    "finetune.dataSource.path": "s3://datasets/test-data/",
 }
 
 
@@ -267,6 +268,81 @@ class TestCronWorkflow:
     # This is tested in the E2E suite instead.
 
 
+class TestInputValidation:
+    """Validate that required fields cause template errors when missing."""
+
+    def test_missing_base_model(self):
+        vals = {
+            "finetune.enabled": "true",
+            "finetune.outputName": "test",
+            "finetune.dataSource.path": "s3://test/",
+        }
+        with pytest.raises(RuntimeError, match="baseModel is required"):
+            helm_template(set_values=vals)
+
+    def test_missing_output_name(self):
+        vals = {
+            "finetune.enabled": "true",
+            "finetune.baseModel": "test/model",
+            "finetune.dataSource.path": "s3://test/",
+        }
+        with pytest.raises(RuntimeError, match="outputName is required"):
+            helm_template(set_values=vals)
+
+    def test_missing_datasource_path_minio(self):
+        vals = {
+            "finetune.enabled": "true",
+            "finetune.baseModel": "test/model",
+            "finetune.outputName": "test",
+            "finetune.dataSource.type": "minio",
+        }
+        with pytest.raises(RuntimeError, match="dataSource.path is required"):
+            helm_template(set_values=vals)
+
+    def test_invalid_method(self):
+        vals = {
+            "finetune.enabled": "true",
+            "finetune.baseModel": "test/model",
+            "finetune.outputName": "test",
+            "finetune.method": "invalid",
+            "finetune.dataSource.path": "s3://test/",
+        }
+        with pytest.raises(RuntimeError, match="method must be one of"):
+            helm_template(set_values=vals)
+
+
+class TestConfigurableTrainingParams:
+    """Validate configurable training parameters in ConfigMap."""
+
+    def test_custom_gradient_accumulation(self):
+        vals = {**FINETUNE_BASE, "finetune.gradientAccumulationSteps": "8"}
+        docs = helm_template(set_values=vals)
+        cms = find_by_kind(docs, "ConfigMap", "finetune-config")
+        config = cms[0]["data"]["train_config.yaml"]
+        assert "gradient_accumulation_steps: 8" in config
+
+    def test_custom_save_steps(self):
+        vals = {**FINETUNE_BASE, "finetune.saveSteps": "1000"}
+        docs = helm_template(set_values=vals)
+        cms = find_by_kind(docs, "ConfigMap", "finetune-config")
+        config = cms[0]["data"]["train_config.yaml"]
+        assert "save_steps: 1000" in config
+
+    def test_custom_warmup_ratio(self):
+        vals = {**FINETUNE_BASE, "finetune.warmupRatio": "0.05"}
+        docs = helm_template(set_values=vals)
+        cms = find_by_kind(docs, "ConfigMap", "finetune-config")
+        config = cms[0]["data"]["train_config.yaml"]
+        assert "warmup_ratio: 0.05" in config
+
+    def test_custom_logging_steps(self):
+        vals = {**FINETUNE_BASE, "finetune.loggingSteps": "5"}
+        docs = helm_template(set_values=vals)
+        cms = find_by_kind(docs, "ConfigMap", "finetune-config")
+        config = cms[0]["data"]["train_config.yaml"]
+        assert "logging_steps: 5" in config
+
+
 class TestNodePortService:
     """Validate NodePort service for MLflow."""
 
@@ -306,6 +382,7 @@ class TestAllProfiles:
                 "finetune.enabled": "true",
                 "finetune.baseModel": "test/model",
                 "finetune.outputName": "test-output",
+                "finetune.dataSource.path": "s3://datasets/test/",
             }
         )
         finetune_docs = [d for d in docs if "finetune" in d.get("metadata", {}).get("name", "")]

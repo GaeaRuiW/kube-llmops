@@ -1,4 +1,15 @@
 {{- if .Values.enabled }}
+{{- $_ := required "finetune.baseModel is required when finetune is enabled" .Values.baseModel }}
+{{- $_ := required "finetune.outputName is required when finetune is enabled" .Values.outputName }}
+{{- if and (eq .Values.dataSource.type "minio") (not .Values.dataSource.path) }}
+{{- fail "finetune.dataSource.path is required when dataSource.type is 'minio'" }}
+{{- end }}
+{{- if and (eq .Values.dataSource.type "huggingface") (not .Values.dataSource.path) }}
+{{- fail "finetune.dataSource.path is required when dataSource.type is 'huggingface'" }}
+{{- end }}
+{{- if not (has .Values.method (list "lora" "qlora" "full")) }}
+{{- fail "finetune.method must be one of: lora, qlora, full" }}
+{{- end }}
 {{- if lookup "apiextensions.k8s.io/v1" "CustomResourceDefinition" "" "workflows.argoproj.io" }}
 apiVersion: argoproj.io/v1alpha1
 kind: WorkflowTemplate
@@ -10,6 +21,7 @@ metadata:
     app.kubernetes.io/part-of: kube-llmops
 spec:
   serviceAccountName: {{ .Release.Name }}-finetune
+  activeDeadlineSeconds: 21600
   volumeClaimTemplates:
     - metadata:
         name: workspace
@@ -123,7 +135,8 @@ spec:
                             mc.fput_object(bucket, obj_name, str(fpath))
                             count += 1
                         log.info(f'Uploaded {count} files to MinIO')
-                    except: pass
+                    except Exception as e:
+                        log.warning(f'Failed to cache model in MinIO: {e}')
 
             log.info('Base model ready.')
             "
@@ -133,7 +146,10 @@ spec:
             python3 -c "
             from minio import Minio
             import os
-            client = Minio('{{ $.Release.Name }}-minio:9000', access_key='minioadmin', secret_key='minioadmin', secure=False)
+            endpoint = os.environ.get('S3_ENDPOINT', '{{ $.Release.Name }}-minio:9000')
+            ak = os.environ.get('S3_ACCESS_KEY', 'minioadmin')
+            sk = os.environ.get('S3_SECRET_KEY', 'minioadmin')
+            client = Minio(endpoint, access_key=ak, secret_key=sk, secure=False)
             path = '{{ .Values.dataSource.path }}'.replace('s3://', '')
             bucket = path.split('/')[0]
             prefix = '/'.join(path.split('/')[1:])
@@ -308,7 +324,10 @@ spec:
             from pathlib import Path
             import os
 
-            client = Minio('{{ $.Release.Name }}-minio:9000', access_key='minioadmin', secret_key='minioadmin', secure=False)
+            endpoint = os.environ.get('S3_ENDPOINT', '{{ $.Release.Name }}-minio:9000')
+            ak = os.environ.get('AWS_ACCESS_KEY_ID', 'minioadmin')
+            sk = os.environ.get('AWS_SECRET_ACCESS_KEY', 'minioadmin')
+            client = Minio(endpoint, access_key=ak, secret_key=sk, secure=False)
             if not client.bucket_exists('models'):
                 client.make_bucket('models')
 
@@ -328,10 +347,8 @@ spec:
             import mlflow
             import os
 
-            mlflow.set_tracking_uri('http://{{ $.Release.Name }}-mlflow:5000')
-            os.environ['MLFLOW_S3_ENDPOINT_URL'] = 'http://{{ $.Release.Name }}-minio:9000'
-            os.environ['AWS_ACCESS_KEY_ID'] = 'minioadmin'
-            os.environ['AWS_SECRET_ACCESS_KEY'] = 'minioadmin'
+            mlflow.set_tracking_uri(os.environ.get('MLFLOW_TRACKING_URI', 'http://{{ $.Release.Name }}-mlflow:5000'))
+            # S3 credentials are already set via env vars (MLFLOW_S3_ENDPOINT_URL, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
 
             model_uri = 's3://models/${OUTPUT_NAME}/'
             result = mlflow.register_model(model_uri, '${OUTPUT_NAME}')
@@ -348,12 +365,23 @@ spec:
 
             echo "=== Upload complete ==="
         env:
+          - name: MLFLOW_TRACKING_URI
+            value: "http://{{ $.Release.Name }}-mlflow:5000"
           - name: MLFLOW_S3_ENDPOINT_URL
             value: "http://{{ $.Release.Name }}-minio:9000"
+          - name: S3_ENDPOINT
+            value: "{{ $.Release.Name }}-minio:9000"
+          {{- if and .Values.global .Values.global.modelStore }}
+          - name: AWS_ACCESS_KEY_ID
+            value: {{ .Values.global.modelStore.accessKey | default "minioadmin" | quote }}
+          - name: AWS_SECRET_ACCESS_KEY
+            value: {{ .Values.global.modelStore.secretKey | default "minioadmin" | quote }}
+          {{- else }}
           - name: AWS_ACCESS_KEY_ID
             value: "minioadmin"
           - name: AWS_SECRET_ACCESS_KEY
             value: "minioadmin"
+          {{- end }}
         volumeMounts:
           - name: workspace
             mountPath: /workspace
@@ -372,71 +400,238 @@ spec:
         args:
           - |
             set -e
-            pip install -q mlflow minio requests 2>/dev/null || true
+            pip install -q mlflow requests rouge-score nltk 2>/dev/null || true
+            python3 -m nltk.downloader -q punkt punkt_tab 2>/dev/null || true
 
             echo "=== Evaluating fine-tuned model ==="
 
             mkdir -p /workspace/eval
             OUTPUT_NAME="{{ .Values.outputName }}"
 
-            # Simple evaluation: query the model via LiteLLM and check basic quality
-            python3 -c "
-            import json, os, requests, time
+            python3 << 'EVALSCRIPT'
+            import json, os, sys, requests, time, logging, math, re
+            from collections import Counter
 
-            litellm_url = 'http://{{ $.Release.Name }}-litellm:4000'
-            api_key = 'sk-kube-llmops-dev'
+            logging.basicConfig(level=logging.INFO, format='%(asctime)s [evaluate] %(levelname)s %(message)s')
+            log = logging.getLogger('evaluate')
 
-            # Test basic inference quality
-            test_prompts = [
-                'What is machine learning?',
-                'Explain the concept of fine-tuning.',
-                'What are the benefits of LoRA?',
+            litellm_url = os.environ.get('LITELLM_URL', 'http://{{ $.Release.Name }}-litellm:4000')
+            api_key = os.environ.get('LITELLM_API_KEY', '')
+            output_name = os.environ.get('OUTPUT_NAME', '{{ .Values.outputName }}')
+
+            # --- Evaluation dataset (grounded Q&A pairs for faithfulness + relevancy) ---
+            eval_data = [
+                {
+                    "question": "What is LoRA and how does it reduce training costs?",
+                    "reference": "LoRA (Low-Rank Adaptation) freezes pre-trained model weights and injects trainable low-rank matrices into transformer layers. This reduces the number of trainable parameters by orders of magnitude, lowering GPU memory and compute requirements while maintaining model quality.",
+                    "context": "LoRA fine-tuning technique for large language models"
+                },
+                {
+                    "question": "Explain the difference between fine-tuning and prompt engineering.",
+                    "reference": "Fine-tuning modifies model weights on domain-specific data to improve performance on targeted tasks. Prompt engineering crafts input instructions to guide existing model behavior without changing weights. Fine-tuning is more resource-intensive but produces more reliable domain-specific results.",
+                    "context": "LLM optimization techniques comparison"
+                },
+                {
+                    "question": "What is vLLM and what makes it efficient for serving LLMs?",
+                    "reference": "vLLM is a high-throughput LLM serving engine that uses PagedAttention to efficiently manage GPU memory. It enables continuous batching of requests, reducing latency and increasing throughput compared to naive serving approaches.",
+                    "context": "LLM inference serving frameworks"
+                },
+                {
+                    "question": "How does MLflow help in managing machine learning experiments?",
+                    "reference": "MLflow provides experiment tracking to log parameters, metrics, and artifacts across runs. Its Model Registry manages model versions with stage transitions (Staging, Production, Archived). This enables reproducible experiments and governed model deployment.",
+                    "context": "ML experiment tracking and model management"
+                },
+                {
+                    "question": "What are the benefits of using Kubernetes for ML workloads?",
+                    "reference": "Kubernetes provides resource scheduling with GPU support, auto-scaling based on demand, self-healing with pod restarts, and declarative infrastructure management. It enables reproducible ML environments and efficient multi-tenant resource sharing.",
+                    "context": "Container orchestration for machine learning"
+                },
             ]
 
-            results = {'faithfulness': 0.0, 'answer_relevancy': 0.0}
-            passed = 0
-            for prompt in test_prompts:
-                try:
-                    resp = requests.post(f'{litellm_url}/v1/chat/completions',
-                        json={'model': '${OUTPUT_NAME}', 'messages': [{'role': 'user', 'content': prompt}], 'max_tokens': 100},
-                        headers={'Authorization': f'Bearer {api_key}'},
-                        timeout=30)
-                    if resp.status_code == 200:
-                        answer = resp.json()['choices'][0]['message']['content']
-                        if len(answer) > 10:
-                            passed += 1
-                except Exception as e:
-                    print(f'Error: {e}')
+            # --- Helper: compute ROUGE-L F1 between candidate and reference ---
+            def rouge_l_f1(candidate, reference):
+                """Compute ROUGE-L F1 score using longest common subsequence."""
+                def tokenize(text):
+                    return re.findall(r'\w+', text.lower())
+                def lcs_length(x, y):
+                    m, n = len(x), len(y)
+                    dp = [[0] * (n + 1) for _ in range(m + 1)]
+                    for i in range(1, m + 1):
+                        for j in range(1, n + 1):
+                            dp[i][j] = dp[i-1][j-1] + 1 if x[i-1] == y[j-1] else max(dp[i-1][j], dp[i][j-1])
+                    return dp[m][n]
+                cand_tokens = tokenize(candidate)
+                ref_tokens = tokenize(reference)
+                if not cand_tokens or not ref_tokens:
+                    return 0.0
+                lcs = lcs_length(cand_tokens, ref_tokens)
+                precision = lcs / len(cand_tokens)
+                recall = lcs / len(ref_tokens)
+                if precision + recall == 0:
+                    return 0.0
+                return 2 * precision * recall / (precision + recall)
 
-            total = len(test_prompts)
-            results['faithfulness'] = passed / total if total > 0 else 0
-            results['answer_relevancy'] = passed / total if total > 0 else 0
+            # --- Helper: compute token overlap (F1) for faithfulness proxy ---
+            def token_overlap_f1(answer, reference):
+                """Token-level F1 as a proxy for faithfulness (grounding in reference)."""
+                def tokenize(text):
+                    return Counter(re.findall(r'\w+', text.lower()))
+                ans_tokens = tokenize(answer)
+                ref_tokens = tokenize(reference)
+                common = sum((ans_tokens & ref_tokens).values())
+                if common == 0:
+                    return 0.0
+                precision = common / sum(ans_tokens.values())
+                recall = common / sum(ref_tokens.values())
+                return 2 * precision * recall / (precision + recall)
 
-            print(f'Evaluation results: {json.dumps(results, indent=2)}')
+            # --- Helper: check answer coherence (no repetition, reasonable length) ---
+            def coherence_score(answer):
+                """Score 0-1 for answer coherence: penalizes empty, too-short, or repetitive answers."""
+                words = answer.split()
+                if len(words) < 5:
+                    return 0.1
+                # Penalize excessive repetition
+                unique_ratio = len(set(w.lower() for w in words)) / len(words)
+                # Penalize extremely long or short answers
+                length_score = min(1.0, len(words) / 20) if len(words) < 200 else max(0.5, 1.0 - (len(words) - 200) / 500)
+                return min(1.0, unique_ratio * 0.7 + length_score * 0.3)
+
+            # --- Query model for each eval sample ---
+            log.info(f'Running evaluation with {len(eval_data)} samples')
+            answers = []
+            query_success = 0
+
+            # Try querying the fine-tuned model first, fall back to base model
+            models_to_try = [output_name]
+            for model_name in models_to_try:
+                log.info(f'Attempting model: {model_name}')
+                answers = []
+                query_success = 0
+                for i, sample in enumerate(eval_data):
+                    try:
+                        resp = requests.post(
+                            f'{litellm_url}/v1/chat/completions',
+                            json={
+                                'model': model_name,
+                                'messages': [
+                                    {'role': 'system', 'content': f'You are a helpful assistant. Context: {sample["context"]}'},
+                                    {'role': 'user', 'content': sample['question']}
+                                ],
+                                'max_tokens': 256,
+                                'temperature': 0.1
+                            },
+                            headers={'Authorization': f'Bearer {api_key}'} if api_key else {},
+                            timeout=60
+                        )
+                        if resp.status_code == 200:
+                            answer = resp.json()['choices'][0]['message']['content'].strip()
+                            answers.append(answer)
+                            query_success += 1
+                            log.info(f'  Sample {i+1}: got {len(answer)} chars')
+                        else:
+                            log.warning(f'  Sample {i+1}: HTTP {resp.status_code} — {resp.text[:200]}')
+                            answers.append('')
+                    except Exception as e:
+                        log.warning(f'  Sample {i+1}: request failed — {e}')
+                        answers.append('')
+
+                if query_success > 0:
+                    log.info(f'Model {model_name}: {query_success}/{len(eval_data)} queries succeeded')
+                    break
+                log.warning(f'Model {model_name}: no successful queries')
+
+            # --- Compute metrics ---
+            faithfulness_scores = []
+            relevancy_scores = []
+            coherence_scores = []
+
+            for i, (sample, answer) in enumerate(zip(eval_data, answers)):
+                if not answer:
+                    faithfulness_scores.append(0.0)
+                    relevancy_scores.append(0.0)
+                    coherence_scores.append(0.0)
+                    continue
+
+                # Faithfulness: how well does the answer align with the reference (token overlap F1)
+                faith = token_overlap_f1(answer, sample['reference'])
+                faithfulness_scores.append(faith)
+
+                # Answer relevancy: ROUGE-L between answer and reference
+                rel = rouge_l_f1(answer, sample['reference'])
+                relevancy_scores.append(rel)
+
+                # Coherence: structural quality of the answer
+                coh = coherence_score(answer)
+                coherence_scores.append(coh)
+
+                log.info(f'  Sample {i+1}: faithfulness={faith:.3f} relevancy={rel:.3f} coherence={coh:.3f}')
+
+            n = len(eval_data)
+            results = {
+                'faithfulness': sum(faithfulness_scores) / n if n > 0 else 0.0,
+                'answer_relevancy': sum(relevancy_scores) / n if n > 0 else 0.0,
+                'coherence': sum(coherence_scores) / n if n > 0 else 0.0,
+                'query_success_rate': query_success / n if n > 0 else 0.0,
+                'num_samples': n,
+            }
+
+            log.info(f'Final results: {json.dumps(results, indent=2)}')
 
             with open('/workspace/eval/results.json', 'w') as f:
-                json.dump(results, f)
+                json.dump(results, f, indent=2)
 
-            # Log to MLflow
-            import mlflow
-            mlflow.set_tracking_uri('http://{{ $.Release.Name }}-mlflow:5000')
-            mlflow.set_experiment('${OUTPUT_NAME}')
-            with mlflow.start_run(run_name='eval-${OUTPUT_NAME}'):
-                for k, v in results.items():
-                    mlflow.log_metric(k, v)
+            # --- Log to MLflow ---
+            try:
+                import mlflow
+                mlflow.set_tracking_uri(os.environ.get('MLFLOW_TRACKING_URI', 'http://{{ $.Release.Name }}-mlflow:5000'))
+                mlflow.set_experiment(output_name)
+                with mlflow.start_run(run_name=f'eval-{output_name}'):
+                    for k, v in results.items():
+                        mlflow.log_metric(k, v)
+                    # Log per-sample detail as artifact
+                    detail = [{'question': s['question'], 'answer': a, 'faithfulness': f, 'relevancy': r}
+                              for s, a, f, r in zip(eval_data, answers, faithfulness_scores, relevancy_scores)]
+                    with open('/workspace/eval/eval_detail.json', 'w') as f:
+                        json.dump(detail, f, indent=2)
+                    mlflow.log_artifact('/workspace/eval/eval_detail.json')
+                log.info('Metrics logged to MLflow')
+            except Exception as e:
+                log.error(f'Failed to log to MLflow: {e}')
 
-            # Push to Prometheus Pushgateway
+            # --- Push to Prometheus Pushgateway ---
             try:
                 from urllib.request import urlopen, Request
+                metrics_text = ''
                 for metric, value in results.items():
-                    data = f'finetune_{metric} {value}\n'.encode()
-                    req = Request(f'http://{{ $.Release.Name }}-pushgateway:9091/metrics/job/finetune_eval', data=data)
-                    req.add_header('Content-Type', 'text/plain')
-                    urlopen(req, timeout=5)
-            except: pass
+                    if isinstance(value, (int, float)):
+                        metrics_text += f'finetune_{metric} {value}\n'
+                data = metrics_text.encode()
+                req = Request(
+                    f'http://{{ $.Release.Name }}-pushgateway:9091/metrics/job/finetune_eval/model/{output_name}',
+                    data=data
+                )
+                req.add_header('Content-Type', 'text/plain')
+                urlopen(req, timeout=10)
+                log.info('Metrics pushed to Pushgateway')
+            except Exception as e:
+                log.warning(f'Failed to push to Pushgateway: {e}')
 
-            print('Evaluation complete.')
-            "
+            log.info('Evaluation complete.')
+            EVALSCRIPT
+        env:
+          - name: LITELLM_URL
+            value: "http://{{ $.Release.Name }}-litellm:4000"
+          - name: LITELLM_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ $.Release.Name }}-litellm-secret
+                key: masterKey
+                optional: true
+          - name: OUTPUT_NAME
+            value: {{ .Values.outputName | quote }}
+          - name: MLFLOW_TRACKING_URI
+            value: "http://{{ $.Release.Name }}-mlflow:5000"
         volumeMounts:
           - name: workspace
             mountPath: /workspace
@@ -487,7 +682,8 @@ spec:
                     try:
                         client.transition_model_version_stage('${OUTPUT_NAME}', version, 'Archived')
                         print(f'Model version {version} → Archived')
-                    except: pass
+                    except Exception as e:
+                        print(f'WARNING: Failed to archive MLflow version: {e}')
 
                 {{- if .Values.deploy.notifyWebhook }}
                 # Send failure notification
@@ -495,7 +691,7 @@ spec:
                 data = json.dumps({'model': '${OUTPUT_NAME}', 'status': 'FAILED', 'metrics': results}).encode()
                 req = urllib.request.Request('{{ .Values.deploy.notifyWebhook }}', data=data, headers={'Content-Type': 'application/json'})
                 try: urllib.request.urlopen(req, timeout=10)
-                except: pass
+                except Exception as e: print(f'WARNING: Webhook notification failed: {e}')
                 {{- end }}
 
                 print('QUALITY GATE: FAILED')
@@ -519,48 +715,363 @@ spec:
           - |
             set -e
             OUTPUT_NAME="{{ .Values.outputName }}"
+            RELEASE="{{ $.Release.Name }}"
+            NAMESPACE="{{ $.Release.Namespace }}"
+            CANARY_PERCENT="{{ .Values.deploy.canaryPercent }}"
+            STABLE_PERCENT=$((100 - ${CANARY_PERCENT}))
+            VERSION=$(cat /workspace/eval/model_version.txt 2>/dev/null || echo "unknown")
 
             echo "=== Deploy Step ==="
+            echo "Model: ${OUTPUT_NAME} (version ${VERSION})"
+            cat /workspace/eval/results.json
 
             {{- if not .Values.deploy.auto }}
-            # Manual approval mode — just notify
+            # --- Manual approval mode ---
             echo "deploy.auto=false — sending notification only"
 
             {{- if .Values.deploy.notifyWebhook }}
-            cat /workspace/eval/results.json
-            apt-get update -qq && apt-get install -qq -y curl > /dev/null 2>&1 || true
             METRICS=$(cat /workspace/eval/results.json)
-            VERSION=$(cat /workspace/eval/model_version.txt 2>/dev/null || echo "unknown")
-            curl -s -X POST "{{ .Values.deploy.notifyWebhook }}" \
-              -H "Content-Type: application/json" \
-              -d "{\"model\": \"${OUTPUT_NAME}\", \"version\": \"${VERSION}\", \"status\": \"PASSED\", \"metrics\": ${METRICS}, \"approve_cmd\": \"argo submit -n default --from workflowtemplate/{{ $.Release.Name }}-finetune\"}" || true
+            cat > /tmp/webhook-payload.json << PAYLOAD
+            {
+              "model": "${OUTPUT_NAME}",
+              "version": "${VERSION}",
+              "status": "PASSED",
+              "metrics": ${METRICS},
+              "mlflow_url": "http://{{ $.Release.Name }}-mlflow:5000/#/models/${OUTPUT_NAME}/versions/${VERSION}",
+              "approve_cmd": "argo submit -n ${NAMESPACE} --from workflowtemplate/${RELEASE}-finetune-deploy-canary -p outputName=${OUTPUT_NAME}"
+            }
+            PAYLOAD
+            # kubectl has curl-like capabilities via wget or we use the shell
+            wget -qO- --post-file=/tmp/webhook-payload.json \
+              --header='Content-Type: application/json' \
+              "{{ .Values.deploy.notifyWebhook }}" 2>/dev/null || echo "WARNING: webhook notification failed (non-fatal)"
             echo "Notification sent to webhook"
             {{- else }}
             echo "No webhook configured. Model ready for manual deployment."
-            echo "Model: s3://models/${OUTPUT_NAME}/"
-            cat /workspace/eval/results.json
+            echo "Model artifacts: s3://models/${OUTPUT_NAME}/"
+            echo "MLflow version: ${VERSION} (Staging)"
+            echo ""
+            echo "To deploy canary manually, run:"
+            echo "  helm upgrade ${RELEASE} charts/kube-llmops-stack \\"
+            echo "    --set finetune.deploy.auto=true \\"
+            echo "    --reuse-values"
             {{- end }}
 
             {{- else }}
-            # Auto deploy mode — create canary deployment
-            echo "deploy.auto=true — creating canary deployment"
-            echo "Canary percent: {{ .Values.deploy.canaryPercent }}%"
+            # --- Auto canary deployment ---
+            echo "deploy.auto=true — creating canary deployment (${CANARY_PERCENT}% traffic)"
 
-            # Note: Full canary deployment with vLLM instance + LiteLLM routing
-            # requires the model to be accessible via MinIO. The model was uploaded
-            # in the merge-upload step to s3://models/<outputName>/
-            echo "Fine-tuned model available at: s3://models/${OUTPUT_NAME}/"
-            echo "To deploy manually: update global.models in values and helm upgrade"
+            # Step 1: Create a vLLM Deployment for the fine-tuned model
+            DEPLOY_NAME="vllm-${OUTPUT_NAME}-ft"
+            SVC_NAME="${DEPLOY_NAME}"
+            MODEL_SLUG=$(echo "{{ .Values.baseModel }}" | tr '/' '--')
+
+            cat > /tmp/canary-deployment.yaml << DEPLOYYAML
+            apiVersion: apps/v1
+            kind: Deployment
+            metadata:
+              name: ${DEPLOY_NAME}
+              namespace: ${NAMESPACE}
+              labels:
+                app.kubernetes.io/name: vllm
+                app.kubernetes.io/instance: ${RELEASE}
+                app.kubernetes.io/component: model-serving
+                app.kubernetes.io/part-of: kube-llmops
+                kube-llmops/model: ${OUTPUT_NAME}
+                kube-llmops/engine: vllm
+                kube-llmops/canary: "true"
+              annotations:
+                kube-llmops/base-model: "{{ .Values.baseModel }}"
+                kube-llmops/finetune-method: "{{ .Values.method }}"
+                kube-llmops/mlflow-version: "${VERSION}"
+            spec:
+              replicas: 1
+              strategy:
+                type: Recreate
+              selector:
+                matchLabels:
+                  app.kubernetes.io/name: vllm
+                  kube-llmops/model: ${OUTPUT_NAME}
+              template:
+                metadata:
+                  labels:
+                    app.kubernetes.io/name: vllm
+                    app.kubernetes.io/instance: ${RELEASE}
+                    app.kubernetes.io/component: model-serving
+                    app.kubernetes.io/part-of: kube-llmops
+                    kube-llmops/model: ${OUTPUT_NAME}
+                    kube-llmops/engine: vllm
+                    kube-llmops/canary: "true"
+                spec:
+                  enableServiceLinks: false
+                  initContainers:
+                    - name: model-loader
+                      image: {{ (default dict (default dict .Values.global).modelStore).image | default "kube-llmops/model-loader:latest" }}
+                      imagePullPolicy: IfNotPresent
+                      command: [bash, -c]
+                      args:
+                        - |
+                          set -e
+                          echo "Loading fine-tuned model from MinIO: ${OUTPUT_NAME}"
+                          pip install -q minio 2>/dev/null || true
+                          python3 -c "
+                          from minio import Minio
+                          import os
+                          endpoint = os.environ.get('S3_ENDPOINT', '${RELEASE}-minio:9000')
+                          ak = os.environ.get('S3_ACCESS_KEY', 'minioadmin')
+                          sk = os.environ.get('S3_SECRET_KEY', 'minioadmin')
+                          client = Minio(endpoint, access_key=ak, secret_key=sk, secure=False)
+                          prefix = '${OUTPUT_NAME}/'
+                          count = 0
+                          for obj in client.list_objects('models', prefix=prefix, recursive=True):
+                              rel = obj.object_name[len(prefix):]
+                              if not rel: continue
+                              fpath = f'/models/${OUTPUT_NAME}/{rel}'
+                              os.makedirs(os.path.dirname(fpath), exist_ok=True)
+                              client.fget_object('models', obj.object_name, fpath)
+                              count += 1
+                          print(f'Downloaded {count} files to /models/${OUTPUT_NAME}/')
+                          "
+                      env:
+                        - name: S3_ENDPOINT
+                          value: "${RELEASE}-minio:9000"
+                        - name: S3_ACCESS_KEY
+                          value: "minioadmin"
+                        - name: S3_SECRET_KEY
+                          value: "minioadmin"
+                      volumeMounts:
+                        - name: model-cache
+                          mountPath: /models
+                      resources:
+                        requests:
+                          cpu: "1"
+                          memory: 1Gi
+                  containers:
+                    - name: vllm
+                      image: "vllm/vllm-openai:latest"
+                      imagePullPolicy: IfNotPresent
+                      ports:
+                        - name: http
+                          containerPort: 8000
+                          protocol: TCP
+                      command: ["/bin/bash", "-c"]
+                      args:
+                        - |
+                          MODEL_PATH="/models/${OUTPUT_NAME}"
+                          if [ ! -d "\$MODEL_PATH" ] || [ -z "\$(ls -A \$MODEL_PATH 2>/dev/null)" ]; then
+                            echo "ERROR: Model not found at \$MODEL_PATH"
+                            exit 1
+                          fi
+                          echo "Starting vLLM with fine-tuned model at \$MODEL_PATH"
+                          python3 -m vllm.entrypoints.openai.api_server \
+                            --model "\$MODEL_PATH" \
+                            --served-model-name "${OUTPUT_NAME}" \
+                            --host 0.0.0.0 \
+                            --port 8000 \
+                            --max-model-len 4096 \
+                            --gpu-memory-utilization 0.8
+                      readinessProbe:
+                        httpGet:
+                          path: /health
+                          port: 8000
+                        initialDelaySeconds: 30
+                        periodSeconds: 10
+                        failureThreshold: 30
+                      livenessProbe:
+                        httpGet:
+                          path: /health
+                          port: 8000
+                        initialDelaySeconds: 60
+                        periodSeconds: 30
+                      resources:
+                        requests:
+                          cpu: {{ .Values.resources.cpu | quote }}
+                          memory: {{ .Values.resources.memory }}
+                          {{- if gt (int .Values.resources.gpu) 0 }}
+                          nvidia.com/gpu: {{ .Values.resources.gpu | quote }}
+                          {{- end }}
+                        limits:
+                          {{- if gt (int .Values.resources.gpu) 0 }}
+                          nvidia.com/gpu: {{ .Values.resources.gpu | quote }}
+                          {{- end }}
+                      volumeMounts:
+                        - name: model-cache
+                          mountPath: /models
+                        - name: shm
+                          mountPath: /dev/shm
+                  volumes:
+                    - name: model-cache
+                      emptyDir: {}
+                    - name: shm
+                      emptyDir:
+                        medium: Memory
+                        sizeLimit: 8Gi
+            ---
+            apiVersion: v1
+            kind: Service
+            metadata:
+              name: ${SVC_NAME}
+              namespace: ${NAMESPACE}
+              labels:
+                app.kubernetes.io/name: vllm
+                app.kubernetes.io/instance: ${RELEASE}
+                app.kubernetes.io/part-of: kube-llmops
+                kube-llmops/model: ${OUTPUT_NAME}
+                kube-llmops/canary: "true"
+            spec:
+              type: ClusterIP
+              ports:
+                - port: 8000
+                  targetPort: 8000
+                  name: http
+              selector:
+                app.kubernetes.io/name: vllm
+                kube-llmops/model: ${OUTPUT_NAME}
+            DEPLOYYAML
+
+            echo "Creating canary Deployment and Service..."
+            kubectl apply -f /tmp/canary-deployment.yaml
+
+            # Step 2: Wait for the canary pod to be ready
+            echo "Waiting for canary pod to become ready (timeout: 10m)..."
+            kubectl rollout status deployment/${DEPLOY_NAME} -n ${NAMESPACE} --timeout=600s || {
+              echo "ERROR: Canary deployment failed to become ready"
+              echo "Cleaning up failed deployment..."
+              kubectl delete deployment/${DEPLOY_NAME} -n ${NAMESPACE} --ignore-not-found
+              kubectl delete service/${SVC_NAME} -n ${NAMESPACE} --ignore-not-found
+              exit 1
+            }
+            echo "Canary pod is ready!"
+
+            # Step 3: Patch LiteLLM ConfigMap to add canary weight routing
+            echo "Patching LiteLLM ConfigMap for canary routing..."
+
+            # Get existing config, add canary entry with weights
+            kubectl get configmap ${RELEASE}-litellm-config -n ${NAMESPACE} -o jsonpath='{.data.config\.yaml}' > /tmp/litellm-config.yaml
+
+            # Find the base model name that matches our fine-tune base
+            BASE_MODEL_NAME=""
+            {{- if and .Values.global .Values.global.models }}
+            {{- range .Values.global.models }}
+            {{- if eq (include "kube-llmops.resolveEngine" . | trim) "vllm" }}
+            if [ -z "${BASE_MODEL_NAME}" ]; then
+              BASE_MODEL_NAME="{{ .name }}"
+            fi
+            {{- end }}
+            {{- end }}
+            {{- end }}
+
+            if [ -n "${BASE_MODEL_NAME}" ]; then
+              echo "Adding canary entry for base model: ${BASE_MODEL_NAME}"
+              # Add weight to existing model and create canary entry
+              python3 - << 'PATCHSCRIPT' || echo "WARNING: ConfigMap patch failed (non-fatal)"
+            import yaml, sys, os
+
+            config_path = '/tmp/litellm-config.yaml'
+            with open(config_path) as f:
+                config = yaml.safe_load(f)
+
+            base_model = os.environ.get('BASE_MODEL_NAME', '')
+            output_name = os.environ.get('OUTPUT_NAME', '')
+            svc_name = os.environ.get('SVC_NAME', '')
+            namespace = os.environ.get('NAMESPACE', 'default')
+            stable_pct = int(os.environ.get('STABLE_PERCENT', '80'))
+            canary_pct = int(os.environ.get('CANARY_PERCENT', '20'))
+
+            model_list = config.get('model_list', [])
+
+            # Add weight to existing base model entries
+            for entry in model_list:
+                if entry.get('model_name') == base_model:
+                    entry['litellm_params']['weight'] = stable_pct
+
+            # Add canary entry (same model_name so LiteLLM routes to both)
+            canary_entry = {
+                'model_name': base_model,
+                'litellm_params': {
+                    'model': f'openai/{output_name}',
+                    'api_base': f'http://{svc_name}.{namespace}.svc.cluster.local:8000/v1',
+                    'api_key': 'no-key-needed',
+                    'weight': canary_pct
+                }
+            }
+            model_list.append(canary_entry)
+            config['model_list'] = model_list
+
+            with open(config_path, 'w') as f:
+                yaml.dump(config, f, default_flow_style=False)
+
+            print(f'Canary routing: {base_model} → stable:{stable_pct}% canary:{canary_pct}%')
+            PATCHSCRIPT
+
+              # Apply patched ConfigMap
+              kubectl create configmap ${RELEASE}-litellm-config \
+                --from-file=config.yaml=/tmp/litellm-config.yaml \
+                -n ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+              echo "ConfigMap patched."
+
+              # Step 4: Restart LiteLLM to pick up new config
+              echo "Restarting LiteLLM to load canary config..."
+              kubectl rollout restart statefulset/${RELEASE}-litellm -n ${NAMESPACE} 2>/dev/null || \
+              kubectl rollout restart deployment/${RELEASE}-litellm -n ${NAMESPACE} 2>/dev/null || \
+              echo "WARNING: Could not restart LiteLLM (may need manual restart)"
+
+            else
+              echo "WARNING: No base vLLM model found — canary routing not configured"
+              echo "Fine-tuned model is deployed at: http://${SVC_NAME}:8000/v1"
+            fi
+
+            echo ""
+            echo "=== Canary deployment complete ==="
+            echo "Fine-tuned model: ${OUTPUT_NAME} (MLflow v${VERSION})"
+            echo "Traffic split: stable=${STABLE_PERCENT}% canary=${CANARY_PERCENT}%"
+            echo ""
+            echo "To promote to 100%:"
+            echo "  kubectl patch configmap ${RELEASE}-litellm-config ..."
+            echo "To rollback:"
+            echo "  kubectl delete deployment ${DEPLOY_NAME} -n ${NAMESPACE}"
+            echo "  kubectl delete service ${SVC_NAME} -n ${NAMESPACE}"
+
+            {{- if .Values.deploy.notifyWebhook }}
+            # Send deployment notification
+            METRICS=$(cat /workspace/eval/results.json)
+            cat > /tmp/deploy-notification.json << NOTIF
+            {
+              "model": "${OUTPUT_NAME}",
+              "version": "${VERSION}",
+              "status": "CANARY_DEPLOYED",
+              "canary_percent": ${CANARY_PERCENT},
+              "metrics": ${METRICS},
+              "rollback_cmd": "kubectl delete deployment ${DEPLOY_NAME} -n ${NAMESPACE} && kubectl delete service ${SVC_NAME} -n ${NAMESPACE}"
+            }
+            NOTIF
+            wget -qO- --post-file=/tmp/deploy-notification.json \
+              --header='Content-Type: application/json' \
+              "{{ .Values.deploy.notifyWebhook }}" 2>/dev/null || true
+            {{- end }}
 
             {{- end }}
 
             echo "=== Deploy step complete ==="
+        env:
+          - name: OUTPUT_NAME
+            value: {{ .Values.outputName | quote }}
+          - name: NAMESPACE
+            value: "{{ $.Release.Namespace }}"
+          - name: BASE_MODEL_NAME
+            value: ""
+          - name: SVC_NAME
+            value: "vllm-{{ .Values.outputName }}-ft"
+          - name: STABLE_PERCENT
+            value: "{{ sub 100 (int .Values.deploy.canaryPercent) }}"
+          - name: CANARY_PERCENT
+            value: {{ .Values.deploy.canaryPercent | quote }}
         volumeMounts:
           - name: workspace
             mountPath: /workspace
         resources:
           requests:
             cpu: 250m
-            memory: 128Mi
+            memory: 256Mi
 {{- end }}
 {{- end }}
