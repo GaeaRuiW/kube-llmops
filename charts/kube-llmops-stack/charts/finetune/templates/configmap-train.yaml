@@ -30,6 +30,9 @@ data:
     dataset_dir: /workspace/data
     dataset: train
     template: default
+    {{- if gt (int .Values.maxSamples) 0 }}
+    max_samples: {{ .Values.maxSamples }}
+    {{- end }}
     
     ### Output
     output_dir: /workspace/output
@@ -50,6 +53,7 @@ data:
     bf16: false
     fp16: false
     pure_bf16: false
+    disable_gradient_checkpointing: true
     {{- end }}
     
     ### Reporting

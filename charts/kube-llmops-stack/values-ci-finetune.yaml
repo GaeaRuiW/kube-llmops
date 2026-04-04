@@ -1,0 +1,125 @@
+# CI profile with finetune chart enabled (template-only validation)
+# Usage: helm template test charts/kube-llmops-stack -f charts/kube-llmops-stack/values-ci-finetune.yaml
+# NOTE: WorkflowTemplate/CronWorkflow require Argo CRDs — they render as empty
+#       in CI (which is expected). Full validation runs in E2E tests.
+
+models: []
+
+vllm:
+  enabled: false
+  models: []
+
+llamacpp:
+  enabled: false
+  models: []
+
+tei:
+  enabled: false
+  models: []
+
+litellm:
+  enabled: true
+  masterKey: sk-ci-test-key
+  models: []
+  postgresql:
+    enabled: true
+    auth:
+      password: ci-test-pw
+    image:
+      tag: "16-alpine"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+observability:
+  enabled: true
+  otelCollector:
+    enabled: false
+  prometheus:
+    enabled: true
+    storage:
+      size: 1Gi
+  grafana:
+    enabled: false
+  dcgmExporter:
+    enabled: false
+
+langfuse:
+  enabled: false
+
+logging:
+  enabled: false
+
+keda:
+  enabled: false
+
+fluid:
+  enabled: false
+
+harbor:
+  enabled: false
+
+security:
+  enabled: false
+
+keycloak:
+  enabled: false
+
+milvus:
+  enabled: false
+
+dify:
+  enabled: false
+
+# ─── Fine-tuning enabled for CI validation ───
+finetune:
+  enabled: true
+  baseModel: Qwen/Qwen2.5-0.5B-Instruct
+  outputName: qwen-ci-test
+  method: lora
+  loraRank: 8
+  loraAlpha: 16
+  epochs: 1
+  batchSize: 2
+  learningRate: 2e-4
+  dataSource:
+    type: huggingface
+    path: tatsu-lab/alpaca
+    format: alpaca
+  resources:
+    gpu: 0           # CPU-only in CI
+    memory: 4Gi
+    cpu: "2"
+  evaluation:
+    enabled: true
+    thresholds:
+      faithfulness: 0.3
+      answer_relevancy: 0.3
+  deploy:
+    auto: false
+    canaryPercent: 10
+    notifyWebhook: ""
+  schedule: ""
+  mlflow:
+    enabled: true
+    image:
+      repository: kube-llmops/mlflow
+      tag: "latest"
+      pullPolicy: IfNotPresent
+    postgresql:
+      database: mlflow
+      username: mlflow
+      password: mlflow-ci-pw
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+  pdb:
+    enabled: true

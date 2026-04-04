@@ -130,6 +130,21 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [model-loader] %(levelname)s %(message)s')
 log = logging.getLogger('model-loader')
 
+# ── Download progress monitor (background thread) ──
+import threading, time as _time_mod
+_progress_stop = threading.Event()
+def _progress_monitor(watch_dir, interval=10):
+    \"\"\"Periodically log total download size so kubectl logs shows progress.\"\"\"
+    last_size = 0
+    while not _progress_stop.is_set():
+        _progress_stop.wait(interval)
+        if _progress_stop.is_set():
+            break
+        total = sum(f.stat().st_size for f in Path(watch_dir).rglob('*') if f.is_file())
+        speed = (total - last_size) / interval / (1024**2)
+        log.info(f'Download progress: {total/(1024**3):.2f} GB ({speed:.1f} MB/s)')
+        last_size = total
+
 # ── Patch hf-transfer concurrency (no env var exposed by default) ──
 _hf_concurrency = int(os.environ.get('HF_TRANSFER_CONCURRENCY', '8'))
 try:
@@ -215,12 +230,16 @@ def download_from_hf():
             log.info(f'Using HF cache: {marker}')
             return
         log.info(f'Downloading from HuggingFace (cache mode): {source}')
+        _pt = threading.Thread(target=_progress_monitor, args=(str(cache_dir),), daemon=True)
+        _pt.start()
         for attempt in range(1, MAX_RETRIES + 1):
             try:
                 snapshot_download(repo_id=source, cache_dir=str(cache_dir), max_workers=MAX_WORKERS)
+                _progress_stop.set()
                 return
             except Exception as e:
                 if attempt == MAX_RETRIES:
+                    _progress_stop.set()
                     raise
                 log.warning(f'Download attempt {attempt}/{MAX_RETRIES} failed: {e}')
                 log.info(f'Retrying in {RETRY_DELAY}s... (snapshot_download resumes partial files)')
@@ -234,6 +253,8 @@ def download_from_hf():
         # Download to HF cache first, then copy to local_dir
         # This avoids the symlink/pointer issue with newer huggingface_hub
         cache_dir = target / '.hf_cache'
+        _pt = threading.Thread(target=_progress_monitor, args=(str(cache_dir),), daemon=True)
+        _pt.start()
         for attempt in range(1, MAX_RETRIES + 1):
             try:
                 snap_path = snapshot_download(repo_id=source, cache_dir=str(cache_dir), max_workers=MAX_WORKERS)
@@ -244,6 +265,7 @@ def download_from_hf():
                 log.warning(f'Download attempt {attempt}/{MAX_RETRIES} failed: {e}')
                 log.info(f'Retrying in {RETRY_DELAY}s... (snapshot_download resumes partial files)')
                 _time.sleep(RETRY_DELAY)
+        _progress_stop.set()
         log.info(f'Downloaded to cache: {snap_path}')
         local_dir.mkdir(parents=True, exist_ok=True)
         # Copy real files from snapshot to local_dir
