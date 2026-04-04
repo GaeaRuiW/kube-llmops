@@ -29,6 +29,9 @@ for arg in "$@"; do
   fi
 done
 
+# Auto-detect node IP for NodePort mode
+NODE_IP=$(kubectl get node -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}' 2>/dev/null || echo "")
+
 # Build Ingress-aware --set args
 INGRESS_SETS=""
 if [ -n "$INGRESS_HOST" ]; then
@@ -44,6 +47,17 @@ if [ -n "$INGRESS_HOST" ]; then
     --set dify.web.consoleWebUrl=http://dify.${INGRESS_HOST}
     --set dify.web.appApiUrl=http://dify-api.${INGRESS_HOST}
   "
+else
+  # NodePort mode: auto-detect current node IP
+  if [ -n "$NODE_IP" ]; then
+    echo "  NodePort:  ${NODE_IP}:304xx"
+    INGRESS_SETS="
+      --set global.nodePort.enabled=true
+      --set global.nodePort.host=${NODE_IP}
+    "
+  else
+    echo "  WARNING: No node IP detected and no ingress host specified"
+  fi
 fi
 echo ""
 
@@ -111,7 +125,6 @@ echo "  Deploy complete!"
 echo "============================================="
 
 if [ -n "$INGRESS_HOST" ]; then
-  NODE_IP=$(kubectl get node -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}' 2>/dev/null || echo "<node-ip>")
   echo ""
   echo "  Add to /etc/hosts (if no real DNS):"
   echo "  ${NODE_IP} litellm.${INGRESS_HOST} grafana.${INGRESS_HOST} langfuse.${INGRESS_HOST} dify.${INGRESS_HOST} dify-api.${INGRESS_HOST} keycloak.${INGRESS_HOST} prometheus.${INGRESS_HOST} minio.${INGRESS_HOST}"
@@ -124,6 +137,16 @@ if [ -n "$INGRESS_HOST" ]; then
   echo "    Keycloak:   http://keycloak.${INGRESS_HOST}"
   echo "    Prometheus: http://prometheus.${INGRESS_HOST}"
   echo "    MinIO:      http://minio.${INGRESS_HOST}"
+elif [ -n "$NODE_IP" ]; then
+  echo ""
+  echo "  NodePort services (IP auto-detected: ${NODE_IP}):"
+  echo "    LiteLLM:    http://${NODE_IP}:30400"
+  echo "    Grafana:    http://${NODE_IP}:30300"
+  echo "    Langfuse:   http://${NODE_IP}:30301"
+  echo "    Dify:       http://${NODE_IP}:30500"
+  echo "    Keycloak:   http://${NODE_IP}:30808"
+  echo "    Prometheus: http://${NODE_IP}:30909"
+  echo "    MinIO:      http://${NODE_IP}:30900"
 fi
 echo ""
 echo "Check status: kubectl get pods -n ${NAMESPACE}"
