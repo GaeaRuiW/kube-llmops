@@ -11,6 +11,7 @@ loraAlpha: 16
 epochs: 3
 batchSize: 4
 learningRate: 2e-4
+maxSamples: 0               # 0 = use all samples
 
 # Data source
 dataSource:

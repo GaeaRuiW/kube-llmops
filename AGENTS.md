@@ -36,6 +36,12 @@ kubectl logs -l app.kubernetes.io/name=rag-smoke-test --tail=30
 
 # Check quality gate
 kubectl logs job/kube-llmops-quality-gate
+
+# Run finetune Helm template tests
+python -m pytest tests/helm/test_finetune_templates.py -v
+
+# Run finetune E2E tests (requires GPU cluster + Argo Workflows)
+uv run tests/e2e/test_finetune_e2e.py
 ```
 
 ## Architecture
@@ -158,6 +164,9 @@ helm dependency update charts/kube-llmops-stack/
 | Ragas Eval | K8s CronJob | 4 metrics | faithfulness, relevancy, precision, recall |
 | Quality Gate | Helm Hook | pass/block | Pre-upgrade check on Ragas thresholds |
 | LLM-Guard | Manual | 4/4 | Normal + direct injection + subtle + benign |
+| Finetune Helm Templates | pytest | 25+ | ConfigMap, RBAC, MLflow, PDB, LoRA/QLoRA/Full, profiles |
+| Finetune E2E | Python+kubectl | ~26 | MLflow health, WorkflowTemplate, Argo run, Registry, QG, Grafana |
+| Finetune Sample Data | CI | 1 | Alpaca-format validation (>=10 samples) |
 
 ## Grafana Dashboards (11)
 
@@ -203,8 +212,12 @@ images/
   model-loader/               # Pre-built model downloader (minio + huggingface_hub + hf-transfer)
   model-resolver/             # Engine auto-detection logic
 tests/e2e/                    # Playwright E2E tests
+tests/e2e/test_finetune_e2e.py  # Finetune pipeline E2E (MLflow + Argo + QG)
+tests/helm/                   # Helm template unit tests (pytest)
+tests/load/                   # Load testing scripts
 examples/
   curl/                       # API curl examples
   python/                     # Python SDK examples
   eval/                       # Evaluation datasets
+  finetune/                   # Sample training data + example values
 ```

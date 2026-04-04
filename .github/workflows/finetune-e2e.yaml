@@ -1,0 +1,71 @@
+name: Finetune E2E
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_model:
+        description: "Base model to fine-tune"
+        default: "Qwen/Qwen2.5-0.5B-Instruct"
+      method:
+        description: "Fine-tuning method (lora/qlora/full)"
+        default: "lora"
+  schedule:
+    - cron: '0 4 * * 1'  # Weekly Monday 4AM UTC
+
+jobs:
+  finetune-template-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install pytest pyyaml
+      - name: Helm dependency update
+        run: helm dependency update charts/kube-llmops-stack/
+      - name: Run finetune Helm template tests
+        run: python -m pytest tests/helm/test_finetune_templates.py -v --tb=short
+      - name: Validate finetune CI profile renders
+        run: |
+          helm template test charts/kube-llmops-stack/ \
+            -f charts/kube-llmops-stack/values-ci-finetune.yaml > /dev/null
+          echo "ci-finetune profile renders OK"
+
+  finetune-e2e:
+    runs-on: ubuntu-latest
+    needs: [finetune-template-tests]
+    # Full E2E requires GPU + Argo Workflows — skipped in standard CI runners.
+    # This job validates the test script is importable and documents the manual
+    # execution steps. For actual GPU runs, use self-hosted runners.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate E2E test script syntax
+        run: python3 -c "import py_compile; py_compile.compile('tests/e2e/test_finetune_e2e.py', doraise=True)"
+      - name: Validate sample training data
+        run: |
+          python3 -c "
+          import json
+          with open('examples/finetune/sample-training-data.json') as f:
+              data = json.load(f)
+          assert len(data) >= 10
+          assert all('instruction' in d and 'output' in d for d in data)
+          print(f'Sample data valid: {len(data)} Alpaca-format samples')
+          "
+      - name: Print manual E2E execution instructions
+        run: |
+          echo "==========================================="
+          echo "Finetune E2E requires a GPU cluster with:"
+          echo "  - Argo Workflows operator installed"
+          echo "  - kube-llmops deployed with finetune enabled"
+          echo ""
+          echo "To run manually:"
+          echo "  export NODE_IP=\$(kubectl get node -o jsonpath='{.items[0].status.addresses[0].address}')"
+          echo "  uv run tests/e2e/test_finetune_e2e.py"
+          echo "==========================================="

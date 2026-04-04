@@ -1,0 +1,102 @@
+[
+  {
+    "instruction": "Give a brief introduction to Kubernetes.",
+    "input": "",
+    "output": "Kubernetes (K8s) is an open-source container orchestration platform originally developed by Google. It automates the deployment, scaling, and management of containerized applications across clusters of machines."
+  },
+  {
+    "instruction": "What is a Pod in Kubernetes?",
+    "input": "",
+    "output": "A Pod is the smallest deployable unit in Kubernetes. It represents a single instance of a running process and can contain one or more tightly-coupled containers that share networking and storage."
+  },
+  {
+    "instruction": "Explain what LoRA fine-tuning is.",
+    "input": "",
+    "output": "LoRA (Low-Rank Adaptation) is a parameter-efficient fine-tuning method that freezes the pre-trained model weights and injects trainable low-rank decomposition matrices into each layer. This dramatically reduces the number of trainable parameters while maintaining model quality."
+  },
+  {
+    "instruction": "What is the purpose of LiteLLM in an LLMOps stack?",
+    "input": "",
+    "output": "LiteLLM serves as a unified AI Gateway that provides an OpenAI-compatible API in front of multiple LLM backends (vLLM, llama.cpp, TEI, etc.). It handles load balancing, fallbacks, rate limiting, and cost tracking across different model providers."
+  },
+  {
+    "instruction": "How does vLLM improve LLM inference performance?",
+    "input": "",
+    "output": "vLLM uses PagedAttention, an efficient memory management technique that stores KV cache in non-contiguous memory blocks. This reduces memory waste, allows larger batch sizes, and achieves higher throughput compared to traditional serving frameworks."
+  },
+  {
+    "instruction": "What is MLflow used for in machine learning?",
+    "input": "",
+    "output": "MLflow is an open-source platform for managing the ML lifecycle. It provides experiment tracking (logging parameters, metrics, and artifacts), a model registry for versioning and staging, and tools for reproducible model deployment."
+  },
+  {
+    "instruction": "Explain the concept of canary deployment for ML models.",
+    "input": "",
+    "output": "Canary deployment gradually routes a small percentage of traffic to a new model version while monitoring quality metrics. If the canary performs well, traffic is incrementally shifted. If quality degrades, the deployment is rolled back to the previous version."
+  },
+  {
+    "instruction": "What is the difference between LoRA and QLoRA?",
+    "input": "",
+    "output": "While LoRA injects low-rank adaptation matrices into the model, QLoRA additionally quantizes the base model to 4-bit precision using NormalFloat4 (NF4) data type. This further reduces memory requirements, enabling fine-tuning of larger models on less powerful hardware."
+  },
+  {
+    "instruction": "Describe the role of Prometheus in observability.",
+    "input": "",
+    "output": "Prometheus is a time-series monitoring system that scrapes metrics from instrumented endpoints, stores them efficiently, and provides a powerful query language (PromQL). It integrates with Grafana for visualization and supports alerting based on metric thresholds."
+  },
+  {
+    "instruction": "What is a Helm chart?",
+    "input": "",
+    "output": "A Helm chart is a package of pre-configured Kubernetes resources. It contains templates, default values, and metadata that allow users to deploy complex applications with a single command while customizing configuration through values overrides."
+  },
+  {
+    "instruction": "How does Argo Workflows orchestrate ML pipelines?",
+    "input": "",
+    "output": "Argo Workflows is a Kubernetes-native workflow engine that runs each pipeline step as a container. It supports DAG-based task dependencies, parameter passing, artifact management, and retry logic — making it ideal for orchestrating multi-step ML training and evaluation pipelines."
+  },
+  {
+    "instruction": "What is the purpose of a quality gate in ML pipelines?",
+    "input": "",
+    "output": "A quality gate is an automated checkpoint that evaluates model metrics against predefined thresholds before allowing deployment. If the fine-tuned model fails to meet quality criteria (e.g., faithfulness >= 0.7), the pipeline blocks deployment and marks the model version as archived."
+  },
+  {
+    "instruction": "Explain what text embeddings are used for.",
+    "input": "",
+    "output": "Text embeddings are dense vector representations of text that capture semantic meaning. They are used for similarity search, retrieval-augmented generation (RAG), clustering, and classification. Models like BGE or E5 produce fixed-dimension embeddings from input text."
+  },
+  {
+    "instruction": "What is RAG (Retrieval-Augmented Generation)?",
+    "input": "",
+    "output": "RAG combines information retrieval with language generation. When a user asks a question, the system first retrieves relevant documents from a knowledge base using embeddings, then passes those documents as context to the LLM to generate a grounded, factual answer."
+  },
+  {
+    "instruction": "How does MinIO serve as a model store?",
+    "input": "",
+    "output": "MinIO is an S3-compatible object storage system. In an LLMOps platform, it caches downloaded model weights so that subsequent pod startups can load models from the local cluster in seconds instead of re-downloading from HuggingFace, which can take minutes to hours."
+  },
+  {
+    "instruction": "What is supervised fine-tuning (SFT)?",
+    "input": "",
+    "output": "Supervised fine-tuning trains a pre-trained language model on labeled instruction-response pairs. The model learns to follow instructions and produce desired outputs. Common data formats include Alpaca (instruction/input/output) and ShareGPT (multi-turn conversations)."
+  },
+  {
+    "instruction": "Explain the Alpaca data format for fine-tuning.",
+    "input": "",
+    "output": "The Alpaca format uses JSON objects with three fields: 'instruction' (the task description), 'input' (optional additional context), and 'output' (the expected response). This format is widely supported by fine-tuning frameworks like LLaMA-Factory."
+  },
+  {
+    "instruction": "What is LLaMA-Factory?",
+    "input": "",
+    "output": "LLaMA-Factory is an open-source fine-tuning framework that supports multiple training methods (LoRA, QLoRA, full fine-tuning) across various model architectures. It provides a unified CLI and web UI for configuring and running training jobs with built-in MLflow integration."
+  },
+  {
+    "instruction": "How does KEDA enable auto-scaling for LLM workloads?",
+    "input": "",
+    "output": "KEDA (Kubernetes Event-Driven Autoscaling) creates HPA objects based on external metrics. For LLM workloads, it monitors pending_requests metrics from Prometheus and scales vLLM or llama.cpp deployments up or down based on request queue depth."
+  },
+  {
+    "instruction": "What metrics does Ragas evaluate for RAG quality?",
+    "input": "",
+    "output": "Ragas evaluates four key RAG metrics: faithfulness (is the answer supported by context?), answer relevancy (does the answer address the question?), context precision (are retrieved documents relevant?), and context recall (does the context cover the ground truth?)."
+  }
+]

@@ -194,7 +194,7 @@ spec:
             memory: 2Gi
     - name: finetune
       container:
-        image: llamafactory/llamafactory:latest
+        image: hiyouga/llamafactory:latest
         imagePullPolicy: IfNotPresent
         command: [bash, -c]
         args:
@@ -203,6 +203,9 @@ spec:
             echo "=== Starting fine-tuning ==="
             echo "Method: {{ .Values.method }}"
             echo "Model: {{ .Values.baseModel }}"
+
+            # Install mlflow for experiment tracking
+            pip install -q mlflow 2>/dev/null || true
 
             # Copy training config from ConfigMap
             cp /config/train_config.yaml /workspace/train_config.yaml
@@ -221,6 +224,12 @@ spec:
             # Force CPU-only mode to avoid CUDA init crash in GPU containers
             export CUDA_VISIBLE_DEVICES=""
             export USE_CPU=1
+            # Disable torch.compile (inductor) — compilation takes too long on CPU
+            export TORCHINDUCTOR_DISABLE=1
+            export TORCH_COMPILE_DISABLE=1
+            # Force eager attention to avoid SDPA torch.compile overhead on CPU
+            sed -i '/^model_name_or_path:/a flash_attn: disabled' /workspace/train_config.yaml
+            echo "torch_compile: false" >> /workspace/train_config.yaml
             {{- end }}
 
             llamafactory-cli train /workspace/train_config.yaml
@@ -237,6 +246,10 @@ spec:
             value: ""
           - name: NVIDIA_VISIBLE_DEVICES
             value: "none"
+          - name: TORCHDYNAMO_DISABLE
+            value: "1"
+          - name: TORCHINDUCTOR_DISABLE
+            value: "1"
           {{- end }}
           - name: HF_HUB_ENABLE_HF_TRANSFER
             value: "1"
@@ -287,6 +300,7 @@ spec:
 
             echo "=== Merging and uploading model ==="
             OUTPUT_NAME="{{ .Values.outputName }}"
+            mkdir -p /workspace/eval
 
             # Upload to MinIO
             python3 -c "
@@ -332,7 +346,6 @@ spec:
                 f.write(str(result.version))
             "
 
-            mkdir -p /workspace/eval
             echo "=== Upload complete ==="
         env:
           - name: MLFLOW_S3_ENDPOINT_URL

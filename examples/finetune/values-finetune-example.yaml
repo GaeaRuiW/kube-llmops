@@ -1,0 +1,57 @@
+# Fine-tuning with kube-llmops — Quick Start Values
+#
+# Usage:
+#   helm upgrade kube-llmops charts/kube-llmops-stack \
+#     -f charts/kube-llmops-stack/values-single-node.yaml \
+#     -f examples/finetune/values-finetune-example.yaml
+#
+# Prerequisites:
+#   1. Argo Workflows operator installed:
+#      helm repo add argo https://argoproj.github.io/argo-helm
+#      helm install argo-workflows argo/argo-workflows -n argo --create-namespace
+#   2. MLflow image built:
+#      docker build -t kube-llmops/mlflow:latest images/mlflow/
+
+finetune:
+  enabled: true
+
+  # -- Base model from HuggingFace (small model for demo)
+  baseModel: Qwen/Qwen2.5-0.5B-Instruct
+  outputName: qwen2-5-0-5b-sft-v1
+
+  # -- Training method: lora | qlora | full
+  method: lora
+  loraRank: 8
+  loraAlpha: 16
+  epochs: 1           # Use 1 epoch for quick demo; increase for production
+  batchSize: 4
+  learningRate: 2e-4
+
+  # -- Data source (upload sample-training-data.json to MinIO first)
+  #    mc cp examples/finetune/sample-training-data.json minio/datasets/sft/train.json
+  dataSource:
+    type: minio
+    path: s3://datasets/sft/
+    format: alpaca
+
+  # -- Resources (adjust for your GPU)
+  resources:
+    gpu: 1
+    memory: 16Gi
+    cpu: "4"
+
+  # -- Evaluation thresholds
+  evaluation:
+    enabled: true
+    thresholds:
+      faithfulness: 0.5       # Lower for demo
+      answer_relevancy: 0.5
+
+  # -- Deployment strategy
+  deploy:
+    auto: false               # Manual approval
+    canaryPercent: 20
+    notifyWebhook: ""         # Set to Slack webhook URL for notifications
+
+  # -- No scheduled runs (manual trigger only)
+  schedule: ""
