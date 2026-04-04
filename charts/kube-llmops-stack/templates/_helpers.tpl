@@ -146,7 +146,7 @@ def _progress_monitor(watch_dir, interval=10):
         last_size = total
 
 # ── Patch hf-transfer concurrency (no env var exposed by default) ──
-_hf_concurrency = int(os.environ.get('HF_TRANSFER_CONCURRENCY', '8'))
+_hf_concurrency = int(os.environ.get('HF_TRANSFER_CONCURRENCY', '32'))
 try:
     import hf_transfer as _hft
     _orig_dl = _hft.download
@@ -343,6 +343,8 @@ TEI should omit hfHome (defaults to mountPath) to use HF cache layout that TEI e
   value: {{ .hfHome | default (.mountPath | default "/models") | quote }}
 - name: HF_HUB_ENABLE_HF_TRANSFER
   value: "1"
+- name: HF_TRANSFER_CONCURRENCY
+  value: {{ (default dict (default dict .root.Values.global).modelStore).hfTransferConcurrency | default "32" | quote }}
 {{- if and .root.Values.global .root.Values.global.modelStore }}
 - name: S3_ENDPOINT
   value: {{ .root.Values.global.modelStore.endpoint | quote }}

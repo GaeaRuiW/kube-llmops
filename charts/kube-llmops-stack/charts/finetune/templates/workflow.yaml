@@ -72,6 +72,19 @@ spec:
             logging.basicConfig(level=logging.INFO, format='%(asctime)s [prepare-data] %(levelname)s %(message)s')
             log = logging.getLogger('prepare-data')
 
+            # Patch hf-transfer concurrency (max concurrent file downloads)
+            _hf_concurrency = int(os.environ.get('HF_TRANSFER_CONCURRENCY', '32'))
+            try:
+                import hf_transfer as _hft
+                _orig_dl = _hft.download
+                def _patched_dl(*a, **kw):
+                    kw['max_files'] = _hf_concurrency
+                    return _orig_dl(*a, **kw)
+                _hft.download = _patched_dl
+                log.info(f'hf-transfer concurrency per file: {_hf_concurrency}')
+            except Exception:
+                pass
+
             source = '{{ .Values.baseModel }}'
             slug = source.replace('/', '--')
             target = Path('/workspace/base-model')
@@ -181,6 +194,8 @@ spec:
         env:
           - name: HF_HUB_ENABLE_HF_TRANSFER
             value: "1"
+          - name: HF_TRANSFER_CONCURRENCY
+            value: {{ (default dict (default dict .Values.global).modelStore).hfTransferConcurrency | default "32" | quote }}
           {{- if and .Values.global .Values.global.modelStore }}
           - name: S3_ENDPOINT
             value: {{ .Values.global.modelStore.endpoint | quote }}
@@ -269,6 +284,8 @@ spec:
           {{- end }}
           - name: HF_HUB_ENABLE_HF_TRANSFER
             value: "1"
+          - name: HF_TRANSFER_CONCURRENCY
+            value: {{ (default dict (default dict .Values.global).modelStore).hfTransferConcurrency | default "32" | quote }}
           {{- if and .Values.global .Values.global.hfToken }}
           - name: HF_TOKEN
             valueFrom:
