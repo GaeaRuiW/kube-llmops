@@ -139,8 +139,15 @@ data:
     echo ""
 
     # Add LLM model
-    echo "  Adding LLM model (qwen2-5-0-5b)..."
-    RESP2=$(P "$CREDS_URL" "{\"model\":\"qwen2-5-0-5b\",\"model_type\":\"llm\",\"credentials\":{\"api_key\":\"$LITELLM_KEY\",\"endpoint_url\":\"$LITELLM_URL\",\"mode\":\"chat\",\"context_size\":\"4096\"}}" 2>&1) || true
+    {{- $llmModel := "qwen2-5-0-5b" }}
+    {{- range .Values.global.models }}
+    {{- $engine := include "kube-llmops.resolveEngine" . | trim }}
+    {{- if eq $engine "vllm" }}
+    {{- $llmModel = .name }}
+    {{- end }}
+    {{- end }}
+    echo "  Adding LLM model ({{ $llmModel }})..."
+    RESP2=$(P "$CREDS_URL" "{\"model\":\"{{ $llmModel }}\",\"model_type\":\"llm\",\"credentials\":{\"api_key\":\"$LITELLM_KEY\",\"endpoint_url\":\"$LITELLM_URL\",\"mode\":\"chat\",\"context_size\":\"4096\"}}" 2>&1) || true
     echo "  $RESP2" | head -c 100
     echo ""
     {{- end }}

@@ -20,14 +20,14 @@ ingress:
 # To override: add `engine: vllm` / `engine: tei` / `engine: llamacpp`
 global:
   models:
-    - name: qwen2-5-0-5b
-      source: Qwen/Qwen2.5-0.5B-Instruct
+    - name: gemma-4-26b-a4b
+      source: cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit
       replicas: 1
       resources:
         gpu: 1
-        memory: 8Gi
+        memory: 20Gi
       engineArgs:
-        --gpu-memory-utilization: "0.8"
+        --gpu-memory-utilization: "0.90"
         --max-model-len: "4096"
         --enforce-eager: ""
     - name: bge-small-en
@@ -53,15 +53,17 @@ global:
     secretKey: minioadmin
     image: kube-llmops/model-loader:latest   # pre-built with minio+huggingface_hub
   # HuggingFace token for gated models (Llama, Gemma, etc.)
-  # hfToken: hf_xxxxxxxxxxxxxxxxxxxx
+  hfToken: ***REMOVED***
 
 # ========== Engine Settings ==========
 vllm:
   enabled: true
+  image:
+    tag: gemma4-cu130          # gemma4 architecture needs this custom vLLM build
   modelLoader:
     enabled: false
   unifiedMemory:
-    enabled: true      # RTX PRO 2000 Blackwell (WSL2) uses unified memory
+    enabled: false     # Disabled for debugging
 
 llamacpp:
   enabled: true
@@ -147,7 +149,17 @@ logging:
 
 # ========== Disabled ==========
 keda:
-  enabled: false                # Single node, no scale target
+  enabled: false                # Requires KEDA operator; enable for multi-node autoscaling
+  # defaults:
+  #   minReplicas: 1
+  #   maxReplicas: 4
+  #   cooldownPeriod: 300
+  #   pollingInterval: 15
+  # engines:
+  #   vllm:
+  #     threshold: "2"          # scale when > 2 requests waiting
+  #   llamacpp:
+  #     threshold: "2"
 dify:
   enabled: true
   image:
@@ -193,6 +205,9 @@ rag-eval:
   enabled: true
   smokeTest:
     enabled: true
+    llmModel: gemma-4-26b-a4b
+  ragasEval:
+    llmModel: gemma-4-26b-a4b
 
 # ========== Fine-tuning Pipeline (v0.4.0) ==========
 finetune:

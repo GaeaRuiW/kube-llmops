@@ -99,6 +99,19 @@ SSO works automatically — OIDC URLs auto-computed from nodePort.host.
 - Human approval via webhook notifications
 - Prerequisite: Argo Workflows operator must be installed separately
 
+### HPA Autoscaling (KEDA)
+- Auto-creates HPA for vLLM and llama.cpp Deployments via KEDA ScaledObjects
+- Trigger: Prometheus `pending_requests` metric per engine:
+  - vLLM: `vllm:num_requests_waiting{model_name="<name>"}`
+  - llama.cpp: `llamacpp_requests_processing{model="<name>"}`
+- Models auto-detected from `global.models` (no separate list needed)
+- Per-model overrides: `keda.models.<name>.{minReplicas,maxReplicas,threshold}`
+- Prerequisite: KEDA operator must be installed separately
+  ```bash
+  helm repo add kedacore https://kedacore.github.io/charts
+  helm install keda kedacore/keda -n keda-system --create-namespace
+  ```
+
 ## Critical Gotchas
 
 ### Helm .tgz Cache

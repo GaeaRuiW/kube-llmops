@@ -1,5 +1,5 @@
 apiVersion: v2
 name: keda
-description: KEDA autoscaling for vLLM model serving
+description: KEDA autoscaling for vLLM and llama.cpp model serving
 version: 0.1.0
 type: application

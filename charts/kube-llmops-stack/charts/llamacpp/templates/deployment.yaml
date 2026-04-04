@@ -91,6 +91,7 @@ spec:
             - "0.0.0.0"
             - "--port"
             - "8080"
+            - "--metrics"
             {{- if gt $gpu 0 }}
             - "--n-gpu-layers"
             - "999"
