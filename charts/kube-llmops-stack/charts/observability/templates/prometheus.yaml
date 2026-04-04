@@ -60,6 +60,23 @@ data:
             replacement: "$1:8000"
           - source_labels: [__meta_kubernetes_pod_label_kube_llmops_model]
             target_label: model
+      - job_name: llamacpp
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names: ["{{ $.Release.Namespace }}"]
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+            regex: llamacpp
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_phase]
+            regex: Running
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_ip]
+            target_label: __address__
+            replacement: "$1:8080"
+          - source_labels: [__meta_kubernetes_pod_label_kube_llmops_model]
+            target_label: model
       - job_name: tei
         kubernetes_sd_configs:
           - role: pod

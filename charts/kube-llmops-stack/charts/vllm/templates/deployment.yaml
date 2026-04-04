@@ -46,6 +46,7 @@ spec:
         kube-llmops/model: {{ $model.name }}
         kube-llmops/engine: vllm
     spec:
+      enableServiceLinks: false
       initContainers:
         {{- if $.Values.customCACert.enabled }}
         - name: ca-cert-installer

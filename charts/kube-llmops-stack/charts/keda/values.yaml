@@ -1,5 +1,9 @@
 enabled: false
 
+# Prerequisite: KEDA operator must be installed separately
+#   helm repo add kedacore https://kedacore.github.io/charts
+#   helm install keda kedacore/keda -n keda-system --create-namespace
+
 # Default autoscaling settings for all models
 defaults:
   minReplicas: 1
@@ -7,24 +11,24 @@ defaults:
   cooldownPeriod: 300       # 5 min before scale-down
   pollingInterval: 15       # Check metrics every 15s
 
-  # Scale triggers — Prometheus-based
-  triggers:
-    # Scale up when requests are waiting in queue
-    requestsWaiting:
-      enabled: true
-      threshold: "2"        # Scale when > 2 requests waiting
-      metric: vllm_num_requests_waiting
-    # Scale up when TTFT is high (users waiting too long)
-    ttftP95:
-      enabled: false
-      threshold: "3"        # Scale when P95 TTFT > 3 seconds
-      metric: vllm_time_to_first_token_seconds
-
   # Prometheus endpoint (auto-detected from observability chart)
   prometheusAddress: ""     # Auto: http://<release>-prometheus:9090
 
+# Per-engine pending-requests trigger configuration
+# Models are auto-detected from global.models via resolveEngine helper
+engines:
+  vllm:
+    metric: "vllm:num_requests_waiting"
+    labelName: model_name           # label key used in the Prometheus metric
+    threshold: "2"                  # scale when > 2 requests waiting
+  llamacpp:
+    metric: "llamacpp_requests_processing"
+    labelName: model                # label key (relabeled from kube-llmops/model)
+    threshold: "2"
+
 # Per-model overrides (optional)
 # models:
-#   qwen2-5-0-5b:
-#     minReplicas: 1
+#   my-model-name:
+#     minReplicas: 2
 #     maxReplicas: 8
+#     threshold: "5"
