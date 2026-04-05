@@ -255,7 +255,7 @@ spec:
               {{- if $resources.migDevice }}
               {{ $resources.migDevice }}: "1"
               {{- else if gt (int $gpu) 0 }}
-              nvidia.com/gpu: {{ $gpu | quote }}
+              {{ include "kube-llmops.gpuResourceName" $ }}: {{ $gpu | quote }}
               {{- end }}
             limits:
               {{- if not $.Values.unifiedMemory.enabled }}
@@ -264,7 +264,7 @@ spec:
               {{- if $resources.migDevice }}
               {{ $resources.migDevice }}: "1"
               {{- else if gt (int $gpu) 0 }}
-              nvidia.com/gpu: {{ $gpu | quote }}
+              {{ include "kube-llmops.gpuResourceName" $ }}: {{ $gpu | quote }}
               {{- end }}
           volumeMounts:
             - name: model-cache
@@ -282,7 +282,7 @@ spec:
                 command: ["/bin/sh", "-c", "sleep 5"]
       {{- if gt (int $gpu) 0 }}
       tolerations:
-        - key: {{ $.Values.gpuToleration.key }}
+        - key: {{ include "kube-llmops.gpuTolerationKey" $ }}
           operator: {{ $.Values.gpuToleration.operator }}
           effect: {{ $.Values.gpuToleration.effect }}
         {{- if $model.spotToleration }}
@@ -431,12 +431,12 @@ spec:
               cpu: {{ $cpu | quote }}
               memory: {{ $memory }}
               {{- if gt (int $gpu) 0 }}
-              nvidia.com/gpu: {{ $gpu | quote }}
+              {{ include "kube-llmops.gpuResourceName" $ }}: {{ $gpu | quote }}
               {{- end }}
             limits:
               memory: {{ $memoryLimit | default $memory }}
               {{- if gt (int $gpu) 0 }}
-              nvidia.com/gpu: {{ $gpu | quote }}
+              {{ include "kube-llmops.gpuResourceName" $ }}: {{ $gpu | quote }}
               {{- end }}
           volumeMounts:
             - name: model-cache
@@ -449,7 +449,7 @@ spec:
                 command: ["/bin/sh", "-c", "sleep 5"]
       {{- if gt (int $gpu) 0 }}
       tolerations:
-        - key: {{ $.Values.gpuToleration.key }}
+        - key: {{ include "kube-llmops.gpuTolerationKey" $ }}
           operator: {{ $.Values.gpuToleration.operator }}
           effect: {{ $.Values.gpuToleration.effect }}
       {{- end }}

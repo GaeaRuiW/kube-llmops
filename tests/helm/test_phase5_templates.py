@@ -490,3 +490,75 @@ class TestCanaryDeployment:
         assert len(deps) == 1
         args = deps[0]["spec"]["template"]["spec"]["containers"][0]["args"][0]
         assert "org--test-model-v2" in args
+
+
+class TestMultiAccelerator:
+    """Test multi-accelerator support (nvidia, amd, gaudi)."""
+
+    def test_default_nvidia_gpu_resource(self):
+        docs = helm_template(
+            set_values=SINGLE_MODEL,
+            show_only="charts/vllm/templates/deployment.yaml",
+        )
+        deps = find_by_kind(docs, "Deployment")
+        resources = deps[0]["spec"]["template"]["spec"]["containers"][0]["resources"]
+        assert "nvidia.com/gpu" in resources["requests"]
+
+    def test_amd_gpu_resource(self):
+        vals = {**SINGLE_MODEL, "global.accelerator": "amd"}
+        docs = helm_template(
+            set_values=vals,
+            show_only="charts/vllm/templates/deployment.yaml",
+        )
+        deps = find_by_kind(docs, "Deployment")
+        resources = deps[0]["spec"]["template"]["spec"]["containers"][0]["resources"]
+        assert "amd.com/gpu" in resources["requests"]
+        assert "nvidia.com/gpu" not in resources["requests"]
+
+    def test_gaudi_gpu_resource(self):
+        vals = {**SINGLE_MODEL, "global.accelerator": "gaudi"}
+        docs = helm_template(
+            set_values=vals,
+            show_only="charts/vllm/templates/deployment.yaml",
+        )
+        deps = find_by_kind(docs, "Deployment")
+        resources = deps[0]["spec"]["template"]["spec"]["containers"][0]["resources"]
+        assert "habana.ai/gaudi" in resources["requests"]
+
+    def test_amd_toleration(self):
+        vals = {**SINGLE_MODEL, "global.accelerator": "amd"}
+        docs = helm_template(
+            set_values=vals,
+            show_only="charts/vllm/templates/deployment.yaml",
+        )
+        deps = find_by_kind(docs, "Deployment")
+        tolerations = deps[0]["spec"]["template"]["spec"]["tolerations"]
+        keys = [t["key"] for t in tolerations]
+        assert "amd.com/gpu" in keys
+
+    def test_dcgm_only_for_nvidia(self):
+        vals = {**SINGLE_MODEL, "global.accelerator": "amd"}
+        docs = helm_template(set_values=vals)
+        dcgm = find_by_kind(docs, "DaemonSet", "dcgm")
+        assert len(dcgm) == 0
+
+    def test_dcgm_present_for_nvidia(self):
+        docs = helm_template(set_values=SINGLE_MODEL)
+        dcgm = find_by_kind(docs, "DaemonSet", "dcgm")
+        assert len(dcgm) == 1
+
+    def test_llamacpp_amd_gpu_resource(self):
+        gguf_model = {
+            "global.models[0].name": "test-gguf",
+            "global.models[0].source": "org/test-GGUF",
+            "global.models[0].resources.gpu": "1",
+            "global.accelerator": "amd",
+        }
+        docs = helm_template(
+            set_values=gguf_model,
+            show_only="charts/llamacpp/templates/deployment.yaml",
+        )
+        deps = find_by_kind(docs, "Deployment")
+        if len(deps) > 0:
+            resources = deps[0]["spec"]["template"]["spec"]["containers"][0]["resources"]
+            assert "amd.com/gpu" in resources["requests"]

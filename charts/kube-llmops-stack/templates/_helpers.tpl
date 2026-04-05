@@ -365,3 +365,34 @@ TEI should omit hfHome (defaults to mountPath) to use HF cache layout that TEI e
 - name: HF_HUB_DISABLE_XET
   value: "1"
 {{- end -}}
+
+{{/*
+GPU resource name based on global.accelerator.
+Usage: {{ include "kube-llmops.gpuResourceName" . }}
+Output: "nvidia.com/gpu", "amd.com/gpu", or "habana.ai/gaudi"
+*/}}
+{{- define "kube-llmops.gpuResourceName" -}}
+{{- $accel := (default dict .Values.global).accelerator | default "nvidia" -}}
+{{- if eq $accel "amd" -}}
+amd.com/gpu
+{{- else if eq $accel "gaudi" -}}
+habana.ai/gaudi
+{{- else -}}
+nvidia.com/gpu
+{{- end -}}
+{{- end -}}
+
+{{/*
+GPU toleration key based on global.accelerator.
+Usage: {{ include "kube-llmops.gpuTolerationKey" . }}
+*/}}
+{{- define "kube-llmops.gpuTolerationKey" -}}
+{{- $accel := (default dict .Values.global).accelerator | default "nvidia" -}}
+{{- if eq $accel "amd" -}}
+amd.com/gpu
+{{- else if eq $accel "gaudi" -}}
+habana.ai/gaudi
+{{- else -}}
+nvidia.com/gpu
+{{- end -}}
+{{- end -}}
