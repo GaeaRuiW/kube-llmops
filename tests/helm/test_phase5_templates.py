@@ -34,6 +34,9 @@ def helm_template(set_values=None, values_files=None, show_only=None):
         cmd += ["--show-only", show_only]
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
     if result.returncode != 0:
+        # Templates that render nothing cause "could not find template" – treat as empty
+        if "could not find template" in result.stderr:
+            return []
         raise RuntimeError(f"helm template failed: {result.stderr}")
     docs = []
     for doc in yaml.safe_load_all(result.stdout):
@@ -324,6 +327,78 @@ class TestGracefulDrain:
         assert "sleep" in " ".join(prestop)
 
 
+DISAGG_MODEL = {
+    "global.models[0].name": "big-model",
+    "global.models[0].source": "org/big-model",
+    "global.models[0].resources.gpu": "4",
+    "global.models[0].resources.memory": "64Gi",
+    "global.models[0].disaggregated.enabled": "true",
+    "global.models[0].disaggregated.prefill.replicas": "2",
+    "global.models[0].disaggregated.prefill.resources.gpu": "4",
+    "global.models[0].disaggregated.prefill.resources.memory": "64Gi",
+    "global.models[0].disaggregated.decode.replicas": "4",
+    "global.models[0].disaggregated.decode.resources.gpu": "2",
+    "global.models[0].disaggregated.decode.resources.memory": "32Gi",
+}
+
+
+class TestDisaggregatedServing:
+    """Test llm-d disaggregated serving templates."""
+
+    def test_no_disaggregated_resources_by_default(self):
+        docs = helm_template(
+            set_values=SINGLE_MODEL,
+            show_only="charts/vllm/templates/disaggregated.yaml",
+        )
+        # Should render nothing when disaggregated is not enabled
+        assert len(docs) == 0
+
+    def test_disaggregated_creates_prefill_and_decode(self):
+        docs = helm_template(
+            set_values=DISAGG_MODEL,
+            show_only="charts/vllm/templates/disaggregated.yaml",
+        )
+        deps = find_by_kind(docs, "Deployment")
+        assert len(deps) == 2
+        names = [d["metadata"]["name"] for d in deps]
+        assert "big-model-prefill" in names
+        assert "big-model-decode" in names
+
+    def test_disaggregated_creates_inference_pool(self):
+        docs = helm_template(
+            set_values=DISAGG_MODEL,
+            show_only="charts/vllm/templates/disaggregated.yaml",
+        )
+        pools = find_by_kind(docs, "InferencePool")
+        assert len(pools) == 1
+        assert pools[0]["metadata"]["name"] == "big-model-pool"
+
+    def test_disaggregated_creates_inference_model(self):
+        docs = helm_template(
+            set_values=DISAGG_MODEL,
+            show_only="charts/vllm/templates/disaggregated.yaml",
+        )
+        models = find_by_kind(docs, "InferenceModel")
+        assert len(models) == 1
+        assert models[0]["spec"]["modelName"] == "big-model"
+
+    def test_epp_deployment_created(self):
+        docs = helm_template(
+            set_values=DISAGG_MODEL,
+            show_only="charts/vllm/templates/epp.yaml",
+        )
+        deps = find_by_kind(docs, "Deployment")
+        assert len(deps) == 1
+        assert "epp" in deps[0]["metadata"]["name"]
+
+    def test_no_epp_when_disabled(self):
+        docs = helm_template(
+            set_values=SINGLE_MODEL,
+            show_only="charts/vllm/templates/epp.yaml",
+        )
+        assert len(docs) == 0
+
+
 class TestMIGDevice:
     """Test MIG GPU device support."""
 
@@ -350,3 +425,68 @@ class TestMIGDevice:
         resources = deps[0]["spec"]["template"]["spec"]["containers"][0]["resources"]
         assert "nvidia.com/gpu" not in resources["requests"]
         assert resources["requests"]["nvidia.com/mig-1g.5gb"] == "1"
+
+
+CANARY_MODEL = {
+    "global.models[0].name": "test-model",
+    "global.models[0].source": "org/test-model-v1",
+    "global.models[0].resources.gpu": "1",
+    "global.models[0].resources.memory": "16Gi",
+    "global.models[0].canary.enabled": "true",
+    "global.models[0].canary.source": "org/test-model-v2",
+    "global.models[0].canary.weight": "10",
+    "global.models[0].canary.replicas": "1",
+}
+
+
+class TestCanaryDeployment:
+    """Test canary model deployment."""
+
+    def test_no_canary_by_default(self):
+        docs = helm_template(
+            set_values=SINGLE_MODEL,
+            show_only="charts/vllm/templates/deployment.yaml",
+        )
+        deps = find_by_kind(docs, "Deployment")
+        assert len(deps) == 1
+        assert "canary" not in deps[0]["metadata"]["name"]
+
+    def test_canary_deployment_rendered(self):
+        docs = helm_template(
+            set_values=CANARY_MODEL,
+            show_only="charts/vllm/templates/deployment.yaml",
+        )
+        deps = find_by_kind(docs, "Deployment")
+        assert len(deps) == 2
+        names = [d["metadata"]["name"] for d in deps]
+        assert "vllm-test-model" in names
+        assert "vllm-test-model-canary" in names
+
+    def test_canary_service_rendered(self):
+        docs = helm_template(
+            set_values=CANARY_MODEL,
+            show_only="charts/vllm/templates/service.yaml",
+        )
+        svcs = find_by_kind(docs, "Service")
+        assert len(svcs) == 2
+        names = [s["metadata"]["name"] for s in svcs]
+        assert "vllm-test-model" in names
+        assert "vllm-test-model-canary" in names
+
+    def test_canary_litellm_weight_routing(self):
+        docs = helm_template(set_values=CANARY_MODEL)
+        config = get_configmap_data(docs, "litellm-config")
+        entries = [e for e in config["model_list"] if e["model_name"] == "test-model"]
+        assert len(entries) == 2
+        weights = sorted([e["litellm_params"].get("weight", 100) for e in entries])
+        assert weights == [10, 90]
+
+    def test_canary_uses_different_source(self):
+        docs = helm_template(
+            set_values=CANARY_MODEL,
+            show_only="charts/vllm/templates/deployment.yaml",
+        )
+        deps = find_by_kind(docs, "Deployment", "canary")
+        assert len(deps) == 1
+        args = deps[0]["spec"]["template"]["spec"]["containers"][0]["args"][0]
+        assert "org--test-model-v2" in args

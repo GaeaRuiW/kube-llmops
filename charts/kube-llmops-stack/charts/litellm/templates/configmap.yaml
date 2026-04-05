@@ -34,6 +34,20 @@ data:
           {{- $apiSuffix = "" }}
         {{- end }}
       {{- end }}
+      {{- if and $model.canary $model.canary.enabled }}
+      - model_name: {{ $model.name }}
+        litellm_params:
+          model: {{ $litellmPrefix }}/{{ $model.name }}
+          api_base: http://{{ $prefix }}-{{ $model.name }}.{{ $.Release.Namespace }}.svc.cluster.local:{{ $port }}{{ $apiSuffix }}
+          api_key: "no-key-needed"
+          weight: {{ sub 100 (int ($model.canary.weight | default 10)) }}
+      - model_name: {{ $model.name }}
+        litellm_params:
+          model: {{ $litellmPrefix }}/{{ $model.name }}
+          api_base: http://{{ $prefix }}-{{ $model.name }}-canary.{{ $.Release.Namespace }}.svc.cluster.local:{{ $port }}{{ $apiSuffix }}
+          api_key: "no-key-needed"
+          weight: {{ $model.canary.weight | default 10 }}
+      {{- else }}
       - model_name: {{ $model.name }}
         litellm_params:
           model: {{ $litellmPrefix }}/{{ $model.name }}
@@ -45,6 +59,7 @@ data:
             fallbacks:
               - {{ $model.scaleToZero.fallbackModel }}
         {{- end }}
+      {{- end }}
     {{- end }}
     {{/* --- Legacy: per-subchart models + embeddingModels --- */}}
     {{- else }}

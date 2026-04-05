@@ -320,5 +320,147 @@ spec:
         - name: ca-bundle
           emptyDir: {}
         {{- end }}
+{{- if and $model.canary $model.canary.enabled }}
+{{- $canarySource := $model.canary.source }}
+{{- $canarySlug := replace "/" "--" $canarySource }}
+{{- $canaryReplicas := $model.canary.replicas | default 1 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-{{ $model.name }}-canary
+  labels:
+    app.kubernetes.io/name: vllm
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/component: canary
+    app.kubernetes.io/part-of: kube-llmops
+    kube-llmops/model: {{ $model.name }}-canary
+    kube-llmops/engine: vllm
+spec:
+  replicas: {{ $canaryReplicas }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vllm
+      app.kubernetes.io/instance: {{ $.Release.Name }}
+      kube-llmops/model: {{ $model.name }}-canary
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: vllm
+        app.kubernetes.io/instance: {{ $.Release.Name }}
+        app.kubernetes.io/component: canary
+        app.kubernetes.io/part-of: kube-llmops
+        kube-llmops/model: {{ $model.name }}-canary
+        kube-llmops/engine: vllm
+    spec:
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 90
+      initContainers:
+        - name: model-loader
+          image: {{ (default dict (default dict $.Values.global).modelStore).image | default "kube-llmops/model-loader:latest" }}
+          imagePullPolicy: IfNotPresent
+          command: ["bash", "-c"]
+          args:
+            - |
+{{ include "kube-llmops.modelLoaderScript" . | indent 14 }}
+          env:
+{{ include "kube-llmops.modelLoaderEnv" (dict "model" (dict "source" $canarySource "name" $model.name) "root" $ "mountPath" "/models" "hfHome" "/models/huggingface" "hfToken" $.Values.modelLoader.hfToken) | indent 12 }}
+          volumeMounts:
+            - name: model-cache
+              mountPath: /models
+          resources:
+            requests:
+              cpu: "1"
+              memory: 2Gi
+            limits:
+              cpu: "4"
+              memory: 8Gi
+      containers:
+        - name: vllm
+          image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag }}"
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              MODEL_PATH="/models/{{ $canarySlug }}"
+              if [ ! -d "$MODEL_PATH" ] || [ -z "$(ls -A "$MODEL_PATH" 2>/dev/null)" ]; then
+                MODEL_PATH="{{ $canarySource }}"
+              fi
+              EXTRA_ARGS=""
+              exec vllm serve "$MODEL_PATH" \
+                --host 0.0.0.0 \
+                --port 8000 \
+                --served-model-name {{ $model.name | quote }} \
+                {{- if $model.prefixCaching }}
+                --enable-prefix-caching \
+                {{- end }}
+                {{- if gt (int $gpu) 1 }}
+                --tensor-parallel-size {{ $gpu | quote }} \
+                {{- end }}
+                {{- range $key, $val := $model.engineArgs }}
+                {{ $key }} {{ if $val }}{{ $val }}{{ end }} \
+                {{- end }}
+                $EXTRA_ARGS
+          env:
+            - name: HF_HOME
+              value: /models/huggingface
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: {{ $.Values.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ $.Values.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ $.Values.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ $.Values.readinessProbe.failureThreshold }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: {{ $.Values.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ $.Values.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ $.Values.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ $.Values.livenessProbe.failureThreshold }}
+          resources:
+            requests:
+              cpu: {{ $cpu | quote }}
+              memory: {{ $memory }}
+              {{- if gt (int $gpu) 0 }}
+              nvidia.com/gpu: {{ $gpu | quote }}
+              {{- end }}
+            limits:
+              memory: {{ $memoryLimit | default $memory }}
+              {{- if gt (int $gpu) 0 }}
+              nvidia.com/gpu: {{ $gpu | quote }}
+              {{- end }}
+          volumeMounts:
+            - name: model-cache
+              mountPath: /models
+            - name: shm
+              mountPath: /dev/shm
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]
+      {{- if gt (int $gpu) 0 }}
+      tolerations:
+        - key: {{ $.Values.gpuToleration.key }}
+          operator: {{ $.Values.gpuToleration.operator }}
+          effect: {{ $.Values.gpuToleration.effect }}
+      {{- end }}
+      volumes:
+        - name: model-cache
+          emptyDir:
+            sizeLimit: {{ $.Values.modelCache.size }}
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 8Gi
+{{- end }}
 {{- end }}
 {{- end }}
