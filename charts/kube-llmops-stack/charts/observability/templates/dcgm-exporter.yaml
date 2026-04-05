@@ -1,4 +1,4 @@
-{{- if .Values.dcgmExporter.enabled }}
+{{- if and .Values.dcgmExporter.enabled (ne ((default dict .Values.global).accelerator | default "nvidia") "amd") (ne ((default dict .Values.global).accelerator | default "nvidia") "gaudi") }}
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -47,7 +47,7 @@ spec:
               memory: 256Mi
             {{- end }}
       tolerations:
-        - key: nvidia.com/gpu
+        - key: {{ include "kube-llmops.gpuTolerationKey" . }}
           operator: Exists
           effect: NoSchedule
       volumes:

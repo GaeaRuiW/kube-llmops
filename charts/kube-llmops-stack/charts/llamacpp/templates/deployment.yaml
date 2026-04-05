@@ -123,12 +123,12 @@ spec:
               cpu: {{ $cpu | quote }}
               memory: {{ $memory }}
               {{- if gt $gpu 0 }}
-              nvidia.com/gpu: {{ $gpu | quote }}
+              {{ include "kube-llmops.gpuResourceName" $ }}: {{ $gpu | quote }}
               {{- end }}
             limits:
               memory: {{ $memory }}
               {{- if gt $gpu 0 }}
-              nvidia.com/gpu: {{ $gpu | quote }}
+              {{ include "kube-llmops.gpuResourceName" $ }}: {{ $gpu | quote }}
               {{- end }}
           volumeMounts:
             - name: model-cache
