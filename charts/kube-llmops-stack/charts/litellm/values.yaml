@@ -29,6 +29,13 @@ routerSettings:
   # fallbacks:            # Model fallback chain, e.g.:
   #   - model-a: [model-b]
 
+# Routing strategy: latency-based-routing (default) or simple-shuffle
+routingStrategy: latency-based-routing
+# Additional args for the routing strategy
+routingStrategyArgs:
+  ttl: 60                          # Cache latency data for N seconds
+  lowest_latency_buffer: 0.2       # 20% buffer before switching to faster model
+
 # Rate limiting and budget control
 rateLimiting:
   enabled: false

@@ -70,7 +70,13 @@ data:
 
     {{- if or .Values.models (and .Values.global .Values.global.models) }}
     router_settings:
-      routing_strategy: simple-shuffle
+      routing_strategy: {{ .Values.routingStrategy | default "latency-based-routing" }}
+      {{- if .Values.routingStrategyArgs }}
+      routing_strategy_args:
+        {{- range $key, $val := .Values.routingStrategyArgs }}
+        {{ $key }}: {{ $val }}
+        {{- end }}
+      {{- end }}
       num_retries: {{ .Values.routerSettings.numRetries | default 3 }}
       timeout: {{ .Values.routerSettings.timeout | default 120 }}
       {{- if .Values.routerSettings.fallbacks }}
