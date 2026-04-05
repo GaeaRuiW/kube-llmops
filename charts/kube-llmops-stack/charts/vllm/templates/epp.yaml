@@ -1,0 +1,60 @@
+{{/*
+llm-d Endpoint Picker (EPP): intelligent router for disaggregated serving.
+Only renders if any model has disaggregated.enabled: true.
+*/}}
+{{- $hasDisagg := false }}
+{{- $models := .Values.models }}
+{{- if and .Values.global .Values.global.models }}
+{{- $models = .Values.global.models }}
+{{- end }}
+{{- range $model := $models }}
+{{- if and $model.disaggregated $model.disaggregated.enabled }}
+{{- $hasDisagg = true }}
+{{- end }}
+{{- end }}
+{{- if $hasDisagg }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $.Release.Name }}-epp
+  labels:
+    app.kubernetes.io/name: epp
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/component: disaggregated
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: epp
+      app.kubernetes.io/instance: {{ $.Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: epp
+        app.kubernetes.io/instance: {{ $.Release.Name }}
+        app.kubernetes.io/component: disaggregated
+        app.kubernetes.io/part-of: kube-llmops
+    spec:
+      containers:
+        - name: epp
+          image: us-central1-docker.pkg.dev/k8s-staging-llm-d/gateway-api-inference-extension/epp:main
+          args:
+            {{- range $model := $models }}
+            {{- if and $model.disaggregated $model.disaggregated.enabled }}
+            - --poolName={{ $model.name }}-pool
+            - --poolNamespace={{ $.Release.Namespace }}
+            {{- end }}
+            {{- end }}
+          ports:
+            - name: grpc
+              containerPort: 9002
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+{{- end }}
