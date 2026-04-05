@@ -200,3 +200,125 @@ class TestKedaMultiTrigger:
         triggers = sos[0]["spec"]["triggers"]
         ttft_trigger = [t for t in triggers if "time_to_first_token" in t["metadata"]["query"]][0]
         assert ttft_trigger["metadata"]["threshold"] == "1.5"
+
+
+class TestScaleToZero:
+    """Test KEDA scale-to-zero configuration."""
+
+    def test_scale_to_zero_disabled_by_default(self):
+        docs = helm_template(
+            set_values=KEDA_BASE,
+            show_only="charts/keda/templates/scaledobject.yaml",
+        )
+        sos = find_by_kind(docs, "ScaledObject")
+        assert sos[0]["spec"]["minReplicaCount"] == 1
+        assert "idleReplicaCount" not in sos[0]["spec"]
+
+    def test_scale_to_zero_enabled(self):
+        vals = {
+            **KEDA_BASE,
+            "keda.models.test-model.scaleToZero.enabled": "true",
+            "keda.models.test-model.scaleToZero.idleTimeout": "600",
+        }
+        docs = helm_template(
+            set_values=vals,
+            show_only="charts/keda/templates/scaledobject.yaml",
+        )
+        sos = find_by_kind(docs, "ScaledObject")
+        assert sos[0]["spec"]["minReplicaCount"] == 0
+        assert sos[0]["spec"]["idleReplicaCount"] == 0
+        assert sos[0]["spec"]["advanced"]["horizontalPodAutoscalerConfig"]["behavior"]["scaleDown"]["stabilizationWindowSeconds"] == 600
+
+    def test_scale_to_zero_activation_threshold(self):
+        vals = {
+            **KEDA_BASE,
+            "keda.models.test-model.scaleToZero.enabled": "true",
+        }
+        docs = helm_template(
+            set_values=vals,
+            show_only="charts/keda/templates/scaledobject.yaml",
+        )
+        sos = find_by_kind(docs, "ScaledObject")
+        triggers = sos[0]["spec"]["triggers"]
+        queue_trigger = triggers[0]
+        assert queue_trigger["metadata"]["activationThreshold"] == "1"
+
+
+TWO_MODELS = {
+    "global.models[0].name": "small-model",
+    "global.models[0].source": "org/small-model",
+    "global.models[0].resources.gpu": "1",
+    "global.models[1].name": "big-model",
+    "global.models[1].source": "org/big-model",
+    "global.models[1].resources.gpu": "2",
+}
+
+
+class TestScaleToZeroFallback:
+    """Test LiteLLM fallback config for scale-to-zero models."""
+
+    def test_no_fallback_by_default(self):
+        docs = helm_template(set_values=TWO_MODELS)
+        config = get_configmap_data(docs, "litellm-config")
+        for entry in config["model_list"]:
+            assert "model_info" not in entry
+
+    def test_fallback_rendered_when_set(self):
+        vals = {
+            **TWO_MODELS,
+            "global.models[0].scaleToZero.fallbackModel": "big-model",
+        }
+        docs = helm_template(set_values=vals)
+        config = get_configmap_data(docs, "litellm-config")
+        small_entry = [e for e in config["model_list"] if e["model_name"] == "small-model"][0]
+        assert small_entry["model_info"]["metadata"]["fallbacks"] == ["big-model"]
+
+
+class TestSpotToleration:
+    """Test spot/preemptible GPU tolerations."""
+
+    def test_no_spot_tolerations_by_default(self):
+        docs = helm_template(
+            set_values=SINGLE_MODEL,
+            show_only="charts/vllm/templates/deployment.yaml",
+        )
+        deps = find_by_kind(docs, "Deployment")
+        tolerations = deps[0]["spec"]["template"]["spec"].get("tolerations", [])
+        toleration_keys = [t["key"] for t in tolerations]
+        assert "karpenter.sh/capacity-type" not in toleration_keys
+
+    def test_spot_tolerations_added(self):
+        vals = {**SINGLE_MODEL, "global.models[0].spotToleration": "true"}
+        docs = helm_template(
+            set_values=vals,
+            show_only="charts/vllm/templates/deployment.yaml",
+        )
+        deps = find_by_kind(docs, "Deployment")
+        tolerations = deps[0]["spec"]["template"]["spec"]["tolerations"]
+        toleration_keys = [t["key"] for t in tolerations]
+        assert "kubernetes.azure.com/scalesetpriority" in toleration_keys
+        assert "cloud.google.com/gke-spot" in toleration_keys
+        assert "karpenter.sh/capacity-type" in toleration_keys
+
+
+class TestGracefulDrain:
+    """Test terminationGracePeriodSeconds and preStop hook."""
+
+    def test_termination_grace_period_set(self):
+        docs = helm_template(
+            set_values=SINGLE_MODEL,
+            show_only="charts/vllm/templates/deployment.yaml",
+        )
+        deps = find_by_kind(docs, "Deployment")
+        spec = deps[0]["spec"]["template"]["spec"]
+        assert spec["terminationGracePeriodSeconds"] == 90
+
+    def test_prestop_hook_exists(self):
+        docs = helm_template(
+            set_values=SINGLE_MODEL,
+            show_only="charts/vllm/templates/deployment.yaml",
+        )
+        deps = find_by_kind(docs, "Deployment")
+        container = deps[0]["spec"]["template"]["spec"]["containers"][0]
+        prestop = container["lifecycle"]["preStop"]["exec"]["command"]
+        assert "sleep" in " ".join(prestop)

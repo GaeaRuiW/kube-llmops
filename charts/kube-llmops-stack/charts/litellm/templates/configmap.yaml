@@ -39,6 +39,12 @@ data:
           model: {{ $litellmPrefix }}/{{ $model.name }}
           api_base: http://{{ $prefix }}-{{ $model.name }}.{{ $.Release.Namespace }}.svc.cluster.local:{{ $port }}{{ $apiSuffix }}
           api_key: "no-key-needed"
+        {{- if and $model.scaleToZero $model.scaleToZero.fallbackModel }}
+        model_info:
+          metadata:
+            fallbacks:
+              - {{ $model.scaleToZero.fallbackModel }}
+        {{- end }}
     {{- end }}
     {{/* --- Legacy: per-subchart models + embeddingModels --- */}}
     {{- else }}
