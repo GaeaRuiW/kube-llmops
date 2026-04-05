@@ -1,15 +1,323 @@
 {
   "uid": "slo-overview",
   "title": "SLO Overview - Availability, Latency, Quality",
-  "tags": ["slo", "reliability"],
+  "tags": [
+    "slo",
+    "reliability"
+  ],
   "timezone": "browser",
   "schemaVersion": 39,
   "panels": [
-    {"id":1,"title":"LLM Inference Availability (30d)","type":"stat","gridPos":{"h":4,"w":8,"x":0,"y":0},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"1 - (sum(increase(vllm:request_success_total{status!=\"200\"}[30d])) / sum(increase(vllm:request_success_total[30d])))","legendFormat":"Availability"}],"fieldConfig":{"defaults":{"unit":"percentunit","thresholds":{"steps":[{"color":"red","value":null},{"color":"yellow","value":0.99},{"color":"green","value":0.999}]}}}},
-    {"id":2,"title":"E2E Latency P95 (target: <2s)","type":"stat","gridPos":{"h":4,"w":8,"x":8,"y":0},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"histogram_quantile(0.95, sum(rate(vllm:e2e_request_latency_seconds_bucket[5m])) by (le))","legendFormat":"P95"}],"fieldConfig":{"defaults":{"unit":"s","thresholds":{"steps":[{"color":"green","value":null},{"color":"yellow","value":1},{"color":"red","value":2}]}}}},
-    {"id":3,"title":"RAG Quality Score","type":"stat","gridPos":{"h":4,"w":8,"x":16,"y":0},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"ragas_faithfulness","legendFormat":"Faithfulness"}],"fieldConfig":{"defaults":{"thresholds":{"steps":[{"color":"red","value":null},{"color":"yellow","value":0.7},{"color":"green","value":0.85}]}}}},
-    {"id":4,"title":"Error Budget Burn Rate","type":"timeseries","gridPos":{"h":8,"w":24,"x":0,"y":4},"datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"sum(rate(vllm:request_success_total[5m]))","legendFormat":"Success Rate"},{"expr":"sum(rate(vllm:request_success_total[5m])) * 0.001","legendFormat":"Error Budget (0.1%)"}]}
+    {
+      "id": 1,
+      "title": "LLM Inference Availability (30d)",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "1 - (sum(increase(vllm:request_success_total{status!=\"200\"}[30d])) / sum(increase(vllm:request_success_total[30d])))",
+          "legendFormat": "Availability"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.99
+              },
+              {
+                "color": "green",
+                "value": 0.999
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "E2E Latency P95 (target: <2s)",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 8,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(vllm:e2e_request_latency_seconds_bucket[5m])) by (le))",
+          "legendFormat": "P95"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "RAG Quality Score",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 16,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "ragas_faithfulness",
+          "legendFormat": "Faithfulness"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.7
+              },
+              {
+                "color": "green",
+                "value": 0.85
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Error Budget Burn Rate",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(vllm:request_success_total[5m]))",
+          "legendFormat": "Success Rate"
+        },
+        {
+          "expr": "sum(rate(vllm:request_success_total[5m])) * 0.001",
+          "legendFormat": "Error Budget (0.1%)"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "TTFT P95 vs SLO Threshold",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(vllm:time_to_first_token_seconds_bucket[5m])) by (le, model_name))",
+          "legendFormat": "{{model_name}} P95 TTFT"
+        },
+        {
+          "expr": "vector(3)",
+          "legendFormat": "SLO Threshold (3s)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "SLO Threshold (3s)"
+            },
+            "properties": [
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "title": "TPOT P95 vs SLO Threshold",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(vllm:time_per_output_token_seconds_bucket[5m])) by (le, model_name))",
+          "legendFormat": "{{model_name}} P95 TPOT"
+        },
+        {
+          "expr": "vector(0.1)",
+          "legendFormat": "SLO Threshold (100ms)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "SLO Threshold (100ms)"
+            },
+            "properties": [
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "title": "HPA Replica Count by Model",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 12
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "kube_horizontalpodautoscaler_status_current_replicas{horizontalpodautoscaler=~\".*-scaler\"}",
+          "legendFormat": "{{horizontalpodautoscaler}} current"
+        },
+        {
+          "expr": "kube_horizontalpodautoscaler_status_desired_replicas{horizontalpodautoscaler=~\".*-scaler\"}",
+          "legendFormat": "{{horizontalpodautoscaler}} desired"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 5
+          }
+        }
+      }
+    }
   ],
-  "time": {"from": "now-24h", "to": "now"},
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
   "refresh": "30s"
 }

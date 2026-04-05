@@ -25,7 +25,12 @@
   "panels": [
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "id": 100,
       "panels": [],
       "title": "Overview",
@@ -46,16 +51,30 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 50 },
-              { "color": "red", "value": 100 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
             ]
           },
           "unit": "reqps"
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 1
+      },
       "id": 1,
       "options": {
         "colorMode": "background",
@@ -63,7 +82,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -102,16 +123,30 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 20 },
-              { "color": "red", "value": 50 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 20
+              },
+              {
+                "color": "red",
+                "value": 50
+              }
             ]
           },
           "unit": "none"
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 1
+      },
       "id": 2,
       "options": {
         "colorMode": "background",
@@ -119,7 +154,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -158,16 +195,30 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "orange", "value": 5 },
-              { "color": "red", "value": 20 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 5
+              },
+              {
+                "color": "red",
+                "value": 20
+              }
             ]
           },
           "unit": "none"
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 1
+      },
       "id": 3,
       "options": {
         "colorMode": "background",
@@ -175,7 +226,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -216,17 +269,34 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 0.7 },
-              { "color": "orange", "value": 0.85 },
-              { "color": "red", "value": 0.95 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.7
+              },
+              {
+                "color": "orange",
+                "value": 0.85
+              },
+              {
+                "color": "red",
+                "value": 0.95
+              }
             ]
           },
           "unit": "percentunit"
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 1
+      },
       "id": 4,
       "options": {
         "colorMode": "background",
@@ -234,7 +304,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -260,7 +332,12 @@
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
       "id": 101,
       "panels": [],
       "title": "Latency",
@@ -295,48 +372,97 @@
             "lineInterpolation": "smooth",
             "lineWidth": 2,
             "pointSize": 5,
-            "scaleDistribution": { "type": "linear" },
+            "scaleDistribution": {
+              "type": "linear"
+            },
             "showPoints": "never",
             "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "red", "value": 80 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
             ]
           },
           "unit": "s"
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "p99" },
+            "matcher": {
+              "id": "byName",
+              "options": "p99"
+            },
             "properties": [
-              { "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "p95" },
+            "matcher": {
+              "id": "byName",
+              "options": "p95"
+            },
             "properties": [
-              { "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "p50" },
+            "matcher": {
+              "id": "byName",
+              "options": "p50"
+            },
             "properties": [
-              { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
             ]
           }
         ]
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 6
+      },
       "id": 5,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -417,48 +543,97 @@
             "lineInterpolation": "smooth",
             "lineWidth": 2,
             "pointSize": 5,
-            "scaleDistribution": { "type": "linear" },
+            "scaleDistribution": {
+              "type": "linear"
+            },
             "showPoints": "never",
             "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "red", "value": 80 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
             ]
           },
           "unit": "s"
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "p99" },
+            "matcher": {
+              "id": "byName",
+              "options": "p99"
+            },
             "properties": [
-              { "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "p95" },
+            "matcher": {
+              "id": "byName",
+              "options": "p95"
+            },
             "properties": [
-              { "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "p50" },
+            "matcher": {
+              "id": "byName",
+              "options": "p50"
+            },
             "properties": [
-              { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
             ]
           }
         ]
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 6
+      },
       "id": 6,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -512,7 +687,12 @@
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 14
+      },
       "id": 102,
       "panels": [],
       "title": "Throughput",
@@ -547,41 +727,78 @@
             "lineInterpolation": "smooth",
             "lineWidth": 2,
             "pointSize": 5,
-            "scaleDistribution": { "type": "linear" },
+            "scaleDistribution": {
+              "type": "linear"
+            },
             "showPoints": "never",
             "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           },
           "unit": "short"
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Prompt Tokens/s" },
+            "matcher": {
+              "id": "byName",
+              "options": "Prompt Tokens/s"
+            },
             "properties": [
-              { "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } }
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "Generation Tokens/s" },
+            "matcher": {
+              "id": "byName",
+              "options": "Generation Tokens/s"
+            },
             "properties": [
-              { "id": "color", "value": { "fixedColor": "purple", "mode": "fixed" } }
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "purple",
+                  "mode": "fixed"
+                }
+              }
             ]
           }
         ]
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 15
+      },
       "id": 7,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -650,41 +867,78 @@
             "lineInterpolation": "smooth",
             "lineWidth": 2,
             "pointSize": 5,
-            "scaleDistribution": { "type": "linear" },
+            "scaleDistribution": {
+              "type": "linear"
+            },
             "showPoints": "never",
             "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           },
           "unit": "short"
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Avg Prompt Tokens" },
+            "matcher": {
+              "id": "byName",
+              "options": "Avg Prompt Tokens"
+            },
             "properties": [
-              { "id": "color", "value": { "fixedColor": "semi-dark-blue", "mode": "fixed" } }
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "semi-dark-blue",
+                  "mode": "fixed"
+                }
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "Avg Generation Tokens" },
+            "matcher": {
+              "id": "byName",
+              "options": "Avg Generation Tokens"
+            },
             "properties": [
-              { "id": "color", "value": { "fixedColor": "semi-dark-purple", "mode": "fixed" } }
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "semi-dark-purple",
+                  "mode": "fixed"
+                }
+              }
             ]
           }
         ]
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 15
+      },
       "id": 8,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -723,12 +977,51 @@
       ],
       "title": "Tokens per Request",
       "type": "timeseries"
+    },
+    {
+      "id": 9,
+      "title": "Prefix Cache Hit Rate",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 24
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "vllm:prefix_cache_hit_rate{model_name=~\"$model\"}",
+          "legendFormat": "{{model_name}} Hit Rate"
+        },
+        {
+          "expr": "rate(vllm:prefix_cache_queries_total{model_name=~\"$model\"}[5m])",
+          "legendFormat": "{{model_name}} Queries/s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        }
+      }
     }
   ],
   "refresh": "10s",
   "schemaVersion": 39,
   "style": "dark",
-  "tags": ["vllm", "llm", "inference", "model-serving"],
+  "tags": [
+    "vllm",
+    "llm",
+    "inference",
+    "model-serving"
+  ],
   "templating": {
     "list": []
   },
@@ -737,8 +1030,27 @@
     "to": "now"
   },
   "timepicker": {
-    "refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h"],
-    "time_options": ["5m", "15m", "1h", "6h", "12h", "24h", "2d", "7d", "30d"]
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h"
+    ],
+    "time_options": [
+      "5m",
+      "15m",
+      "1h",
+      "6h",
+      "12h",
+      "24h",
+      "2d",
+      "7d",
+      "30d"
+    ]
   },
   "timezone": "browser",
   "title": "vLLM Model Serving Overview",
