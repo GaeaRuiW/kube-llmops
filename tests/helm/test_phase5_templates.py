@@ -83,3 +83,28 @@ class TestRoutingStrategy:
         rs = config["router_settings"]
         assert rs["routing_strategy_args"]["ttl"] == 120
         assert rs["routing_strategy_args"]["lowest_latency_buffer"] == 0.3
+
+
+class TestPrefixCaching:
+    """Test vLLM prefix caching flag."""
+
+    def test_prefix_caching_disabled_by_default(self):
+        docs = helm_template(
+            set_values=SINGLE_MODEL,
+            show_only="charts/vllm/templates/deployment.yaml",
+        )
+        deps = find_by_kind(docs, "Deployment")
+        assert len(deps) == 1
+        container_args = deps[0]["spec"]["template"]["spec"]["containers"][0]["args"][0]
+        assert "--enable-prefix-caching" not in container_args
+
+    def test_prefix_caching_enabled(self):
+        vals = {**SINGLE_MODEL, "global.models[0].prefixCaching": "true"}
+        docs = helm_template(
+            set_values=vals,
+            show_only="charts/vllm/templates/deployment.yaml",
+        )
+        deps = find_by_kind(docs, "Deployment")
+        assert len(deps) == 1
+        container_args = deps[0]["spec"]["template"]["spec"]["containers"][0]["args"][0]
+        assert "--enable-prefix-caching" in container_args
