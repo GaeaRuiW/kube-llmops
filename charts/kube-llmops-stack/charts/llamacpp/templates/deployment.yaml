@@ -133,11 +133,26 @@ spec:
           volumeMounts:
             - name: model-cache
               mountPath: /models
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]
       {{- if gt $gpu 0 }}
       tolerations:
         - key: {{ $.Values.gpuToleration.key }}
           operator: {{ $.Values.gpuToleration.operator }}
           effect: {{ $.Values.gpuToleration.effect }}
+        {{- if $model.spotToleration }}
+        - key: kubernetes.azure.com/scalesetpriority
+          value: spot
+          effect: NoSchedule
+        - key: cloud.google.com/gke-spot
+          value: "true"
+          effect: NoSchedule
+        - key: karpenter.sh/capacity-type
+          value: spot
+          effect: NoSchedule
+        {{- end }}
       {{- end }}
       volumes:
         - name: model-cache

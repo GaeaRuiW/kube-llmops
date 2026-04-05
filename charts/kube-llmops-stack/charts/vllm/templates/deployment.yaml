@@ -47,6 +47,7 @@ spec:
         kube-llmops/engine: vllm
     spec:
       enableServiceLinks: false
+      terminationGracePeriodSeconds: 90
       initContainers:
         {{- if $.Values.customCACert.enabled }}
         - name: ca-cert-installer
@@ -271,11 +272,26 @@ spec:
               mountPath: /ca-out
               readOnly: true
             {{- end }}
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]
       {{- if gt (int $gpu) 0 }}
       tolerations:
         - key: {{ $.Values.gpuToleration.key }}
           operator: {{ $.Values.gpuToleration.operator }}
           effect: {{ $.Values.gpuToleration.effect }}
+        {{- if $model.spotToleration }}
+        - key: kubernetes.azure.com/scalesetpriority
+          value: spot
+          effect: NoSchedule
+        - key: cloud.google.com/gke-spot
+          value: "true"
+          effect: NoSchedule
+        - key: karpenter.sh/capacity-type
+          value: spot
+          effect: NoSchedule
+        {{- end }}
       {{- end }}
       volumes:
         - name: model-cache
