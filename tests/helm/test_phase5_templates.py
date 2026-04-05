@@ -322,3 +322,31 @@ class TestGracefulDrain:
         container = deps[0]["spec"]["template"]["spec"]["containers"][0]
         prestop = container["lifecycle"]["preStop"]["exec"]["command"]
         assert "sleep" in " ".join(prestop)
+
+
+class TestMIGDevice:
+    """Test MIG GPU device support."""
+
+    def test_default_gpu_resource(self):
+        docs = helm_template(
+            set_values=SINGLE_MODEL,
+            show_only="charts/vllm/templates/deployment.yaml",
+        )
+        deps = find_by_kind(docs, "Deployment")
+        resources = deps[0]["spec"]["template"]["spec"]["containers"][0]["resources"]
+        assert "nvidia.com/gpu" in resources["requests"]
+
+    def test_mig_device_replaces_gpu(self):
+        vals = {
+            **SINGLE_MODEL,
+            "global.models[0].resources.gpu": "0",
+            "global.models[0].resources.migDevice": "nvidia.com/mig-1g.5gb",
+        }
+        docs = helm_template(
+            set_values=vals,
+            show_only="charts/vllm/templates/deployment.yaml",
+        )
+        deps = find_by_kind(docs, "Deployment")
+        resources = deps[0]["spec"]["template"]["spec"]["containers"][0]["resources"]
+        assert "nvidia.com/gpu" not in resources["requests"]
+        assert resources["requests"]["nvidia.com/mig-1g.5gb"] == "1"
