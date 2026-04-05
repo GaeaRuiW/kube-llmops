@@ -108,3 +108,95 @@ class TestPrefixCaching:
         assert len(deps) == 1
         container_args = deps[0]["spec"]["template"]["spec"]["containers"][0]["args"][0]
         assert "--enable-prefix-caching" in container_args
+
+
+class TestSLOAlerts:
+    """Test SLO alert rules in Prometheus config."""
+
+    def test_ttft_slo_alerts_exist(self):
+        docs = helm_template(
+            set_values=SINGLE_MODEL,
+            show_only="charts/observability/templates/prometheus.yaml",
+        )
+        cms = find_by_kind(docs, "ConfigMap", "prometheus-config")
+        assert len(cms) >= 1
+        rules_raw = cms[0]["data"]["rules.yml"]
+        rules = yaml.safe_load(rules_raw)
+        all_alert_names = []
+        for group in rules["groups"]:
+            for rule in group.get("rules", []):
+                if "alert" in rule:
+                    all_alert_names.append(rule["alert"])
+        assert "TTFTSLOBreach" in all_alert_names
+        assert "TTFTSLOCritical" in all_alert_names
+
+
+KEDA_BASE = {
+    **SINGLE_MODEL,
+    "keda.enabled": "true",
+}
+
+
+class TestKedaMultiTrigger:
+    """Test KEDA ScaledObject multi-trigger configuration."""
+
+    def test_single_trigger_default(self):
+        """Default: only requestsWaiting trigger."""
+        docs = helm_template(
+            set_values=KEDA_BASE,
+            show_only="charts/keda/templates/scaledobject.yaml",
+        )
+        sos = find_by_kind(docs, "ScaledObject")
+        assert len(sos) == 1
+        triggers = sos[0]["spec"]["triggers"]
+        assert len(triggers) == 1
+        assert "num_requests_waiting" in triggers[0]["metadata"]["query"]
+
+    def test_ttft_trigger_added(self):
+        """Enable TTFT P95 trigger — should produce 2 triggers."""
+        vals = {**KEDA_BASE, "keda.triggers.ttftP95.enabled": "true"}
+        docs = helm_template(
+            set_values=vals,
+            show_only="charts/keda/templates/scaledobject.yaml",
+        )
+        sos = find_by_kind(docs, "ScaledObject")
+        assert len(sos) == 1
+        triggers = sos[0]["spec"]["triggers"]
+        assert len(triggers) == 2
+        queries = [t["metadata"]["query"] for t in triggers]
+        assert any("num_requests_waiting" in q for q in queries)
+        assert any("time_to_first_token" in q for q in queries)
+
+    def test_all_three_triggers(self):
+        """Enable all 3 triggers."""
+        vals = {
+            **KEDA_BASE,
+            "keda.triggers.ttftP95.enabled": "true",
+            "keda.triggers.tpotP95.enabled": "true",
+        }
+        docs = helm_template(
+            set_values=vals,
+            show_only="charts/keda/templates/scaledobject.yaml",
+        )
+        sos = find_by_kind(docs, "ScaledObject")
+        triggers = sos[0]["spec"]["triggers"]
+        assert len(triggers) == 3
+        queries = [t["metadata"]["query"] for t in triggers]
+        assert any("time_per_output_token" in q for q in queries)
+
+    def test_per_model_ttft_threshold_override(self):
+        """Per-model override for TTFT threshold."""
+        vals = {
+            **KEDA_BASE,
+            "keda.triggers.ttftP95.enabled": "true",
+            "keda.triggers.ttftP95.threshold": "3",
+            "keda.models.test-model.triggers.ttftP95.threshold": "1.5",
+        }
+        docs = helm_template(
+            set_values=vals,
+            show_only="charts/keda/templates/scaledobject.yaml",
+        )
+        sos = find_by_kind(docs, "ScaledObject")
+        triggers = sos[0]["spec"]["triggers"]
+        ttft_trigger = [t for t in triggers if "time_to_first_token" in t["metadata"]["query"]][0]
+        assert ttft_trigger["metadata"]["threshold"] == "1.5"

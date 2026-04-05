@@ -186,6 +186,32 @@ data:
             annotations:
               summary: "RAG evaluation data is stale (>48h)"
               description: "Last Ragas evaluation was more than 48 hours ago"
+      - name: slo-alerts
+        rules:
+          - alert: TTFTSLOBreach
+            expr: histogram_quantile(0.95, sum(rate(vllm:time_to_first_token_seconds_bucket[5m])) by (le, model_name)) > 3
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "P95 TTFT exceeds SLO threshold (3s)"
+              description: "Model {{`{{ $labels.model_name }}`}} P95 TTFT is {{`{{ $value }}`}}s"
+          - alert: TTFTSLOCritical
+            expr: histogram_quantile(0.95, sum(rate(vllm:time_to_first_token_seconds_bucket[5m])) by (le, model_name)) > 5
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "P95 TTFT critically high (>5s)"
+              description: "Model {{`{{ $labels.model_name }}`}} P95 TTFT is {{`{{ $value }}`}}s"
+          - alert: TPOTSLOBreach
+            expr: histogram_quantile(0.95, sum(rate(vllm:time_per_output_token_seconds_bucket[5m])) by (le, model_name)) > 0.15
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "P95 TPOT exceeds SLO threshold (150ms/token)"
+              description: "Model {{`{{ $labels.model_name }}`}} P95 TPOT is {{`{{ $value }}`}}s/token"
 ---
 # RBAC for Prometheus Kubernetes service discovery
 apiVersion: v1
