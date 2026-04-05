@@ -51,6 +51,50 @@
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "targets": [{"expr": "sum(increase(vllm:generation_tokens_total[24h])) / sum(increase(vllm:request_success_total[24h]))"}],
       "fieldConfig": {"defaults": {"thresholds": {"steps": [{"color": "green", "value": null}]}}}
+    },
+    {
+      "id": 7,
+      "title": "GPU Idle Rate by Model",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "1 - avg(DCGM_FI_PROF_GR_ENGINE_ACTIVE) by (model_name)",
+          "legendFormat": "{{model_name}} idle %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "custom": {"lineWidth": 2, "fillOpacity": 20}
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Scale-to-Zero Events",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {
+          "expr": "kube_horizontalpodautoscaler_status_current_replicas{horizontalpodautoscaler=~\".*-scaler\"} == 0",
+          "legendFormat": "{{horizontalpodautoscaler}} at zero"
+        },
+        {
+          "expr": "changes(kube_horizontalpodautoscaler_status_current_replicas{horizontalpodautoscaler=~\".*-scaler\"}[1h])",
+          "legendFormat": "{{horizontalpodautoscaler}} scale events/h"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {"lineWidth": 2, "fillOpacity": 10}
+        }
+      }
     }
   ],
   "time": {"from": "now-24h", "to": "now"},
