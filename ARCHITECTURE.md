@@ -1031,13 +1031,18 @@ kube-llmops/
 - [x] ArgoCD ApplicationSet for multi-cluster
 - [x] Terraform modules (EKS, GKE, AKS)
 
-### Phase 5: Advanced Inference -- "State-of-the-art performance"
-- [ ] **llm-d** integration (disaggregated prefill/decode serving)
-- [ ] **Expert Parallelism** for MoE models (DeepSeek-R1)
-- [ ] KV cache tiered offloading (GPU -> CPU -> SSD -> remote)
-- [ ] Workload-variant autoscaling (SLO-aware)
-- [ ] KServe integration (optional)
-- [ ] AMD ROCm / Intel Gaudi support
+### Phase 5: Advanced Inference (v0.5.0) -- "State-of-the-art performance"
+- [x] Latency-based routing (default)
+- [x] Prefix caching per model
+- [x] Multi-trigger KEDA autoscaling
+- [x] SLO alerts + dashboard panels
+- [x] Scale-to-zero with fallback
+- [x] Spot GPU tolerations + graceful drain
+- [x] MIG GPU sharing
+- [x] Canary deployment with traffic splitting
+- [x] llm-d disaggregated serving (experimental)
+- [x] Multi-accelerator (nvidia, amd, gaudi)
+- [x] Documentation (6 new guides)
 
 ### Phase 6: Ecosystem (Future)
 - [ ] Kubernetes Operator with CRDs

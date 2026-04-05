@@ -7,6 +7,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-04-05
+
+### Added
+- Latency-based routing (default strategy, replacing simple-shuffle)
+- Prefix caching flag per model (`prefixCaching: true`)
+- Multi-trigger KEDA autoscaling (queue depth + TTFT P95 + TPOT P95)
+- SLO alert rules (TTFTSLOBreach, TTFTSLOCritical, TPOTSLOBreach)
+- Scale-to-zero with LiteLLM fallback for cold start
+- Spot/preemptible GPU tolerations (AWS, GCP, Azure, Karpenter)
+- Graceful drain (terminationGracePeriodSeconds: 90 + preStop hook)
+- MIG GPU device support (nvidia.com/mig-*)
+- Canary model deployment with weight-based traffic splitting
+- llm-d disaggregated serving (experimental, prefill/decode split)
+- Multi-accelerator support (nvidia, amd, gaudi)
+- 6 new documentation pages (routing, large models, speculative, kserve, llm-d, canary)
+- SLO dashboard panels (TTFT/TPOT vs threshold, HPA replica count)
+- Cost dashboard panels (GPU idle rate, scale-to-zero events)
+- Canary dashboard panels (latency comparison, traffic weight)
+- Prefix cache hit rate panel in vLLM dashboard
+
+### Changed
+- Default routing strategy: simple-shuffle -> latency-based-routing
+- GPU resource names use helper function (supports nvidia/amd/gaudi)
+- DCGM exporter conditional on nvidia accelerator
+
 ## [0.4.0] - 2026-04-04
 
 ### Added

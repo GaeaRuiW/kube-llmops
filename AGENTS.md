@@ -42,6 +42,9 @@ python -m pytest tests/helm/test_finetune_templates.py -v
 
 # Run finetune E2E tests (requires GPU cluster + Argo Workflows)
 uv run tests/e2e/test_finetune_e2e.py
+
+# Run Phase 5 Helm template tests
+python -m pytest tests/helm/test_phase5_templates.py -v
 ```
 
 ## Architecture
@@ -118,6 +121,18 @@ SSO works automatically — OIDC URLs auto-computed from nodePort.host.
   helm install keda kedacore/keda -n keda-system --create-namespace
   ```
 
+### Advanced Inference (v0.5.0)
+- Latency-based routing (default strategy, configurable per deployment)
+- Prefix caching for repeated system prompts
+- Multi-trigger KEDA autoscaling (queue + TTFT P95 + TPOT P95)
+- Scale-to-zero with LiteLLM fallback for cold start
+- Spot/preemptible GPU tolerations (AWS, GCP, Azure, Karpenter)
+- MIG GPU device support for model co-location
+- Canary deployment with weight-based traffic splitting
+- llm-d disaggregated serving (experimental, prefill/decode split)
+- Multi-accelerator support (nvidia, amd, gaudi)
+- SLO alerts (TTFT/TPOT breach thresholds)
+
 ## Critical Gotchas
 
 ### Helm .tgz Cache
@@ -167,6 +182,7 @@ helm dependency update charts/kube-llmops-stack/
 | Finetune Helm Templates | pytest | 35+ | ConfigMap, RBAC, MLflow, PDB, LoRA/QLoRA/Full, profiles, validation |
 | Finetune E2E | Python+kubectl | ~26 | MLflow health, WorkflowTemplate, Argo run, Registry, QG, Grafana |
 | Finetune Sample Data | CI | 1 | Alpaca-format validation (>=10 samples) |
+| Phase 5 Templates | pytest | 35+ | routing, KEDA multi-trigger, scale-to-zero, canary, llm-d, accelerator |
 
 ## Grafana Dashboards (11)
 
@@ -208,6 +224,7 @@ charts/kube-llmops-stack/
     logging/                  # Loki + Fluent Bit
     finetune/                 # LLaMA-Factory + Argo Workflows + MLflow
     fluid/                    # MinIO
+    keda/                     # KEDA autoscaling (multi-trigger)
 images/
   model-loader/               # Pre-built model downloader (minio + huggingface_hub + hf-transfer)
   model-resolver/             # Engine auto-detection logic
@@ -220,4 +237,11 @@ examples/
   python/                     # Python SDK examples
   eval/                       # Evaluation datasets
   finetune/                   # Sample training data + example values
+docs/
+  routing.md                  # Routing strategies + prefix caching
+  large-model-deployment.md   # Multi-GPU, quantization, MIG
+  speculative-decoding.md     # Draft model configuration
+  kserve-integration.md       # KServe coexistence guide
+  disaggregated-serving.md    # llm-d architecture + configuration
+  model-updates.md            # Canary deployment flow
 ```
