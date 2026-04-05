@@ -1006,7 +1006,7 @@ kube-llmops/
 - [x] **Langfuse** integration (LiteLLM callback + OTel OTLP)
 - [x] **Fluentbit** + Loki logging pipeline
 - [x] 3 Grafana dashboards + 4 Prometheus alert rules (latency, queue, KV cache, down)
-- [x] **KEDA** autoscaling (pending requests, TTFT) -- verified with KEDA operator
+- [x] **KEDA** autoscaling (pending requests) -- verified with KEDA operator
 - [x] **Fluid** distributed model caching -- templates ready, requires Fluid operator
 - [x] MinIO object storage (model uploaded + verified) + **Harbor** templates
 - [x] `values-standard.yaml` + `values-production.yaml`
@@ -1028,7 +1028,7 @@ kube-llmops/
 - [x] LLaMA-Factory fine-tuning Job templates
 - [x] MLflow experiment tracking
 - [x] Model evaluation pipeline
-- [ ] ArgoCD ApplicationSet for multi-cluster
+- [x] ArgoCD ApplicationSet for multi-cluster
 - [x] Terraform modules (EKS, GKE, AKS)
 
 ### Phase 5: Advanced Inference -- "State-of-the-art performance"
