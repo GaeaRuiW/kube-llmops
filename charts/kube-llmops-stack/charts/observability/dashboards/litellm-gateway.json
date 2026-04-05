@@ -660,6 +660,72 @@
       ],
       "title": "Error Rate",
       "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 },
+      "id": 103,
+      "panels": [],
+      "title": "Canary Deployment",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Compare P95 latency between primary and canary model deployments",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "id": 9,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(vllm:e2e_request_latency_seconds_bucket{model_name!~\".*-canary\"}[5m])) by (le, model_name))",
+          "legendFormat": "{{model_name}} primary P95"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(vllm:e2e_request_latency_seconds_bucket{model_name=~\".*-canary\"}[5m])) by (le, model_name))",
+          "legendFormat": "{{model_name}} canary P95"
+        }
+      ],
+      "title": "Canary vs Primary Latency (P95)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Percentage of traffic routed to canary deployments",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.25 },
+              { "color": "red", "value": 0.5 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "id": 10,
+      "targets": [
+        {
+          "expr": "sum(rate(litellm_request_total{model=~\".*-canary\"}[5m])) / sum(rate(litellm_request_total[5m]))",
+          "legendFormat": "Canary %"
+        }
+      ],
+      "title": "Canary Traffic Weight",
+      "type": "gauge"
     }
   ],
   "refresh": "10s",
