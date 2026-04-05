@@ -164,4 +164,25 @@ spec:
       targetPort: 5000
       nodePort: {{ $np.mlflow | default 30505 }}
 {{- end }}
+{{- if (index .Values "jupyterhub" | default dict).enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-jupyterhub-np
+  labels:
+    app.kubernetes.io/name: jupyterhub-nodeport
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: jupyterhub
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      nodePort: {{ $np.jupyterhub | default 30888 }}
+{{- end }}
 {{- end }}

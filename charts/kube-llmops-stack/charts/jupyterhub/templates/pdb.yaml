@@ -1,0 +1,16 @@
+{{- if and .Values.enabled .Values.pdb.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Release.Name }}-jupyterhub
+  labels:
+    app.kubernetes.io/name: jupyterhub
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: jupyterhub
+      app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}

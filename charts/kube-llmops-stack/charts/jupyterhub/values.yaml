@@ -1,0 +1,76 @@
+enabled: false
+
+image:
+  repository: quay.io/jupyterhub/k8s-hub
+  tag: "4.1.6"
+  pullPolicy: IfNotPresent
+
+# Admin credentials
+admin:
+  username: admin
+  password: admin123!
+
+# Keycloak OIDC integration
+oidc:
+  enabled: false
+  # Auto-computed from global.nodePort or ingress settings
+  clientId: jupyterhub
+  clientSecret: jupyterhub-oidc-secret
+
+# Notebook profiles — users pick from this list at spawn time
+profiles:
+  - name: CPU - Small
+    slug: cpu-small
+    description: "2 CPU / 4 GB RAM — data exploration, lightweight tasks"
+    image: quay.io/jupyterhub/singleuser:4.1.6
+    resources:
+      cpu: "2"
+      memory: 4Gi
+      gpu: 0
+    default: true
+  - name: CPU - Large
+    slug: cpu-large
+    description: "4 CPU / 16 GB RAM — data processing, model evaluation"
+    image: quay.io/jupyterhub/singleuser:4.1.6
+    resources:
+      cpu: "4"
+      memory: 16Gi
+      gpu: 0
+  - name: GPU - Training
+    slug: gpu-training
+    description: "4 CPU / 16 GB RAM / 1 GPU — fine-tuning, training"
+    image: cschranz/gpu-jupyter:v1.7_cuda-12.3_ubuntu-22.04
+    resources:
+      cpu: "4"
+      memory: 16Gi
+      gpu: 1
+
+# Hub server resources
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+# Storage for user notebooks
+storage:
+  size: 10Gi
+
+# Notebook culling — shut down idle notebooks to free GPU
+culling:
+  enabled: true
+  idleTimeout: 3600       # seconds (1 hour)
+  checkInterval: 300      # seconds (5 minutes)
+
+# Concurrent notebook limit
+maxConcurrent: 10
+
+# Node scheduling for user notebooks
+nodeSelector: {}
+tolerations: []
+
+# PDB
+pdb:
+  enabled: true

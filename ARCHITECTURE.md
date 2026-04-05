@@ -895,6 +895,7 @@ kube-llmops/
 │           ├── fluid/                  # NEW: replaces juicefs
 │           ├── jupyterhub/
 │           ├── mlflow/
+│           ├── finetune/              # LLaMA-Factory + Argo Workflows
 │           ├── keycloak/
 │           └── keda/
 │
@@ -1023,12 +1024,12 @@ kube-llmops/
 - [x] Backup/restore automation (scripts/backup.sh + restore.sh)
 
 ### Phase 4: ML Platform -- "ML engineers love it"
-- [ ] JupyterHub with GPU profiles
-- [ ] LLaMA-Factory fine-tuning Job templates
-- [ ] MLflow experiment tracking
-- [ ] Model evaluation pipeline
+- [x] JupyterHub with GPU profiles
+- [x] LLaMA-Factory fine-tuning Job templates
+- [x] MLflow experiment tracking
+- [x] Model evaluation pipeline
 - [ ] ArgoCD ApplicationSet for multi-cluster
-- [ ] Terraform modules (EKS, GKE, ACK)
+- [x] Terraform modules (EKS, GKE, AKS)
 
 ### Phase 5: Advanced Inference -- "State-of-the-art performance"
 - [ ] **llm-d** integration (disaggregated prefill/decode serving)

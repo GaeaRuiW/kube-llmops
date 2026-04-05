@@ -1,0 +1,282 @@
+{{- if .Values.enabled }}
+{{/*
+JupyterHub — interactive ML development environment with GPU notebook profiles.
+Deploys Hub server with KubeSpawner that dynamically creates per-user notebook pods.
+*/}}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Release.Name }}-jupyterhub
+  labels:
+    app.kubernetes.io/name: jupyterhub
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ .Release.Name }}-jupyterhub
+  labels:
+    app.kubernetes.io/name: jupyterhub
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+rules:
+  - apiGroups: [""]
+    resources: [pods, services, persistentvolumeclaims, events]
+    verbs: [get, list, watch, create, delete, patch, update]
+  - apiGroups: [""]
+    resources: [secrets, configmaps]
+    verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ .Release.Name }}-jupyterhub
+  labels:
+    app.kubernetes.io/name: jupyterhub
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ .Release.Name }}-jupyterhub
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Release.Name }}-jupyterhub
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-jupyterhub-config
+  labels:
+    app.kubernetes.io/name: jupyterhub
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+data:
+  jupyterhub_config.py: |
+    import os
+    from kubespawner import KubeSpawner
+
+    c.JupyterHub.spawner_class = KubeSpawner
+
+    # ── Authentication ──
+    {{- if .Values.oidc.enabled }}
+    from oauthenticator.generic import GenericOAuthenticator
+    c.JupyterHub.authenticator_class = GenericOAuthenticator
+    c.GenericOAuthenticator.client_id = os.environ.get('OAUTH_CLIENT_ID', '{{ .Values.oidc.clientId }}')
+    c.GenericOAuthenticator.client_secret = os.environ.get('OAUTH_CLIENT_SECRET', '{{ .Values.oidc.clientSecret }}')
+    c.GenericOAuthenticator.oauth_callback_url = os.environ.get('OAUTH_CALLBACK_URL', '')
+    c.GenericOAuthenticator.authorize_url = os.environ.get('OAUTH_AUTHORIZE_URL', '')
+    c.GenericOAuthenticator.token_url = os.environ.get('OAUTH_TOKEN_URL', '')
+    c.GenericOAuthenticator.userdata_url = os.environ.get('OAUTH_USERDATA_URL', '')
+    c.GenericOAuthenticator.login_service = 'Keycloak'
+    c.GenericOAuthenticator.username_claim = 'preferred_username'
+    c.GenericOAuthenticator.scope = ['openid', 'profile', 'email']
+    c.GenericOAuthenticator.allow_all = True
+    {{- else }}
+    c.JupyterHub.authenticator_class = 'native'
+    c.Authenticator.admin_users = {'{{ .Values.admin.username }}'}
+    {{- end }}
+
+    # ── KubeSpawner settings ──
+    c.KubeSpawner.namespace = '{{ .Release.Namespace }}'
+    c.KubeSpawner.service_account = '{{ .Release.Name }}-jupyterhub'
+    c.KubeSpawner.start_timeout = 600
+    c.KubeSpawner.http_timeout = 300
+    c.KubeSpawner.storage_pvc_ensure = True
+    c.KubeSpawner.storage_capacity = '{{ .Values.storage.size }}'
+    c.KubeSpawner.storage_access_modes = ['ReadWriteOnce']
+
+    # ── Notebook profile list (GPU-aware) ──
+    c.KubeSpawner.profile_list = [
+    {{- range .Values.profiles }}
+      {
+        'display_name': '{{ .name }}',
+        'slug': '{{ .slug }}',
+        'description': '{{ .description }}',
+        {{- if .default }}
+        'default': True,
+        {{- end }}
+        'kubespawner_override': {
+          'image': '{{ .image }}',
+          'cpu_limit': {{ .resources.cpu | quote }},
+          'mem_limit': '{{ .resources.memory }}',
+          'cpu_guarantee': '{{ div (atoi (default "2" (.resources.cpu | toString))) 2 | default 1 }}',
+          'mem_guarantee': '{{ .resources.memory }}',
+          {{- if and .resources.gpu (gt (int .resources.gpu) 0) }}
+          'extra_resource_limits': {'nvidia.com/gpu': '{{ .resources.gpu }}'},
+          'extra_resource_guarantees': {'nvidia.com/gpu': '{{ .resources.gpu }}'},
+          'tolerations': [
+            {
+              'key': 'nvidia.com/gpu',
+              'operator': 'Exists',
+              'effect': 'NoSchedule',
+            },
+          ],
+          {{- end }}
+        },
+      },
+    {{- end }}
+    ]
+
+    {{- if .Values.culling.enabled }}
+    # ── Idle notebook culling ──
+    c.JupyterHub.services = [
+      {
+        'name': 'cull-idle',
+        'admin': True,
+        'command': [
+          'python3', '-m', 'jupyterhub_idle_culler',
+          '--timeout={{ .Values.culling.idleTimeout }}',
+          '--cull-every={{ .Values.culling.checkInterval }}',
+          '--max-age=0',
+          '--concurrency=10',
+        ],
+      },
+    ]
+    {{- end }}
+
+    # ── Limits ──
+    c.JupyterHub.active_server_limit = {{ .Values.maxConcurrent }}
+
+    # ── Proxy ──
+    c.ConfigurableHTTPProxy.should_start = True
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-jupyterhub
+  labels:
+    app.kubernetes.io/name: jupyterhub
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: ml-platform
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: jupyterhub
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: jupyterhub
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: ml-platform
+        app.kubernetes.io/part-of: kube-llmops
+      annotations:
+        checksum/config: {{ .Values | toJson | sha256sum | trunc 16 }}
+    spec:
+      serviceAccountName: {{ .Release.Name }}-jupyterhub
+      containers:
+        - name: jupyterhub
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["jupyterhub", "-f", "/etc/jupyterhub/jupyterhub_config.py"]
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+            - name: proxy
+              containerPort: 8001
+              protocol: TCP
+          env:
+            - name: JUPYTERHUB_CRYPT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-jupyterhub-secret
+                  key: crypt-key
+            {{- if .Values.oidc.enabled }}
+            {{- $keycloakBase := "" }}
+            {{- if and .Values.global .Values.global.nodePort .Values.global.nodePort.enabled .Values.global.nodePort.host }}
+            {{- $keycloakBase = printf "http://%s:%s" .Values.global.nodePort.host (default "30808" (.Values.global.nodePort.keycloak | toString)) }}
+            {{- else }}
+            {{- $keycloakBase = printf "http://%s-keycloak:8080" .Release.Name }}
+            {{- end }}
+            - name: OAUTH_CLIENT_ID
+              value: {{ .Values.oidc.clientId | quote }}
+            - name: OAUTH_CLIENT_SECRET
+              value: {{ .Values.oidc.clientSecret | quote }}
+            - name: OAUTH_AUTHORIZE_URL
+              value: "{{ $keycloakBase }}/realms/kube-llmops/protocol/openid-connect/auth"
+            - name: OAUTH_TOKEN_URL
+              value: "http://{{ .Release.Name }}-keycloak:8080/realms/kube-llmops/protocol/openid-connect/token"
+            - name: OAUTH_USERDATA_URL
+              value: "http://{{ .Release.Name }}-keycloak:8080/realms/kube-llmops/protocol/openid-connect/userinfo"
+            {{- if and .Values.global .Values.global.nodePort .Values.global.nodePort.enabled .Values.global.nodePort.host }}
+            - name: OAUTH_CALLBACK_URL
+              value: "http://{{ .Values.global.nodePort.host }}:{{ default 30888 .Values.global.nodePort.jupyterhub }}/hub/oauth_callback"
+            {{- end }}
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /hub/health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /hub/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          volumeMounts:
+            - name: config
+              mountPath: /etc/jupyterhub
+          resources:
+            requests:
+              cpu: {{ .Values.resources.requests.cpu }}
+              memory: {{ .Values.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.resources.limits.cpu }}
+              memory: {{ .Values.resources.limits.memory }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-jupyterhub-config
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Release.Name }}-jupyterhub-secret
+  labels:
+    app.kubernetes.io/name: jupyterhub
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-delete-policy": never
+    "helm.sh/resource-policy": keep
+type: Opaque
+data:
+  crypt-key: {{ randAlphaNum 64 | b64enc | quote }}
+  admin-password: {{ .Values.admin.password | b64enc | quote }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-jupyterhub
+  labels:
+    app.kubernetes.io/name: jupyterhub
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: jupyterhub
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+      protocol: TCP
+    - name: proxy
+      port: 8001
+      targetPort: proxy
+      protocol: TCP
+{{- end }}

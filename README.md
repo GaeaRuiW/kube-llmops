@@ -5,7 +5,7 @@
 **Kubernetes-native LLMOps Platform** -- Deploy, manage, monitor, and optimize your entire LLM infrastructure with one command.
 
 > [!NOTE]
-> v0.3.0 released -- full RAG infrastructure (Dify + pgvector + TEI + Ragas + LLM-Guard) with 14/14 E2E tests passing. See [CHANGELOG](CHANGELOG.md) for details.
+> v0.4.0 released -- Fine-tuning pipeline (LLaMA-Factory + Argo Workflows + MLflow) + JupyterHub + Terraform modules. See [CHANGELOG](CHANGELOG.md) for details.
 
 ## What is kube-llmops?
 
@@ -23,7 +23,8 @@
 - **Storage** -- MinIO S3-compatible model storage, PVC model cache
 
 ```bash
-helm install kube-llmops kube-llmops/kube-llmops-stack -f values-minimal.yaml
+# Install from local source (recommended)
+helm install kube-llmops charts/kube-llmops-stack -f values-minimal.yaml
 ```
 
 ## Use Cases
@@ -73,18 +74,20 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full technical design.
 ### Install
 
 ```bash
-# Add Helm repo (available after v0.1.0 release)
-helm repo add kube-llmops https://GaeaRuiW.github.io/kube-llmops
-helm repo update
+# Install from local source
+helm install kube-llmops charts/kube-llmops-stack \
+  -f charts/kube-llmops-stack/values-single-node.yaml \
+  --set global.nodePort.enabled=true \
+  --set global.nodePort.host=$NODE_IP
 
-# Install with minimal profile (1 GPU, 1 model, full observability)
-helm install kube-llmops kube-llmops/kube-llmops-stack \
+# Or install with ingress
+helm install kube-llmops charts/kube-llmops-stack \
   -f values-minimal.yaml \
   --set ingress.enabled=true \
   --set ingress.host=llmops.local
 
 # Or: CPU-only demo (no GPU required)
-helm install kube-llmops kube-llmops/kube-llmops-stack -f values-ci.yaml
+helm install kube-llmops charts/kube-llmops-stack -f values-ci.yaml
 ```
 
 ### Chat with your model
@@ -102,7 +105,7 @@ curl http://litellm.llmops.local/v1/chat/completions \
 
 ```bash
 # Enable ingress during install
-helm install kube-llmops kube-llmops/kube-llmops-stack \
+helm install kube-llmops charts/kube-llmops-stack \
   -f values-minimal.yaml \
   --set ingress.enabled=true \
   --set ingress.host=llmops.local    # or your real domain
@@ -136,7 +139,7 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &
 > [!WARNING]
 > These are development defaults. For production, override via `--set`:
 > ```bash
-> helm install kube-llmops kube-llmops/kube-llmops-stack \
+> helm install kube-llmops charts/kube-llmops-stack \
 >   --set litellm.masterKey=sk-your-secret-key \
 >   --set observability.grafana.adminPassword=your-grafana-pw \
 >   --set langfuse.init.userPassword=your-langfuse-pw \
@@ -150,9 +153,9 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &
 | Engine auto-selection (GPTQ->vLLM, GGUF->llama.cpp) | Yes | N/A | No | No |
 | AI Gateway (key mgmt, cost tracking, rate limit) | Yes | No | No | No |
 | LLM tracing (prompt, tokens, cost per request) | Yes | No | No | No |
-| Pre-built Grafana dashboards (10) + alert rules (5+) | Yes | No | No | No |
+| Pre-built Grafana dashboards (11) + alert rules (5+) | Yes | No | No | No |
 | GPU monitoring (DCGM) | Yes | DIY | No | No |
-| KEDA autoscaling (queue depth, TTFT) | Yes | No | No | Partial |
+| KEDA autoscaling (queue depth) | Yes | No | No | Partial |
 | SSO integration (Keycloak OIDC) | Yes | No | No | No |
 | S3 model storage (MinIO) | Yes | No | No | No |
 | Container log aggregation (Fluent Bit + Loki) | Yes | No | No | No |
@@ -183,7 +186,7 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &
 - [x] **v0.1.0 (MVP)** -- Model serving + Gateway + Metrics + Tracing
 - [x] **v0.2.0** -- Langfuse v3 + Keycloak SSO + Infra automation + NodePort
 - [x] **v0.3.0** -- RAG infra (Dify + pgvector + TEI embedding/reranking + Ragas eval + LLM-Guard + Quality Gate)
-- [ ] **v0.4.0** -- Fine-tuning + ML platform
+- [x] **v0.4.0** -- Fine-tuning pipeline (LLaMA-Factory + Argo Workflows + MLflow) + JupyterHub + Terraform
 - [ ] **v0.5.0** -- Disaggregated serving (llm-d)
 - [ ] **v1.0.0** -- Operator + CLI + Dashboard
 

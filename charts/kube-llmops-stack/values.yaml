@@ -297,3 +297,7 @@ ingress:
 # -- PostgreSQL Infrastructure (split: operator-pg + app-pg)
 postgresql:
   enabled: false  # Enable for split PG architecture
+
+# -- JupyterHub (interactive ML development)
+jupyterhub:
+  enabled: false

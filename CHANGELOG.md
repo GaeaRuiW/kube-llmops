@@ -7,6 +7,67 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-04-04
+
+### Added
+
+#### Fine-tuning Pipeline (Argo Workflows + LLaMA-Factory)
+- `finetune` subchart with Argo Workflows DAG: prepare-data → finetune → merge-upload → evaluate → quality-gate → deploy
+- LLaMA-Factory integration for LoRA, QLoRA, and Full fine-tuning
+- Data sources: MinIO (s3://), HuggingFace datasets, PVC mount
+- Quality gate step with configurable metric thresholds (eval_loss, accuracy, bleu, rouge)
+- Canary deployment via LiteLLM weight routing (configurable canary percentage)
+- Human approval via webhook notifications (Slack/DingTalk/generic)
+- ConfigMap-based training config generation from Helm values
+- RBAC: ServiceAccount + ClusterRole for Argo workflow execution
+- PodDisruptionBudget for MLflow
+- Sample training data (`examples/finetune/sample-data.json`) in Alpaca format
+
+#### MLflow Experiment Tracking
+- MLflow Deployment with PostgreSQL backend + MinIO artifact store
+- Reuses existing PostgreSQL (database: `mlflow`) and MinIO infrastructure
+- Exposed via NodePort :30505 when `global.nodePort.enabled=true`
+- Integrated into fine-tuning workflow for metric logging and model registry
+
+#### JupyterHub (Interactive ML Development)
+- JupyterHub subchart with KubeSpawner for GPU notebook environments
+- 3 GPU profiles: cpu (default), gpu-small (1 GPU, 8Gi), gpu-large (2 GPUs, 16Gi)
+- Keycloak OIDC SSO integration (auto-configured when keycloak.enabled)
+- PodDisruptionBudget for hub availability
+- NodePort :30888 when `global.nodePort.enabled=true`
+- Enabled by default in `values-production.yaml`
+
+#### Terraform Modules (Infrastructure as Code)
+- `terraform/aws-eks/` — EKS cluster with GPU node group (g5.xlarge), EBS CSI, GP3 storage
+- `terraform/gcp-gke/` — GKE Standard cluster with T4 GPU node pool, Workload Identity
+- `terraform/azure-aks/` — AKS cluster with NC6s_v3 GPU pool, Azure CNI, Premium SSD
+- All modules: NVIDIA GPU Operator, optional KEDA, kube-llmops Helm release
+- Consistent GPU taint (`nvidia.com/gpu=present:NoSchedule`) across all clouds
+- README per module with prerequisites, cost estimates, and teardown instructions
+
+#### Grafana Dashboard
+- Fine-tuning Pipeline dashboard (`finetune-overview`): job status, training loss, GPU utilization, step progress
+- Total dashboards: 10 → 11
+
+#### Model Loader Performance
+- hf-transfer concurrency raised from 8 to 32 (`HF_TRANSFER_CONCURRENCY` env var)
+- Configurable via `global.modelStore.hfTransferConcurrency` in values
+- Applied to model-preload Job, model-loader init-containers, and finetune workflow steps
+
+### Changed
+- `_helpers.tpl`: `modelLoaderEnv` helper now includes `HF_TRANSFER_CONCURRENCY`
+- `model-loader` Dockerfile: `ENV HF_TRANSFER_CONCURRENCY=32`
+- `values-single-node.yaml`: added `global.modelStore.hfTransferConcurrency: 32`
+- README install commands: use local chart path instead of Helm repo (GitHub Pages not yet published)
+- Dashboard count in feature comparison table: 10 → 11
+- KEDA feature description: removed inaccurate TTFT claim (only queue depth is implemented)
+
+### Fixed
+- README version banner was stale (v0.3.0 → v0.4.0)
+- README Helm repo install commands referenced unpublished GitHub Pages repo
+- ARCHITECTURE.md Phase 4 checkboxes now reflect implemented state
+- README.zh-CN.md synced with all English README changes
+
 ## [0.3.1] - 2026-03-29
 
 ### Added
