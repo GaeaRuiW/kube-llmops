@@ -26,6 +26,30 @@
 {{- $maxReplicas := $override.maxReplicas | default $.Values.defaults.maxReplicas }}
 {{- $threshold    = $override.threshold   | default $threshold }}
 
+{{/* Scale-to-zero config */}}
+{{- $s2z := default dict $override.scaleToZero }}
+{{- $s2zEnabled := $s2z.enabled | default false }}
+{{- $idleTimeout := $s2z.idleTimeout | default 900 }}
+{{- if $s2zEnabled }}
+{{-   $minReplicas = 0 }}
+{{- end }}
+
+{{/* Per-model trigger overrides */}}
+{{- $overrideTriggers := default dict $override.triggers }}
+
+{{/* Resolve trigger thresholds (per-model override > global) */}}
+{{- $globalTriggers := $.Values.triggers }}
+{{- $ttftThreshold := ($globalTriggers.ttftP95).threshold | default "3" }}
+{{- $ttftWindow := ($globalTriggers.ttftP95).window | default "2m" }}
+{{- $tpotThreshold := ($globalTriggers.tpotP95).threshold | default "0.1" }}
+{{- $tpotWindow := ($globalTriggers.tpotP95).window | default "2m" }}
+{{- if $overrideTriggers.ttftP95 }}
+{{-   $ttftThreshold = $overrideTriggers.ttftP95.threshold | default $ttftThreshold }}
+{{- end }}
+{{- if $overrideTriggers.tpotP95 }}
+{{-   $tpotThreshold = $overrideTriggers.tpotP95.threshold | default $tpotThreshold }}
+{{- end }}
+
 ---
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
@@ -44,13 +68,45 @@ spec:
   maxReplicaCount: {{ $maxReplicas }}
   cooldownPeriod:  {{ $.Values.defaults.cooldownPeriod }}
   pollingInterval: {{ $.Values.defaults.pollingInterval }}
+  {{- if $s2zEnabled }}
+  idleReplicaCount: 0
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: {{ $idleTimeout }}
+  {{- end }}
   triggers:
+    {{/* Trigger 1: Queue depth (always enabled unless explicitly disabled) */}}
+    {{- if (($globalTriggers.requestsWaiting).enabled | default true) }}
     - type: prometheus
       metadata:
         serverAddress: {{ $promAddr }}
         query: sum({{ $metric }}{{"{"}}{{ $labelName }}="{{ $model.name }}"{{"}"}} ) or vector(0)
         threshold: {{ $threshold | quote }}
         metricName: pending_requests_{{ $model.name }}
+      {{- if $s2zEnabled }}
+        activationThreshold: "1"
+      {{- end }}
+    {{- end }}
+    {{/* Trigger 2: TTFT P95 (vLLM only) */}}
+    {{- if and (eq $engine "vllm") (($globalTriggers.ttftP95).enabled | default false) }}
+    - type: prometheus
+      metadata:
+        serverAddress: {{ $promAddr }}
+        query: histogram_quantile(0.95, rate(vllm:time_to_first_token_seconds_bucket{{ "{" }}model_name="{{ $model.name }}"{{ "}" }}[{{ $ttftWindow }}])) or vector(0)
+        threshold: {{ $ttftThreshold | quote }}
+        metricName: ttft_p95_{{ $model.name }}
+    {{- end }}
+    {{/* Trigger 3: TPOT P95 (vLLM only) */}}
+    {{- if and (eq $engine "vllm") (($globalTriggers.tpotP95).enabled | default false) }}
+    - type: prometheus
+      metadata:
+        serverAddress: {{ $promAddr }}
+        query: histogram_quantile(0.95, rate(vllm:time_per_output_token_seconds_bucket{{ "{" }}model_name="{{ $model.name }}"{{ "}" }}[{{ $tpotWindow }}])) or vector(0)
+        threshold: {{ $tpotThreshold | quote }}
+        metricName: tpot_p95_{{ $model.name }}
+    {{- end }}
 {{- end }}
 {{- end }}
 {{- end }}

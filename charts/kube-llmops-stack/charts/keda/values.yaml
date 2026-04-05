@@ -26,9 +26,29 @@ engines:
     labelName: model                # label key (relabeled from kube-llmops/model)
     threshold: "2"
 
+# Multi-trigger configuration (any trigger breaching threshold causes scale-up)
+triggers:
+  requestsWaiting:
+    enabled: true                   # Default: always enabled (queue-depth trigger)
+  ttftP95:
+    enabled: false                  # Time to First Token P95 (vLLM only)
+    threshold: "3"                  # seconds
+    window: "2m"
+  tpotP95:
+    enabled: false                  # Time per Output Token P95 (vLLM only)
+    threshold: "0.1"               # seconds per token
+    window: "2m"
+
 # Per-model overrides (optional)
 # models:
 #   my-model-name:
 #     minReplicas: 2
 #     maxReplicas: 8
 #     threshold: "5"
+#     triggers:
+#       ttftP95:
+#         threshold: "1.5"
+#     scaleToZero:
+#       enabled: true
+#       idleTimeout: 900
+#       fallbackModel: "other-model"
