@@ -127,3 +127,9 @@ dependencies:
     condition: finetune.enabled
     tags:
       - ml-platform
+  - name: jupyterhub
+    version: 0.1.0
+    repository: "file://charts/jupyterhub"
+    condition: jupyterhub.enabled
+    tags:
+      - ml-platform

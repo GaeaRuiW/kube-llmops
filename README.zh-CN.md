@@ -5,7 +5,7 @@
 **Kubernetes 原生 LLMOps 平台** -- 一条命令部署、管理、监控并优化你的整个 LLM 基础设施。
 
 > [!NOTE]
-> v0.3.0 已发布 -- 完整 RAG 基础设施（Dify + pgvector + TEI + Ragas + LLM-Guard），E2E 测试 14/14 全部通过。详见 [CHANGELOG](CHANGELOG.zh-CN.md)。
+> v0.4.0 已发布 -- 微调流水线（LLaMA-Factory + Argo Workflows + MLflow）+ JupyterHub + Terraform 模块。详见 [CHANGELOG](CHANGELOG.zh-CN.md)。
 
 ## 什么是 kube-llmops？
 
@@ -23,7 +23,8 @@
 - **存储** -- MinIO S3 兼容模型存储，PVC 模型缓存
 
 ```bash
-helm install kube-llmops kube-llmops/kube-llmops-stack -f values-minimal.yaml
+# 从本地源码安装（推荐）
+helm install kube-llmops charts/kube-llmops-stack -f values-minimal.yaml
 ```
 
 ## 使用场景
@@ -73,18 +74,20 @@ helm install kube-llmops kube-llmops/kube-llmops-stack -f values-minimal.yaml
 ### 安装
 
 ```bash
-# 添加 Helm 仓库（v0.1.0 正式发布后可用）
-helm repo add kube-llmops https://GaeaRuiW.github.io/kube-llmops
-helm repo update
+# 从本地源码安装
+helm install kube-llmops charts/kube-llmops-stack \
+  -f charts/kube-llmops-stack/values-single-node.yaml \
+  --set global.nodePort.enabled=true \
+  --set global.nodePort.host=$NODE_IP
 
-# 使用最小配置安装（1 块 GPU、1 个模型、完整可观测性）
-helm install kube-llmops kube-llmops/kube-llmops-stack \
+# 或使用 Ingress 安装
+helm install kube-llmops charts/kube-llmops-stack \
   -f values-minimal.yaml \
   --set ingress.enabled=true \
   --set ingress.host=llmops.local
 
 # 或：仅 CPU 演示模式（无需 GPU）
-helm install kube-llmops kube-llmops/kube-llmops-stack -f values-ci.yaml
+helm install kube-llmops charts/kube-llmops-stack -f values-ci.yaml
 ```
 
 ### 与模型对话
@@ -102,7 +105,7 @@ curl http://litellm.llmops.local/v1/chat/completions \
 
 ```bash
 # 安装时启用 Ingress
-helm install kube-llmops kube-llmops/kube-llmops-stack \
+helm install kube-llmops charts/kube-llmops-stack \
   -f values-minimal.yaml \
   --set ingress.enabled=true \
   --set ingress.host=llmops.local    # 或你的真实域名
@@ -136,7 +139,7 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &
 > [!WARNING]
 > 以上为开发环境默认配置。生产环境请通过 `--set` 参数进行覆盖：
 > ```bash
-> helm install kube-llmops kube-llmops/kube-llmops-stack \
+> helm install kube-llmops charts/kube-llmops-stack \
 >   --set litellm.masterKey=sk-your-secret-key \
 >   --set observability.grafana.adminPassword=your-grafana-pw \
 >   --set langfuse.init.userPassword=your-langfuse-pw \
@@ -150,9 +153,9 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &
 | 推理引擎自动选择（GPTQ→vLLM、GGUF→llama.cpp） | 支持 | 不适用 | 不支持 | 不支持 |
 | AI 网关（Key 管理、成本追踪、速率限制） | 支持 | 不支持 | 不支持 | 不支持 |
 | LLM 调用追踪（Prompt、Token、每次请求费用） | 支持 | 不支持 | 不支持 | 不支持 |
-| 预置 Grafana 仪表盘（10 个）+ 告警规则（5 条） | 支持 | 不支持 | 不支持 | 不支持 |
+| 预置 Grafana 仪表盘（11 个）+ 告警规则（5 条） | 支持 | 不支持 | 不支持 | 不支持 |
 | GPU 监控（DCGM） | 支持 | 需自行搭建 | 不支持 | 不支持 |
-| KEDA 自动扩缩（队列深度、TTFT） | 支持 | 不支持 | 不支持 | 部分支持 |
+| KEDA 自动扩缩（队列深度） | 支持 | 不支持 | 不支持 | 部分支持 |
 | SSO 集成（Keycloak OIDC） | 支持 | 不支持 | 不支持 | 不支持 |
 | S3 模型存储（MinIO） | 支持 | 不支持 | 不支持 | 不支持 |
 | 容器日志聚合（Fluent Bit + Loki） | 支持 | 不支持 | 不支持 | 不支持 |
@@ -183,7 +186,7 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &
 - [x] **v0.1.0（MVP）** -- 模型推理服务 + 网关 + 指标监控 + 调用追踪
 - [x] **v0.2.0** -- Langfuse v3 + Keycloak SSO + 基础设施自动化 + NodePort
 - [x] **v0.3.0** -- RAG 基础设施（Dify + pgvector + TEI 嵌入/重排序 + Ragas 评估 + LLM-Guard + 质量门控）
-- [ ] **v0.4.0** -- 微调 + ML 平台
+- [x] **v0.4.0** -- 微调流水线（LLaMA-Factory + Argo Workflows + MLflow）+ JupyterHub + Terraform
 - [ ] **v0.5.0** -- 解耦式推理服务（llm-d）
 - [ ] **v1.0.0** -- Operator + CLI + 可视化面板
 

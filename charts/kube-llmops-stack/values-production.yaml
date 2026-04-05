@@ -317,3 +317,7 @@ langfuse:
 #   prometheus:
 #     remoteWrite:
 #       - url: "http://victoriametrics:8428/api/v1/write"
+
+# ── JupyterHub (interactive ML development) ──
+jupyterhub:
+  enabled: true
