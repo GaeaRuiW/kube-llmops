@@ -1,5 +1,3 @@
-enabled: false
-
 image:
   repository: quay.io/jupyterhub/k8s-hub
   tag: "4.1.6"

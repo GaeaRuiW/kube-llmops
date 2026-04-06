@@ -2,7 +2,7 @@
 Envoy AI Gateway resources — Gateway, HTTPRoute, and InferenceModel templates.
 Requires: Gateway API CRDs + Envoy Gateway controller installed.
 */}}
-{{- if and .Values.enabled .Values.envoyGateway.enabled }}
+{{- if .Values.envoyGateway.enabled }}
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: GatewayClass
@@ -56,7 +56,7 @@ When IGW is available, each model+adapter combo gets an InferenceModel
 resource that tells the gateway how to route requests to the correct
 vLLM instance with the right LoRA adapter loaded.
 */}}
-{{- if and .Values.enabled .Values.envoyGateway.enabled .Values.envoyGateway.inferenceModels }}
+{{- if and .Values.envoyGateway.enabled .Values.envoyGateway.inferenceModels }}
 {{- range .Values.envoyGateway.inferenceModels }}
 ---
 apiVersion: inference.networking.x-k8s.io/v1alpha2

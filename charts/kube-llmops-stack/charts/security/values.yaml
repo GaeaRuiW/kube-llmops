@@ -1,5 +1,3 @@
-enabled: false
-
 # LLM-Guard: prompt injection defense + output scanning
 llmGuard:
   enabled: false

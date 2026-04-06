@@ -19,6 +19,14 @@ ingress:
 #   *GGUF*                                     → llama.cpp
 # To override: add `engine: vllm` / `engine: tei` / `engine: llamacpp`
 global:
+  # Module switches — set to false to disable entire feature groups
+  modules:
+    rag:
+      enabled: true
+    finetune:
+      enabled: false     # enable when GPU cluster + Argo Workflows are ready
+    security:
+      enabled: false     # enable when LLM-Guard is needed (~6GB RAM)
   models:
     - name: gemma-4-26b-a4b
       source: cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit
@@ -168,7 +176,6 @@ keda:
   #   llamacpp:
   #     threshold: "2"
 dify:
-  enabled: true
   image:
     api:
       tag: "1.13.2"
@@ -178,7 +185,6 @@ dify:
     consoleApiUrl: ""
     appApiUrl: ""
 security:
-  enabled: true
   llmGuard:
     enabled: true
   presidio:
@@ -202,14 +208,11 @@ security:
     enabled: false
 harbor:
   enabled: false
-milvus:
-  enabled: true
-lightrag:
-  enabled: true
+milvus: {}
+lightrag: {}
 
 # ========== RAG Evaluation ==========
 rag-eval:
-  enabled: true
   smokeTest:
     enabled: true
     llmModel: gemma-4-26b-a4b
@@ -217,15 +220,14 @@ rag-eval:
     llmModel: gemma-4-26b-a4b
 
 # ========== Fine-tuning Pipeline (v0.4.0) ==========
-finetune:
-  enabled: false
-  # baseModel: Qwen/Qwen2.5-0.5B-Instruct
-  # outputName: qwen2-5-0-5b-lora-v1
-  # method: lora
-  # dataSource:
-  #   type: minio
-  #   path: s3://datasets/my-data/
-  #   format: alpaca
+# finetune:
+#   baseModel: Qwen/Qwen2.5-0.5B-Instruct
+#   outputName: qwen2-5-0-5b-lora-v1
+#   method: lora
+#   dataSource:
+#     type: minio
+#     path: s3://datasets/my-data/
+#     format: alpaca
 
 # ========== MinIO (Model Storage) ==========
 fluid:

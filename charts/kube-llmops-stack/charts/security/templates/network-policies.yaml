@@ -1,4 +1,4 @@
-{{- if and .Values.enabled .Values.networkPolicy.enabled }}
+{{- if .Values.networkPolicy.enabled }}
 ---
 # Default deny all ingress for kube-llmops pods
 apiVersion: networking.k8s.io/v1

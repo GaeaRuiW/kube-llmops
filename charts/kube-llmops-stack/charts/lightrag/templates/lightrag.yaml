@@ -1,4 +1,3 @@
-{{- if .Values.enabled }}
 ---
 # ── Neo4j Graph Database ──
 apiVersion: v1
@@ -234,4 +233,3 @@ spec:
   selector:
     app.kubernetes.io/name: lightrag
     app.kubernetes.io/instance: {{ .Release.Name }}
-{{- end }}

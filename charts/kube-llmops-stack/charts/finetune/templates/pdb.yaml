@@ -1,4 +1,3 @@
-{{- if .Values.enabled }}
 {{- if .Values.pdb.enabled }}
 ---
 apiVersion: policy/v1
@@ -15,5 +14,4 @@ spec:
     matchLabels:
       app.kubernetes.io/name: mlflow
       app.kubernetes.io/instance: {{ .Release.Name }}
-{{- end }}
 {{- end }}

@@ -1,4 +1,3 @@
-{{- if .Values.enabled }}
 {{- if .Values.mlflow.enabled }}
 ---
 apiVersion: apps/v1
@@ -95,5 +94,4 @@ spec:
   selector:
     app.kubernetes.io/name: mlflow
     app.kubernetes.io/instance: {{ .Release.Name }}
-{{- end }}
 {{- end }}

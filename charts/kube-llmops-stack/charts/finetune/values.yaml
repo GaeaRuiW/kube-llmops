@@ -1,5 +1,3 @@
-enabled: false
-
 # Base model
 baseModel: ""
 outputName: ""

@@ -1,4 +1,4 @@
-{{- if and .Values.enabled .Values.presidio.enabled }}
+{{- if .Values.presidio.enabled }}
 ---
 apiVersion: apps/v1
 kind: Deployment

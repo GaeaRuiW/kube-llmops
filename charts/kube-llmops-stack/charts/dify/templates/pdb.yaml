@@ -1,4 +1,3 @@
-{{- if .Values.enabled }}
 {{- if .Values.pdb.enabled }}
 {{- range $name := list "dify-api" "dify-web" "dify-worker" "dify-plugin-daemon" "dify-redis" }}
 ---
@@ -16,6 +15,5 @@ spec:
     matchLabels:
       app.kubernetes.io/name: {{ $name }}
       app.kubernetes.io/instance: {{ $.Release.Name }}
-{{- end }}
 {{- end }}
 {{- end }}

@@ -6,6 +6,16 @@ global:
   # Image pull policy
   imagePullPolicy: IfNotPresent
 
+  # -- Module switches: enable/disable feature groups with a single toggle
+  # Each module controls its subchart dependencies, dashboards, and alert rules.
+  modules:
+    rag:
+      enabled: false      # dify, milvus, lightrag, rag-eval + dashboards + alerts
+    finetune:
+      enabled: false      # finetune (LLaMA-Factory + Argo + MLflow), jupyterhub
+    security:
+      enabled: false      # LLM-Guard, NetworkPolicy + tenant dashboard
+
 # -- Model definitions
 # Each model will be deployed with the auto-selected or explicitly specified engine.
 # Example:
@@ -266,24 +276,20 @@ harbor:
   enabled: false
 
 # -- Vector Database
-milvus:
-  enabled: false
+milvus: {}
 
 # -- LightRAG Knowledge Graph
-lightrag:
-  enabled: false
+lightrag: {}
 
 # -- Dify RAG Platform
-dify:
-  enabled: false
+dify: {}
 
 # -- Auth (Keycloak)
 keycloak:
   enabled: false
 
 # -- Security (NetworkPolicy + OIDC)
-security:
-  enabled: false
+security: {}
 
 # -- Ingress
 ingress:
@@ -299,5 +305,4 @@ postgresql:
   enabled: false  # Enable for split PG architecture
 
 # -- JupyterHub (interactive ML development)
-jupyterhub:
-  enabled: false
+jupyterhub: {}
