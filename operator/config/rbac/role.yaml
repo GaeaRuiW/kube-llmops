@@ -1,11 +1,38 @@
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  labels:
-    app.kubernetes.io/name: kube-llmops-operator
-    app.kubernetes.io/managed-by: kustomize
   name: manager-role
 rules:
-- apiGroups: [""]
-  resources: ["pods"]
-  verbs: ["get", "list", "watch"]
+- apiGroups:
+  - llmops.kubellmops.io
+  resources:
+  - finetuneruns
+  - llmplatforms
+  - modeldeployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - llmops.kubellmops.io
+  resources:
+  - finetuneruns/finalizers
+  - llmplatforms/finalizers
+  - modeldeployments/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - llmops.kubellmops.io
+  resources:
+  - finetuneruns/status
+  - llmplatforms/status
+  - modeldeployments/status
+  verbs:
+  - get
+  - patch
+  - update

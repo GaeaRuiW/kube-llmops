@@ -39,6 +39,8 @@ import (
 
 	llmopsv1alpha1 "github.com/kube-llmops/operator/api/v1alpha1"
 	"github.com/kube-llmops/operator/internal/controller"
+	"github.com/kube-llmops/operator/internal/gateway"
+	"github.com/kube-llmops/operator/internal/helmbridge"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -203,22 +205,25 @@ func main() {
 	}
 
 	if err = (&controller.ModelDeploymentReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		GatewayClient: &gateway.NoopClient{},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ModelDeployment")
 		os.Exit(1)
 	}
 	if err = (&controller.LLMPlatformReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:     mgr.GetClient(),
+		Scheme:     mgr.GetScheme(),
+		HelmClient: &helmbridge.SDKClient{},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "LLMPlatform")
 		os.Exit(1)
 	}
 	if err = (&controller.FineTuneRunReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:      mgr.GetClient(),
+		Scheme:      mgr.GetScheme(),
+		ReleaseName: "kube-llmops",
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "FineTuneRun")
 		os.Exit(1)
