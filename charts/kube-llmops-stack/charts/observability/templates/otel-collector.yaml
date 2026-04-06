@@ -54,6 +54,14 @@ data:
       debug:
         verbosity: basic
     service:
+      telemetry:
+        metrics:
+          readers:
+            - pull:
+                exporter:
+                  prometheus:
+                    host: "0.0.0.0"
+                    port: 8889
       pipelines:
         metrics:
           receivers: [otlp, prometheus]
@@ -100,6 +108,8 @@ spec:
               name: otlp-grpc
             - containerPort: 4318
               name: otlp-http
+            - containerPort: 8889
+              name: metrics
           resources:
             requests:
               cpu: {{ .Values.otelCollector.resources.requests.cpu }}
@@ -133,6 +143,9 @@ spec:
     - port: 4318
       targetPort: otlp-http
       name: otlp-http
+    - port: 8889
+      targetPort: metrics
+      name: metrics
   selector:
     app.kubernetes.io/name: otel-collector
     app.kubernetes.io/instance: {{ $.Release.Name }}
