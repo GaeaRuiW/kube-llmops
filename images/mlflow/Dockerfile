@@ -1,7 +1,7 @@
 FROM python:3.13-slim
 
 RUN pip install --no-cache-dir \
-    mlflow==2.21.3 \
+    mlflow==3.10.2 \
     psycopg2-binary==2.9.10 \
     boto3==1.37.1
 

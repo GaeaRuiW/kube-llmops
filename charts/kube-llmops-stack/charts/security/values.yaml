@@ -28,11 +28,11 @@ presidio:
   analyzer:
     image:
       repository: mcr.microsoft.com/presidio-analyzer
-      tag: latest
+      tag: "2.2.362"
   anonymizer:
     image:
       repository: mcr.microsoft.com/presidio-anonymizer
-      tag: latest
+      tag: "2.2.362"
 
 # OIDC/SSO configuration (works with Keycloak, Dex, or any OIDC provider)
 oidc:

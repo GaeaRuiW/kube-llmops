@@ -185,9 +185,9 @@ keda:
 dify:
   image:
     api:
-      tag: "1.13.2"
+      tag: "1.13.3"
     web:
-      tag: "1.13.2"
+      tag: "1.13.3"
   web:
     consoleApiUrl: ""
     appApiUrl: ""

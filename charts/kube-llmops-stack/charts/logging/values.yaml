@@ -22,7 +22,7 @@ loki:
 fluentbit:
   image:
     repository: fluent/fluent-bit
-    tag: "4.2.3.1"
+    tag: "5.0.2"
     pullPolicy: IfNotPresent
   resources:
     requests:

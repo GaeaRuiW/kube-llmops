@@ -1,11 +1,11 @@
 image:
   api:
     repository: langgenius/dify-api
-    tag: "1.13.2"
+    tag: "1.13.3"
     pullPolicy: IfNotPresent
   web:
     repository: langgenius/dify-web
-    tag: "1.13.2"
+    tag: "1.13.3"
     pullPolicy: IfNotPresent
   pluginDaemon:
     repository: langgenius/dify-plugin-daemon
