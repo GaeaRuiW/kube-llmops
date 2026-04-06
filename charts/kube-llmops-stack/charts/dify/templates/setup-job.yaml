@@ -62,7 +62,17 @@ data:
     P() { curl -sf -b "$CK" -H "X-CSRF-Token: $CSRF" -H "Content-Type: application/json" -X POST "$API$1" -d "$2"; }
 
     # ── Step 4: Install plugins ──
+    # NOTE: Uses daemon API directly to work around PascalCase bug in
+    #       dify-plugin-daemon decode/from_identifier endpoint.
     echo "[4/5] Installing plugins..."
+    DAEMON="http://{{ .Release.Name }}-dify-plugin-daemon:5002"
+
+    # Get tenant ID from current workspace
+    TENANT_ID=$(G "/console/api/workspaces/current" | \
+      python3 -c "import json,sys; print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
+    [ -z "$TENANT_ID" ] && { echo "  ERROR: could not get tenant ID" >&2; exit 1; }
+    echo "  Tenant ID: $TENANT_ID"
+
     INSTALLED=$(G "/console/api/workspaces/current/plugin/list?page=1&page_size=100" | \
       python3 -c "import json,sys; print(' '.join(p['plugin_id'] for p in json.load(sys.stdin).get('plugins',[])))" 2>/dev/null)
 
@@ -78,50 +88,32 @@ data:
       [ -z "$PKG" ] && { echo "  ERROR: no .difypkg for $PLUGIN_ID"; continue; }
       echo "  Uploading $PLUGIN_SHORT ($(stat -c%s "$PKG")B)..."
 
-      # Upload
+      # Upload via Dify API (this works fine)
       PLUGIN_UID=$(curl -sf -b "$CK" -H "X-CSRF-Token: $CSRF" \
         -X POST "$API/console/api/workspaces/current/plugin/upload/pkg" \
         -F "pkg=@$PKG" | python3 -c "import json,sys; print(json.load(sys.stdin).get('unique_identifier',''))" 2>/dev/null)
       [ -z "$PLUGIN_UID" ] && { echo "  Upload failed"; continue; }
       echo "  Uploaded: ${PLUGIN_UID:0:60}..."
 
-      # Wait for daemon to extract, then pre-install deps
-      sleep 5
-      CWD=$(find "$PLUGIN_DIR/cwd" -maxdepth 2 -name "${PLUGIN_SHORT}*" -type d 2>/dev/null | head -1)
-      if [ -n "$CWD" ] && [ -f "$CWD/pyproject.toml" ]; then
-        echo "  Pre-installing Python deps..."
-        pip install -q uv 2>/dev/null
-        uv sync --project "$CWD" --quiet 2>/dev/null && echo "  Deps ready" || echo "  Deps warn (will retry)"
-      fi
-
-      # Install (may fail first time, retry after deps are cached)
-      echo "  Installing..."
-      TID=$(P "/console/api/workspaces/current/plugin/install/pkg" \
-        "{\"plugin_unique_identifiers\":[\"$PLUGIN_UID\"]}" | \
-        python3 -c "import json,sys; print(json.load(sys.stdin).get('task_id',''))" 2>/dev/null)
-
-      OK=false
-      for attempt in 1 2; do
-        for i in $(seq 1 20); do
-          sleep 5
-          ST=$(G "/console/api/workspaces/current/plugin/tasks?action=install&page=1&page_size=5" | \
-            python3 -c "
-    import json,sys
-    for t in json.load(sys.stdin).get('tasks',[]):
-        if t['id']=='$TID': print(t['status']); break
-    " 2>/dev/null)
-          [ "$ST" = "success" ] && { echo "  $PLUGIN_ID installed (attempt $attempt)"; OK=true; break 2; }
-          [ "$ST" = "failed" ] && break
-        done
-        [ "$OK" = "true" ] && break
-        [ $attempt -eq 1 ] && {
-          echo "  Attempt 1 failed, retrying..."
-          TID=$(P "/console/api/workspaces/current/plugin/install/pkg" \
-            "{\"plugin_unique_identifiers\":[\"$PLUGIN_UID\"]}" | \
-            python3 -c "import json,sys; print(json.load(sys.stdin).get('task_id',''))" 2>/dev/null)
-        }
+      # Install via daemon API directly (bypasses PascalCase bug)
+      echo "  Installing via daemon API..."
+      for attempt in 1 2 3; do
+        sleep 5
+        RESP=$(curl -sf -X POST "$DAEMON/plugin/$TENANT_ID/management/install/identifiers" \
+          -H "Content-Type: application/json" \
+          -d "{\"plugin_unique_identifiers\":[\"$PLUGIN_UID\"],\"source\":\"local\",\"metas\":[{\"type\":\"local\"}]}" 2>&1) && break
+        echo "  Attempt $attempt failed, retrying..."
       done
-      [ "$OK" = "false" ] && echo "  WARNING: $PLUGIN_ID install failed after retries"
+
+      # Verify installation
+      sleep 10
+      INSTALLED2=$(G "/console/api/workspaces/current/plugin/list?page=1&page_size=100" | \
+        python3 -c "import json,sys; print(' '.join(p['plugin_id'] for p in json.load(sys.stdin).get('plugins',[])))" 2>/dev/null)
+      if echo "$INSTALLED2" | grep -qw "$PLUGIN_ID"; then
+        echo "  $PLUGIN_ID installed successfully"
+      else
+        echo "  WARNING: $PLUGIN_ID may not have installed correctly"
+      fi
     fi
     {{- end }}
 

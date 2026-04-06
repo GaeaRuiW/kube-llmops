@@ -126,7 +126,7 @@ data:
     {{- if .Values.langfuseEnabled }}
     litellm_settings:
       drop_params: true
-      success_callback: ["langfuse"]
+      success_callback: ["langfuse", "prometheus"]
       failure_callback: ["langfuse"]
       {{- if .Values.guardrails.promptInjection.enabled }}
       callbacks: ["detect_prompt_injection"]
