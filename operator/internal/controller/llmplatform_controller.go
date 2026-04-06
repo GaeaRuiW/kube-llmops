@@ -82,7 +82,7 @@ func (r *LLMPlatformReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			LastTransitionTime: metav1.NewTime(time.Now()),
 			ObservedGeneration: platform.Generation,
 		})
-		if statusErr := r.Status().Update(ctx, platform); statusErr != nil {
+		if statusErr := r.refetchAndUpdateStatus(ctx, req, platform); statusErr != nil {
 			return ctrl.Result{}, statusErr
 		}
 
@@ -97,7 +97,7 @@ func (r *LLMPlatformReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 				LastTransitionTime: metav1.NewTime(time.Now()),
 				ObservedGeneration: platform.Generation,
 			})
-			if statusErr := r.Status().Update(ctx, platform); statusErr != nil {
+			if statusErr := r.refetchAndUpdateStatus(ctx, req, platform); statusErr != nil {
 				return ctrl.Result{}, statusErr
 			}
 			return ctrl.Result{}, installErr
@@ -126,7 +126,7 @@ func (r *LLMPlatformReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			LastTransitionTime: metav1.NewTime(time.Now()),
 			ObservedGeneration: platform.Generation,
 		})
-		if statusErr := r.Status().Update(ctx, platform); statusErr != nil {
+		if statusErr := r.refetchAndUpdateStatus(ctx, req, platform); statusErr != nil {
 			return ctrl.Result{}, statusErr
 		}
 
@@ -141,7 +141,7 @@ func (r *LLMPlatformReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 				LastTransitionTime: metav1.NewTime(time.Now()),
 				ObservedGeneration: platform.Generation,
 			})
-			if statusErr := r.Status().Update(ctx, platform); statusErr != nil {
+			if statusErr := r.refetchAndUpdateStatus(ctx, req, platform); statusErr != nil {
 				return ctrl.Result{}, statusErr
 			}
 			return ctrl.Result{}, upgradeErr
@@ -161,11 +161,23 @@ func (r *LLMPlatformReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	// 5. Final status update
-	if err := r.Status().Update(ctx, platform); err != nil {
+	if err := r.refetchAndUpdateStatus(ctx, req, platform); err != nil {
 		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
+}
+
+// refetchAndUpdateStatus re-fetches the LLMPlatform to get the latest resourceVersion,
+// restores the computed status, and then performs the status subresource update.
+// This avoids "object has been modified" conflicts from optimistic concurrency control.
+func (r *LLMPlatformReconciler) refetchAndUpdateStatus(ctx context.Context, req ctrl.Request, platform *v1alpha1.LLMPlatform) error {
+	status := platform.Status
+	if err := r.Get(ctx, req.NamespacedName, platform); err != nil {
+		return err
+	}
+	platform.Status = status
+	return r.Status().Update(ctx, platform)
 }
 
 // SetupWithManager sets up the controller with the Manager.

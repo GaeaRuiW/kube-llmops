@@ -48,7 +48,7 @@ spec:
             - |
 {{ include "kube-llmops.modelLoaderScript" . | indent 14 }}
           env:
-{{ include "kube-llmops.modelLoaderEnv" (dict "model" $model "root" $ "mountPath" "/data") | indent 12 }}
+{{ include "kube-llmops.modelLoaderEnv" (dict "model" $model "root" $ "mountPath" "/data" "hfHome" "/data/huggingface") | indent 12 }}
           volumeMounts:
             - name: model-cache
               mountPath: /data
@@ -70,7 +70,7 @@ spec:
           {{- $slug := replace "/" "--" $model.source }}
           args:
             - "--model-id"
-            - {{ $model.source | quote }}
+            - "/data/{{ $slug }}"
             - "--hostname"
             - "0.0.0.0"
             - "--port"
@@ -83,9 +83,9 @@ spec:
             {{- end }}
           env:
             - name: HF_HOME
-              value: /data
+              value: /data/huggingface
             - name: HUGGINGFACE_HUB_CACHE
-              value: /data
+              value: /data/huggingface
             - name: HF_HUB_OFFLINE
               value: "{{ if $.Values.offlineMode }}1{{ else }}0{{ end }}"
           {{- if and $.Values.global $.Values.global.hfToken }}

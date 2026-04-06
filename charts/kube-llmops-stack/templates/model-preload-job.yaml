@@ -35,7 +35,7 @@ spec:
             - |
 {{ include "kube-llmops.modelLoaderScript" $ | indent 14 }}
           env:
-{{ include "kube-llmops.modelLoaderEnv" (dict "model" $model "root" $ "mountPath" "/tmp/models") | indent 12 }}
+{{ include "kube-llmops.modelLoaderEnv" (dict "model" $model "root" $ "mountPath" "/tmp/models" "hfHome" "/tmp/models/huggingface") | indent 12 }}
           resources:
             requests:
               cpu: "1"
