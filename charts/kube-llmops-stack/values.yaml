@@ -144,7 +144,7 @@ litellm:
   masterKey: ""               # Set via --set or secret. REQUIRED.
   image:
     repository: ghcr.io/berriai/litellm
-    tag: main-v1.82.3-stable
+    tag: v1.83.1-nightly
     pullPolicy: IfNotPresent
   service:
     type: ClusterIP
