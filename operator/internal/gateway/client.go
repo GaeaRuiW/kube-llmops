@@ -40,8 +40,8 @@ type HTTPClient struct {
 // NewHTTPClient creates a new LiteLLM gateway HTTP client.
 func NewHTTPClient(baseURL, masterKey string) *HTTPClient {
 	return &HTTPClient{
-		baseURL:   baseURL,
-		masterKey: masterKey,
+		baseURL:    baseURL,
+		masterKey:  masterKey,
 		httpClient: &http.Client{Timeout: 10 * time.Second},
 	}
 }
@@ -112,6 +112,6 @@ func (c *HTTPClient) HealthCheck(ctx context.Context) error {
 // NoopClient is a no-op implementation for testing controllers without a real gateway.
 type NoopClient struct{}
 
-func (n *NoopClient) RegisterModel(ctx context.Context, model GatewayModel) error   { return nil }
-func (n *NoopClient) DeregisterModel(ctx context.Context, modelID string) error      { return nil }
-func (n *NoopClient) HealthCheck(ctx context.Context) error                          { return nil }
+func (n *NoopClient) RegisterModel(ctx context.Context, model GatewayModel) error { return nil }
+func (n *NoopClient) DeregisterModel(ctx context.Context, modelID string) error   { return nil }
+func (n *NoopClient) HealthCheck(ctx context.Context) error                       { return nil }

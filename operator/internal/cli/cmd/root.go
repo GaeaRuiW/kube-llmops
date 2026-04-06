@@ -20,9 +20,9 @@ func init() {
 
 func NewRootCommand() *cobra.Command {
 	root := &cobra.Command{
-		Use:   "kubectl-llmops",
-		Short: "Manage LLM infrastructure on Kubernetes",
-		Long:  "kubectl-llmops is a kubectl plugin for deploying, managing, and monitoring LLM models via the kube-llmops operator.",
+		Use:           "kubectl-llmops",
+		Short:         "Manage LLM infrastructure on Kubernetes",
+		Long:          "kubectl-llmops is a kubectl plugin for deploying, managing, and monitoring LLM models via the kube-llmops operator.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

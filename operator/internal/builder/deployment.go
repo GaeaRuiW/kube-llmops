@@ -82,14 +82,14 @@ func BuildDeployment(md *v1alpha1.ModelDeployment, engine string, platform *v1al
 
 	// --- Main container ---
 	mainContainer := corev1.Container{
-		Name:            "model-server",
-		Image:           cfg.Image,
-		Args:            args,
-		Ports:           []corev1.ContainerPort{{Name: "http", ContainerPort: cfg.Port, Protocol: corev1.ProtocolTCP}},
-		Resources:       containerResources,
-		VolumeMounts:    volumeMounts,
-		ReadinessProbe:  probe,
-		LivenessProbe:   probe.DeepCopy(),
+		Name:           "model-server",
+		Image:          cfg.Image,
+		Args:           args,
+		Ports:          []corev1.ContainerPort{{Name: "http", ContainerPort: cfg.Port, Protocol: corev1.ProtocolTCP}},
+		Resources:      containerResources,
+		VolumeMounts:   volumeMounts,
+		ReadinessProbe: probe,
+		LivenessProbe:  probe.DeepCopy(),
 	}
 
 	// --- Init container (model-loader) ---
@@ -129,7 +129,7 @@ func BuildDeployment(md *v1alpha1.ModelDeployment, engine string, platform *v1al
 					Containers:                    []corev1.Container{mainContainer},
 					Volumes:                       volumes,
 					Tolerations:                   tolerations,
-					EnableServiceLinks:             &enableServiceLinks,
+					EnableServiceLinks:            &enableServiceLinks,
 					TerminationGracePeriodSeconds: &terminationGracePeriod,
 				},
 			},
