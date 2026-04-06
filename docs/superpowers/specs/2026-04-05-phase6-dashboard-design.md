@@ -67,6 +67,8 @@ A hybrid Web Dashboard for kube-llmops that combines CRD management (ModelDeploy
 3. **Tool integration** — Backend reverse-proxies to Grafana/Langfuse/Dify/MLflow/JupyterHub with auth header injection, avoiding CORS and cross-domain cookie issues.
 4. **SSE** — `/api/v1/events` endpoint. Backend watches K8s informer changes and pushes to connected browsers.
 5. **NodePort 30302** — Added to existing `nodeport-services.yaml`.
+6. **Services proxy** — All installed UI services (Grafana, Langfuse, Dify, MLflow, JupyterHub, MinIO, Keycloak, LiteLLM, Prometheus) are accessible via same-origin reverse proxy at `/services/*`, with per-service SSO passthrough.
+7. **Theme** — Dark / Light / Auto (system preference), stored in localStorage, applied via Ant Design 5 `ConfigProvider`.
 
 ---
 
@@ -160,13 +162,24 @@ WORKLOADS
   Fine-tuning       /finetune
   RAG               /rag
 
+SERVICES
+  Services          /services
+    Grafana         /services/grafana
+    Langfuse        /services/langfuse
+    Dify            /services/dify
+    MLflow          /services/mlflow
+    JupyterHub      /services/jupyterhub
+    MinIO           /services/minio
+    Keycloak        /services/keycloak
+    LiteLLM         /services/litellm
+    Prometheus      /services/prometheus
+
 OBSERVE
   Monitoring        /monitoring
     Grafana         /monitoring/grafana
     Langfuse        /monitoring/traces
     MLflow          /monitoring/mlflow
   Logs              /logs
-  JupyterHub        /notebooks
 
 ADMIN
   Platform          /platform
@@ -175,7 +188,7 @@ ADMIN
     Permissions     /users/permissions
 ```
 
-Top header: namespace selector, cluster health indicator, user avatar + dropdown (profile, logout).
+Top header: namespace selector, cluster health indicator, theme toggle (sun/moon/auto icons), user avatar + dropdown (profile, logout).
 
 ### 4.2 Page Details
 
@@ -211,6 +224,25 @@ Top header: namespace selector, cluster health indicator, user avatar + dropdown
 - Summary: active notebook servers count, active users
 - Expandable iframe to JupyterHub UI
 
+**Services (`/services`):**
+- Grid of cards for all installed UI services, auto-discovered from LLMPlatform CR `status.components`
+- Each card: service icon, name, description, health status badge, "Open" button
+- Only services with `phase=Ready` are shown; others appear greyed out with status
+- Click "Open" → navigates to `/services/:name`, renders full-page iframe via same-origin reverse proxy
+- SSO passthrough: user does NOT see a second login prompt (see Section 5.5 for per-service auth mechanism)
+
+| Service | Internal URL | Auth Passthrough Method |
+|---------|-------------|------------------------|
+| Grafana | `{release}-grafana:3000` | `X-WEBAUTH-USER` header injection (auth.proxy mode) |
+| Langfuse | `{release}-langfuse:3000` | Bearer token (service account API key) |
+| Dify | `{release}-dify-web:3000` | Cookie session (difySession reuse) |
+| MLflow | `{release}-mlflow:5000` | No auth (cluster-internal access) |
+| JupyterHub | `{release}-jupyterhub:8000` | OAuth token relay |
+| MinIO Console | `{release}-minio:9001` | Session token injection |
+| Keycloak | `{release}-keycloak:8080` | Direct proxy (admin already authenticated) |
+| LiteLLM | `{release}-litellm:4000` | Master key header injection |
+| Prometheus | `{release}-prometheus:9090` | No auth (cluster-internal access) |
+
 **Logs (`/logs`):**
 - Aggregated pod logs via Loki (Grafana Explore embed)
 - Namespace + pod selector filters
@@ -241,6 +273,19 @@ Top header: namespace selector, cluster health indicator, user avatar + dropdown
 **Profile (`/profile`):**
 - Current user info (from Keycloak token)
 - Assigned roles and effective permissions list
+
+### 4.3 Theme Support
+
+Three theme modes: **Dark**, **Light**, **Auto** (follows OS `prefers-color-scheme`).
+
+- **Toggle location:** Top header, right side, next to user avatar. Icon cycles: sun (light) → moon (dark) → auto (system) icon.
+- **Implementation:** Ant Design 5 `ConfigProvider` with `theme.algorithm`:
+  - Light: `theme.defaultAlgorithm`
+  - Dark: `theme.darkAlgorithm`
+  - Auto: listens to `window.matchMedia('(prefers-color-scheme: dark)')` and switches dynamically
+- **Persistence:** Stored in `localStorage('theme')` + Zustand `auth` store. Survives page reload.
+- **Sidebar:** Dark sidebar uses fixed dark palette in all themes (already dark by default). Light theme lightens the main content area only.
+- **Iframe embeds:** Grafana supports `&theme=dark`/`&theme=light` query param — appended automatically based on current theme. Other services use their default theme.
 
 ---
 
@@ -295,19 +340,34 @@ PUT    /api/v1/platform                   → Update config (modules, gateway)
 GET    /api/v1/platform/components        → Component endpoints + NodePorts
 ```
 
-### 5.5 Monitoring (Proxy)
+### 5.5 Services (Unified Portal with SSO Passthrough)
 
 ```
-GET    /api/v1/monitoring/summary         → Aggregated summary (Prometheus queries)
-GET    /api/v1/notebooks/summary          → JupyterHub status (active servers)
-GET    /api/v1/monitoring/proxy/grafana/*      → Grafana reverse proxy
-GET    /api/v1/monitoring/proxy/langfuse/*     → Langfuse reverse proxy
-GET    /api/v1/monitoring/proxy/mlflow/*       → MLflow reverse proxy
-GET    /api/v1/monitoring/proxy/dify/*         → Dify reverse proxy
-GET    /api/v1/monitoring/proxy/jupyterhub/*   → JupyterHub reverse proxy
+GET    /api/v1/services                        → List installed services (auto-discovered from LLMPlatform CR)
+GET    /api/v1/services/:name/status           → Service health + endpoint info
+ALL    /services/grafana/*                     → Grafana reverse proxy (X-WEBAUTH-USER injection)
+ALL    /services/langfuse/*                    → Langfuse reverse proxy (Bearer token)
+ALL    /services/dify/*                        → Dify reverse proxy (cookie session)
+ALL    /services/mlflow/*                      → MLflow reverse proxy (no auth)
+ALL    /services/jupyterhub/*                  → JupyterHub reverse proxy (OAuth relay)
+ALL    /services/minio/*                       → MinIO Console reverse proxy (session token)
+ALL    /services/keycloak/*                    → Keycloak reverse proxy (direct)
+ALL    /services/litellm/*                     → LiteLLM reverse proxy (master key)
+ALL    /services/prometheus/*                  → Prometheus reverse proxy (no auth)
 ```
 
-### 5.6 Users & RBAC
+Note: Service proxy routes are mounted at `/services/*` (not `/api/v1/`) to avoid path conflicts with service-internal routing. Each proxy strips the `/services/:name` prefix before forwarding.
+
+### 5.6 Monitoring (Summary)
+
+```
+GET    /api/v1/monitoring/summary              → Aggregated summary (Prometheus queries)
+GET    /api/v1/notebooks/summary               → JupyterHub status (active servers)
+```
+
+Note: Full Grafana/Langfuse/MLflow/JupyterHub iframe access goes through `/services/*` proxy (Section 5.5). The `/monitoring` page uses summary API + links to `/services/:name`.
+
+### 5.7 Users & RBAC
 
 ```
 GET    /api/v1/users                      → User list (local DB + Keycloak sync)
@@ -330,7 +390,7 @@ PUT    /api/v1/permissions/:id            → Update permission
 DELETE /api/v1/permissions/:id            → Delete permission (system perms protected)
 ```
 
-### 5.7 SSE & Auth
+### 5.8 SSE & Auth
 
 ```
 GET    /api/v1/events                     → SSE stream (model status, FT progress, component health)
@@ -340,7 +400,7 @@ POST   /api/v1/auth/refresh               → Refresh token
 POST   /api/v1/auth/logout                → Logout
 ```
 
-**Total: ~43 endpoints**, organized into 7 handler files.
+**Total: ~45 API endpoints + 9 service proxy routes**, organized into 8 handler files + 1 proxy module.
 
 ---
 
@@ -355,7 +415,7 @@ POST   /api/v1/auth/logout                → Logout
 | Ant Design 5 | Component library (Table, Form, Layout, Menu, Modal) |
 | React Router 6 | Client-side routing |
 | TanStack Query | Data fetching, caching, SSE integration |
-| Zustand | Lightweight global state (user info, permissions, sidebar) |
+| Zustand | Lightweight global state (user info, permissions, sidebar, theme) |
 | TypeScript | Type safety |
 
 ```
@@ -375,19 +435,23 @@ dashboard/web/
 │   │   └── monitoring.ts
 │   ├── hooks/
 │   │   ├── useSSE.ts            # SSE hook (EventSource + auto-reconnect)
-│   │   └── usePermission.ts     # RBAC check hook
+│   │   ├── usePermission.ts     # RBAC check hook
+│   │   └── useTheme.ts          # Theme hook (dark/light/auto + media query listener)
 │   ├── store/
-│   │   └── auth.ts              # Zustand: user, permissions, token
+│   │   └── auth.ts              # Zustand: user, permissions, token, theme
 │   ├── components/
 │   │   ├── Layout/              # Sidebar + Header + Content
 │   │   ├── PermissionGuard.tsx  # Show/hide UI by permission
-│   │   └── IframeEmbed.tsx      # Generic iframe embed + loading state
+│   │   ├── IframeEmbed.tsx      # Generic iframe embed + loading state
+│   │   ├── ThemeToggle.tsx      # Sun/moon/auto icon toggle button
+│   │   └── ServiceCard.tsx      # Service card with health badge + open button
 │   └── pages/
 │       ├── Overview/
 │       ├── Models/              # List + Detail + DeployWizard
 │       ├── Finetune/            # List + Detail + CreateWizard
 │       ├── Rag/                 # List + Detail + Upload
-│       ├── Monitoring/          # Summary + Grafana/Langfuse/MLflow
+│       ├── Services/            # Service grid + per-service iframe page
+│       ├── Monitoring/          # Summary + links to /services/*
 │       ├── Notebooks/           # JupyterHub summary + iframe
 │       ├── Logs/
 │       ├── Platform/
@@ -427,13 +491,20 @@ dashboard/
 │   │   ├── rag.go                   # /api/v1/rag (proxy to Dify)
 │   │   ├── platform.go              # /api/v1/platform
 │   │   ├── monitoring.go            # /api/v1/monitoring + /api/v1/notebooks
+│   │   ├── services.go              # /api/v1/services (list + status)
 │   │   ├── users.go                 # /api/v1/users CRUD
 │   │   ├── roles.go                 # /api/v1/roles CRUD
 │   │   └── permissions.go           # /api/v1/permissions CRUD
 │   ├── sse/
 │   │   └── broker.go                # SSE broker: K8s informer → client channels
 │   ├── proxy/
-│   │   └── reverse.go               # Grafana/Langfuse/Dify/MLflow/JupyterHub reverse proxy
+│   │   ├── reverse.go               # Generic reverse proxy with path strip + header injection
+│   │   ├── auth_grafana.go          # Grafana: X-WEBAUTH-USER header
+│   │   ├── auth_langfuse.go         # Langfuse: Bearer token
+│   │   ├── auth_dify.go             # Dify: cookie session (reuse difySession pattern)
+│   │   ├── auth_minio.go            # MinIO: session token
+│   │   ├── auth_litellm.go          # LiteLLM: master key header
+│   │   └── registry.go             # Service registry: name → target URL + auth strategy
 │   └── kube/
 │       └── client.go                # K8s client init (reuses operator util patterns)
 ├── web/
@@ -536,6 +607,10 @@ dashboard:
     dify: ""                   # auto: http://{release}-dify-web:3000
     mlflow: ""                 # auto: http://{release}-mlflow:5000
     jupyterhub: ""             # auto: http://{release}-jupyterhub:8000
+    minio: ""                  # auto: http://{release}-minio:9001
+    keycloak: ""               # auto: http://{release}-keycloak:8080
+    litellm: ""                # auto: http://{release}-litellm:4000
+    prometheus: ""             # auto: http://{release}-prometheus:9090
 ```
 
 ### 7.3 Integration Points (existing files to modify)
@@ -620,7 +695,6 @@ Helm hook (`post-install,post-upgrade`), runs Go binary with `--migrate` flag:
 ## 9. Out of Scope
 
 - Multi-cluster dashboard (future)
-- Dark mode / theme customization (future)
 - i18n / localization (future)
 - Audit log (beyond Keycloak login events)
 - Dashboard-specific alerting rules
