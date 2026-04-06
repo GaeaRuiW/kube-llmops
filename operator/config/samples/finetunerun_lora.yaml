@@ -1,0 +1,33 @@
+apiVersion: llmops.kubellmops.io/v1alpha1
+kind: FineTuneRun
+metadata:
+  name: gemma-lora-v1
+spec:
+  baseModel: cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit
+  outputName: gemma-4-lora-v1
+  method: lora
+  dataSource:
+    type: minio
+    path: "s3://datasets/my-data/"
+    format: alpaca
+  training:
+    epochs: 3
+    batchSize: 4
+    learningRate: "2e-4"
+    loraRank: 16
+    loraAlpha: 32
+    loraTarget: "all"
+  resources:
+    gpu: 1
+    memory: 24Gi
+    cpu: "4"
+  evaluation:
+    enabled: true
+  qualityGate:
+    enabled: true
+    thresholds:
+      minEvalLoss: "0.8"
+      maxTrainLoss: "0.5"
+  deploy:
+    enabled: false
+    canaryWeight: 20

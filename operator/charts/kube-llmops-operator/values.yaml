@@ -1,0 +1,20 @@
+replicaCount: 1
+
+image:
+  repository: kube-llmops/operator
+  tag: latest
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true
+  name: kube-llmops-operator
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+chartPath: /charts/kube-llmops-stack

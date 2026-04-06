@@ -1,9 +1,0 @@
-apiVersion: llmops.kubellmops.io/v1alpha1
-kind: FineTuneRun
-metadata:
-  labels:
-    app.kubernetes.io/name: kube-llmops-operator
-    app.kubernetes.io/managed-by: kustomize
-  name: finetunerun-sample
-spec:
-  # TODO(user): Add fields here

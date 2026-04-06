@@ -1,0 +1,11 @@
+apiVersion: llmops.kubellmops.io/v1alpha1
+kind: ModelDeployment
+metadata:
+  name: bge-small-en
+spec:
+  source: BAAI/bge-small-en-v1.5
+  replicas: 1
+  resources:
+    gpu: 0
+    cpu: "0.5"
+    memory: 256Mi

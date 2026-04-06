@@ -1,0 +1,18 @@
+apiVersion: llmops.kubellmops.io/v1alpha1
+kind: LLMPlatform
+metadata:
+  name: kube-llmops
+spec:
+  gateway:
+    enabled: true
+  observability:
+    enabled: true
+  modelStore:
+    enabled: true
+    endpoint: kube-llmops-minio:9000
+    bucket: models
+    accessKey: minioadmin
+    secretKey: minioadmin
+    image: kube-llmops/model-loader:latest
+  postgresql:
+    enabled: true

@@ -1,0 +1,11 @@
+apiVersion: llmops.kubellmops.io/v1alpha1
+kind: ModelDeployment
+metadata:
+  name: llama-gguf
+spec:
+  source: TheBloke/Llama-2-7B-GGUF
+  engine: llamacpp
+  replicas: 1
+  resources:
+    gpu: 1
+    memory: 16Gi

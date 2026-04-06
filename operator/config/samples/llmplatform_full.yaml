@@ -1,0 +1,36 @@
+apiVersion: llmops.kubellmops.io/v1alpha1
+kind: LLMPlatform
+metadata:
+  name: kube-llmops
+spec:
+  gateway:
+    enabled: true
+    routing: latency-based-routing
+  observability:
+    enabled: true
+    grafana:
+      adminPassword: admin
+    langfuse:
+      enabled: true
+  logging:
+    enabled: true
+  modules:
+    rag:
+      enabled: true
+    finetune:
+      enabled: true
+    security:
+      enabled: false
+  modelStore:
+    enabled: true
+    endpoint: kube-llmops-minio:9000
+    bucket: models
+    accessKey: minioadmin
+    secretKey: minioadmin
+    hfTransferConcurrency: 32
+    image: kube-llmops/model-loader:latest
+  postgresql:
+    enabled: true
+  nodePort:
+    enabled: true
+    host: "172.29.193.187"
