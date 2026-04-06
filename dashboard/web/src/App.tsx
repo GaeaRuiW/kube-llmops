@@ -1,38 +1,28 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ConfigProvider, theme as antdTheme, App as AntdApp } from 'antd';
+import { ConfigProvider, App as AntdApp } from 'antd';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useTheme } from './hooks/useTheme';
+import { AppLayout } from './components/Layout/AppLayout';
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
+    queries: { retry: 1, refetchOnWindowFocus: false },
   },
 });
 
-// Placeholder pages - will be replaced in later tasks
 const Placeholder = ({ title }: { title: string }) => (
-  <div style={{ padding: 24 }}>
-    <h2>{title}</h2>
-    <p>Coming soon...</p>
-  </div>
+  <div><h2>{title}</h2><p>Coming soon...</p></div>
 );
 
-function App() {
+function ThemedApp() {
+  const { algorithm } = useTheme();
+
   return (
-    <QueryClientProvider client={queryClient}>
-      <ConfigProvider
-        theme={{
-          algorithm: antdTheme.defaultAlgorithm,
-          token: {
-            colorPrimary: '#1677ff',
-          },
-        }}
-      >
-        <AntdApp>
-          <BrowserRouter>
-            <Routes>
+    <ConfigProvider theme={{ algorithm, token: { colorPrimary: '#1677ff' } }}>
+      <AntdApp>
+        <BrowserRouter>
+          <Routes>
+            <Route element={<AppLayout />}>
               <Route path="/" element={<Navigate to="/overview" replace />} />
               <Route path="/overview" element={<Placeholder title="Overview" />} />
               <Route path="/models" element={<Placeholder title="Models" />} />
@@ -53,11 +43,19 @@ function App() {
               <Route path="/users/roles" element={<Placeholder title="Roles" />} />
               <Route path="/users/permissions" element={<Placeholder title="Permissions" />} />
               <Route path="/profile" element={<Placeholder title="Profile" />} />
-              <Route path="*" element={<Navigate to="/overview" replace />} />
-            </Routes>
-          </BrowserRouter>
-        </AntdApp>
-      </ConfigProvider>
+            </Route>
+            <Route path="*" element={<Navigate to="/overview" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </AntdApp>
+    </ConfigProvider>
+  );
+}
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemedApp />
     </QueryClientProvider>
   );
 }
