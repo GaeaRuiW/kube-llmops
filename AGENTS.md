@@ -37,8 +37,8 @@ kubectl logs -l app.kubernetes.io/name=rag-smoke-test --tail=30
 # Check quality gate
 kubectl logs job/kube-llmops-quality-gate
 
-# Run finetune Helm template tests
-python -m pytest tests/helm/test_finetune_templates.py -v
+# Run all Helm template tests (Phase 5 + finetune)
+python -m pytest tests/helm/ -v
 
 # Run finetune E2E tests (requires GPU cluster + Argo Workflows)
 uv run tests/e2e/test_finetune_e2e.py
@@ -70,7 +70,7 @@ python -m pytest tests/helm/test_phase5_templates.py -v
 └──────────────────────────────────────────────────┘
 ```
 
-## Key Features (v0.3.1)
+## Key Features (v0.5.0)
 
 ### Engine Auto-Detection
 Models are defined in a single `global.models` list. Engine is auto-detected from source name:
@@ -182,7 +182,7 @@ helm dependency update charts/kube-llmops-stack/
 | Finetune Helm Templates | pytest | 35+ | ConfigMap, RBAC, MLflow, PDB, LoRA/QLoRA/Full, profiles, validation |
 | Finetune E2E | Python+kubectl | ~26 | MLflow health, WorkflowTemplate, Argo run, Registry, QG, Grafana |
 | Finetune Sample Data | CI | 1 | Alpaca-format validation (>=10 samples) |
-| Phase 5 Templates | pytest | 35+ | routing, KEDA multi-trigger, scale-to-zero, canary, llm-d, accelerator |
+| Phase 5 Templates | pytest | 39 | routing, KEDA multi-trigger, scale-to-zero, canary, llm-d, MIG, accelerator |
 
 ## Grafana Dashboards (11)
 
