@@ -97,7 +97,7 @@ func (r *FineTuneRunReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 					LastTransitionTime: metav1.NewTime(time.Now()),
 					ObservedGeneration: ftr.Generation,
 				})
-				if statusErr := r.Status().Update(ctx, ftr); statusErr != nil {
+				if statusErr := r.refetchAndUpdateStatus(ctx, req, ftr); statusErr != nil {
 					return ctrl.Result{}, statusErr
 				}
 				return ctrl.Result{}, nil
@@ -131,7 +131,7 @@ func (r *FineTuneRunReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			ObservedGeneration: ftr.Generation,
 		})
 
-		if err := r.Status().Update(ctx, ftr); err != nil {
+		if err := r.refetchAndUpdateStatus(ctx, req, ftr); err != nil {
 			return ctrl.Result{}, err
 		}
 
@@ -169,7 +169,7 @@ func (r *FineTuneRunReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 				LastTransitionTime: metav1.NewTime(time.Now()),
 				ObservedGeneration: ftr.Generation,
 			})
-			if statusErr := r.Status().Update(ctx, ftr); statusErr != nil {
+			if statusErr := r.refetchAndUpdateStatus(ctx, req, ftr); statusErr != nil {
 				return ctrl.Result{}, statusErr
 			}
 			return ctrl.Result{}, nil
@@ -192,11 +192,22 @@ func (r *FineTuneRunReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		ObservedGeneration: ftr.Generation,
 	})
 
-	if err := r.Status().Update(ctx, ftr); err != nil {
+	if err := r.refetchAndUpdateStatus(ctx, req, ftr); err != nil {
 		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+}
+
+// refetchAndUpdateStatus re-fetches the FineTuneRun to get the latest resourceVersion,
+// restores the computed status, and then performs the status subresource update.
+func (r *FineTuneRunReconciler) refetchAndUpdateStatus(ctx context.Context, req ctrl.Request, ftr *v1alpha1.FineTuneRun) error {
+	status := ftr.Status
+	if err := r.Get(ctx, req.NamespacedName, ftr); err != nil {
+		return err
+	}
+	ftr.Status = status
+	return r.Status().Update(ctx, ftr)
 }
 
 // isNoCRDError checks if the error indicates a missing CRD (resource not found on the API server).

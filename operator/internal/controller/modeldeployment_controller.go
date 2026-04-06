@@ -208,6 +208,13 @@ func (r *ModelDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	}
 	setCondition(&md.Status.Conditions, readyCond)
 
+	// Re-fetch to get latest resourceVersion (child resource creation may have changed it)
+	computedStatus := md.Status
+	if err := r.Get(ctx, req.NamespacedName, md); err != nil {
+		return ctrl.Result{}, err
+	}
+	md.Status = computedStatus
+
 	if err := r.Status().Update(ctx, md); err != nil {
 		return ctrl.Result{}, err
 	}

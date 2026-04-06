@@ -1,6 +1,6 @@
 image:
   repository: quay.io/jupyterhub/k8s-hub
-  tag: "4.1.6"
+  tag: "4.1.0"
   pullPolicy: IfNotPresent
 
 # Admin credentials
@@ -20,7 +20,7 @@ profiles:
   - name: CPU - Small
     slug: cpu-small
     description: "2 CPU / 4 GB RAM — data exploration, lightweight tasks"
-    image: quay.io/jupyterhub/singleuser:4.1.6
+    image: quay.io/jupyterhub/singleuser:4.1.0
     resources:
       cpu: "2"
       memory: 4Gi
@@ -29,7 +29,7 @@ profiles:
   - name: CPU - Large
     slug: cpu-large
     description: "4 CPU / 16 GB RAM — data processing, model evaluation"
-    image: quay.io/jupyterhub/singleuser:4.1.6
+    image: quay.io/jupyterhub/singleuser:4.1.0
     resources:
       cpu: "4"
       memory: 16Gi
