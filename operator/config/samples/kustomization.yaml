@@ -1,0 +1,6 @@
+## Append samples of your project ##
+resources:
+- llmops_v1alpha1_modeldeployment.yaml
+- llmops_v1alpha1_llmplatform.yaml
+- llmops_v1alpha1_finetunerun.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples
