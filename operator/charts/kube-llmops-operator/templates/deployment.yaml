@@ -24,7 +24,7 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           args:
-            - --chart-path={{ .Values.chartPath }}
+            - --health-probe-bind-address=:8081
           ports:
             - name: health
               containerPort: 8081
