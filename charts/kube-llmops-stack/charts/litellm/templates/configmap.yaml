@@ -34,6 +34,12 @@ data:
           {{- $apiSuffix = "" }}
         {{- end }}
       {{- end }}
+      {{- $mode := "chat" }}
+      {{- if eq $modelType "embedding" }}
+        {{- $mode = "embedding" }}
+      {{- else if eq $modelType "reranker" }}
+        {{- $mode = "rerank" }}
+      {{- end }}
       {{- if and $model.canary $model.canary.enabled }}
       - model_name: {{ $model.name }}
         litellm_params:
@@ -41,20 +47,25 @@ data:
           api_base: http://{{ $prefix }}-{{ $model.name }}.{{ $.Release.Namespace }}.svc.cluster.local:{{ $port }}{{ $apiSuffix }}
           api_key: "no-key-needed"
           weight: {{ sub 100 (int ($model.canary.weight | default 10)) }}
+        model_info:
+          mode: {{ $mode }}
       - model_name: {{ $model.name }}
         litellm_params:
           model: {{ $litellmPrefix }}/{{ $model.name }}
           api_base: http://{{ $prefix }}-{{ $model.name }}-canary.{{ $.Release.Namespace }}.svc.cluster.local:{{ $port }}{{ $apiSuffix }}
           api_key: "no-key-needed"
           weight: {{ $model.canary.weight | default 10 }}
+        model_info:
+          mode: {{ $mode }}
       {{- else }}
       - model_name: {{ $model.name }}
         litellm_params:
           model: {{ $litellmPrefix }}/{{ $model.name }}
           api_base: http://{{ $prefix }}-{{ $model.name }}.{{ $.Release.Namespace }}.svc.cluster.local:{{ $port }}{{ $apiSuffix }}
           api_key: "no-key-needed"
-        {{- if and $model.scaleToZero $model.scaleToZero.fallbackModel }}
         model_info:
+          mode: {{ $mode }}
+        {{- if and $model.scaleToZero $model.scaleToZero.fallbackModel }}
           metadata:
             fallbacks:
               - {{ $model.scaleToZero.fallbackModel }}
