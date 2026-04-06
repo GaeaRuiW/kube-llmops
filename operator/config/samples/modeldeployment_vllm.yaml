@@ -1,0 +1,16 @@
+apiVersion: llmops.kubellmops.io/v1alpha1
+kind: ModelDeployment
+metadata:
+  name: gemma-4-26b
+spec:
+  source: cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit
+  replicas: 1
+  resources:
+    gpu: 1
+    memory: 24Gi
+    cpu: "4"
+  engineArgs:
+    --gpu-memory-utilization: "0.93"
+    --max-model-len: "8192"
+    --dtype: "half"
+    --enforce-eager: ""

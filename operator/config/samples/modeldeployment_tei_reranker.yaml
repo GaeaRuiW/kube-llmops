@@ -1,0 +1,11 @@
+apiVersion: llmops.kubellmops.io/v1alpha1
+kind: ModelDeployment
+metadata:
+  name: bge-reranker-base
+spec:
+  source: BAAI/bge-reranker-base
+  replicas: 1
+  resources:
+    gpu: 0
+    cpu: "1"
+    memory: 1Gi

@@ -1,0 +1,14 @@
+apiVersion: v2
+name: kube-llmops-operator
+description: Kubernetes Operator for kube-llmops LLMOps platform
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+home: https://github.com/GaeaRuiW/kube-llmops
+keywords:
+  - llm
+  - llmops
+  - kubernetes
+  - operator
+maintainers:
+  - name: GaeaRuiW
