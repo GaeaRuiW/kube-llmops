@@ -31,7 +31,7 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: DB_HOST
-              value: {{ .Release.Name }}-postgresql
+              value: {{ .Release.Name }}-litellm-pg
             - name: DB_PORT
               value: "5432"
             - name: DB_NAME
