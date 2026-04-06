@@ -223,3 +223,13 @@ mv $(1) $(1)-$(3) ;\
 } ;\
 ln -sf $(1)-$(3) $(1)
 endef
+
+##@ CLI
+
+.PHONY: build-cli
+build-cli: fmt vet ## Build kubectl-llmops CLI binary.
+	go build -o bin/kubectl-llmops ./cmd/kubectl-llmops/
+
+.PHONY: install-cli
+install-cli: build-cli ## Install kubectl-llmops to GOPATH/bin.
+	cp bin/kubectl-llmops $(GOBIN)
