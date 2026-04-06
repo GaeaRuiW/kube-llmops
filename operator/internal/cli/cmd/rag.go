@@ -4,13 +4,16 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/http/cookiejar"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -22,6 +25,13 @@ import (
 	v1alpha1 "github.com/kube-llmops/operator/api/v1alpha1"
 	"github.com/kube-llmops/operator/internal/cli/util"
 )
+
+// difySession holds a logged-in Dify console session.
+type difySession struct {
+	endpoint  string
+	csrfToken string
+	client    *http.Client
+}
 
 func newRAGCmd() *cobra.Command {
 	r := &cobra.Command{
@@ -37,52 +47,122 @@ func newRAGCmd() *cobra.Command {
 	return r
 }
 
-func difyRequest(ctx context.Context, kc *util.KubeClients, method, path string, body io.Reader) (*http.Response, error) {
+// newDifySession creates a logged-in session to the Dify console API.
+func newDifySession(ctx context.Context, kc *util.KubeClients) (*difySession, error) {
 	endpoint, err := findDifyEndpoint(ctx, kc)
 	if err != nil {
 		return nil, err
 	}
-	apiKey, err := findDifyAPIKey(ctx, kc)
+
+	email, password, err := findDifyCredentials(ctx, kc)
 	if err != nil {
 		return nil, err
 	}
-	url := endpoint + path
-	req, err := http.NewRequestWithContext(ctx, method, url, body)
+
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{Timeout: 30 * time.Second, Jar: jar}
+
+	b64pw := base64.StdEncoding.EncodeToString([]byte(password))
+	loginBody, _ := json.Marshal(map[string]string{"email": email, "password": b64pw})
+	loginReq, _ := http.NewRequestWithContext(ctx, "POST", endpoint+"/console/api/login", bytes.NewReader(loginBody))
+	loginReq.Header.Set("Content-Type", "application/json")
+	resp, err := client.Do(loginReq)
+	if err != nil {
+		return nil, fmt.Errorf("cannot reach Dify at %s: %w", endpoint, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("Dify login failed (%d): %s", resp.StatusCode, string(body))
+	}
+
+	var csrf string
+	for _, c := range jar.Cookies(loginReq.URL) {
+		if c.Name == "csrf_token" {
+			csrf = c.Value
+			break
+		}
+	}
+	if csrf == "" {
+		return nil, fmt.Errorf("Dify login succeeded but no CSRF token returned")
+	}
+
+	return &difySession{endpoint: endpoint, csrfToken: csrf, client: client}, nil
+}
+
+// do performs an authenticated request to the Dify console API.
+func (s *difySession) do(ctx context.Context, method, path string, body io.Reader, contentType string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, method, s.endpoint+path, body)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-	if body != nil && method != "GET" {
+	req.Header.Set("X-CSRF-Token", s.csrfToken)
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	} else if body != nil && method != "GET" {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	client := &http.Client{Timeout: 30 * time.Second}
-	return client.Do(req)
+	return s.client.Do(req)
 }
 
 func findDifyEndpoint(ctx context.Context, kc *util.KubeClients) (string, error) {
+	// Try NodePort from LLMPlatform CR
 	var lp v1alpha1.LLMPlatform
 	if err := kc.CRClient.Get(ctx, types.NamespacedName{Name: "kube-llmops", Namespace: kc.Namespace}, &lp); err == nil {
 		if lp.Spec.NodePort.Enabled && lp.Spec.NodePort.Host != "" {
-			return fmt.Sprintf("http://%s:30500", lp.Spec.NodePort.Host), nil
+			return fmt.Sprintf("http://%s:30501", lp.Spec.NodePort.Host), nil
 		}
 	}
-	svc, err := kc.Clientset.CoreV1().Services(kc.Namespace).Get(ctx, "kube-llmops-dify-api", metav1.GetOptions{})
+	// Try NodePort service
+	svc, err := kc.Clientset.CoreV1().Services(kc.Namespace).Get(ctx, "kube-llmops-dify-api-np", metav1.GetOptions{})
+	if err == nil {
+		for _, p := range svc.Spec.Ports {
+			if p.NodePort > 0 {
+				node, nerr := kc.Clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{Limit: 1})
+				if nerr == nil && len(node.Items) > 0 {
+					for _, addr := range node.Items[0].Status.Addresses {
+						if addr.Type == "InternalIP" {
+							return fmt.Sprintf("http://%s:%d", addr.Address, p.NodePort), nil
+						}
+					}
+				}
+			}
+		}
+	}
+	// Fall back to ClusterIP
+	_, err = kc.Clientset.CoreV1().Services(kc.Namespace).Get(ctx, "kube-llmops-dify-api", metav1.GetOptions{})
 	if err != nil {
 		return "", fmt.Errorf("Dify is not available. Enable RAG module: kubectl llmops platform update --enable rag")
 	}
-	return fmt.Sprintf("http://%s.%s.svc.cluster.local:%d", svc.Name, kc.Namespace, svc.Spec.Ports[0].Port), nil
+	return fmt.Sprintf("http://kube-llmops-dify-api.%s.svc.cluster.local:5001", kc.Namespace), nil
 }
 
-func findDifyAPIKey(ctx context.Context, kc *util.KubeClients) (string, error) {
-	secret, err := kc.Clientset.CoreV1().Secrets(kc.Namespace).Get(ctx, "kube-llmops-dify-credentials", metav1.GetOptions{})
+// findDifyCredentials reads admin email/password from the dify-setup ConfigMap.
+func findDifyCredentials(ctx context.Context, kc *util.KubeClients) (string, string, error) {
+	// Check env overrides first
+	if e := os.Getenv("DIFY_EMAIL"); e != "" {
+		if p := os.Getenv("DIFY_PASSWORD"); p != "" {
+			return e, p, nil
+		}
+	}
+
+	cm, err := kc.Clientset.CoreV1().ConfigMaps(kc.Namespace).Get(ctx, "kube-llmops-dify-setup", metav1.GetOptions{})
 	if err != nil {
-		return "", fmt.Errorf("Dify credentials secret not found")
+		return "", "", fmt.Errorf("Dify setup ConfigMap not found. Set DIFY_EMAIL and DIFY_PASSWORD environment variables")
 	}
-	key, ok := secret.Data["api-key"]
+	script, ok := cm.Data["setup.sh"]
 	if !ok {
-		return "", fmt.Errorf("api-key not found in Dify credentials secret")
+		return "", "", fmt.Errorf("setup.sh not found in dify-setup ConfigMap")
 	}
-	return string(key), nil
+
+	emailRe := regexp.MustCompile(`ADMIN_EMAIL="([^"]+)"`)
+	pwRe := regexp.MustCompile(`ADMIN_PASSWORD="([^"]+)"`)
+	emailMatch := emailRe.FindStringSubmatch(script)
+	pwMatch := pwRe.FindStringSubmatch(script)
+	if len(emailMatch) < 2 || len(pwMatch) < 2 {
+		return "", "", fmt.Errorf("cannot parse admin credentials from dify-setup ConfigMap")
+	}
+	return emailMatch[1], pwMatch[1], nil
 }
 
 func newRAGListKBCmd() *cobra.Command {
@@ -95,7 +175,11 @@ func newRAGListKBCmd() *cobra.Command {
 				return err
 			}
 			ctx := context.Background()
-			resp, err := difyRequest(ctx, kc, "GET", "/v1/datasets?page=1&limit=100", nil)
+			sess, err := newDifySession(ctx, kc)
+			if err != nil {
+				return err
+			}
+			resp, err := sess.do(ctx, "GET", "/console/api/datasets?page=1&limit=100", nil, "")
 			if err != nil {
 				return err
 			}
@@ -110,6 +194,10 @@ func newRAGListKBCmd() *cobra.Command {
 			var result map[string]interface{}
 			json.Unmarshal(body, &result)
 			data, _ := result["data"].([]interface{})
+			if len(data) == 0 {
+				fmt.Fprintln(os.Stdout, "No knowledge bases found.")
+				return nil
+			}
 			fmt.Fprintf(os.Stdout, "%-36s  %-30s  %s\n", "ID", "NAME", "DOCS")
 			for _, d := range data {
 				kb, _ := d.(map[string]interface{})
@@ -138,6 +226,10 @@ func newRAGCreateKBCmd() *cobra.Command {
 				return err
 			}
 			ctx := context.Background()
+			sess, err := newDifySession(ctx, kc)
+			if err != nil {
+				return err
+			}
 			payload := map[string]string{"name": args[0]}
 			if description != "" {
 				payload["description"] = description
@@ -146,7 +238,7 @@ func newRAGCreateKBCmd() *cobra.Command {
 				payload["embedding_model"] = embeddingModel
 			}
 			jsonBody, _ := json.Marshal(payload)
-			resp, err := difyRequest(ctx, kc, "POST", "/v1/datasets", bytes.NewReader(jsonBody))
+			resp, err := sess.do(ctx, "POST", "/console/api/datasets", bytes.NewReader(jsonBody), "")
 			if err != nil {
 				return err
 			}
@@ -184,14 +276,18 @@ func newRAGUploadCmd() *cobra.Command {
 				return err
 			}
 			ctx := context.Background()
+			sess, err := newDifySession(ctx, kc)
+			if err != nil {
+				return err
+			}
 
-			kbID, err := findKBIDByName(ctx, kc, kbName)
+			kbID, err := findKBIDByName(ctx, sess, kbName)
 			if err != nil {
 				return err
 			}
 
 			for _, filePath := range files {
-				if err := uploadFile(ctx, kc, kbID, filePath, chunkSize, chunkOverlap); err != nil {
+				if err := uploadFile(ctx, sess, kbID, filePath, chunkSize, chunkOverlap); err != nil {
 					return fmt.Errorf("failed to upload %s: %w", filePath, err)
 				}
 				fmt.Fprintf(os.Stdout, "Uploaded: %s\n", filePath)
@@ -204,8 +300,8 @@ func newRAGUploadCmd() *cobra.Command {
 	return cmd
 }
 
-func findKBIDByName(ctx context.Context, kc *util.KubeClients, name string) (string, error) {
-	resp, err := difyRequest(ctx, kc, "GET", "/v1/datasets?page=1&limit=100", nil)
+func findKBIDByName(ctx context.Context, sess *difySession, name string) (string, error) {
+	resp, err := sess.do(ctx, "GET", "/console/api/datasets?page=1&limit=100", nil, "")
 	if err != nil {
 		return "", err
 	}
@@ -224,16 +320,8 @@ func findKBIDByName(ctx context.Context, kc *util.KubeClients, name string) (str
 	return "", fmt.Errorf("knowledge base %q not found", name)
 }
 
-func uploadFile(ctx context.Context, kc *util.KubeClients, kbID, filePath string, chunkSize, chunkOverlap int) error {
-	endpoint, err := findDifyEndpoint(ctx, kc)
-	if err != nil {
-		return err
-	}
-	apiKey, err := findDifyAPIKey(ctx, kc)
-	if err != nil {
-		return err
-	}
-
+func uploadFile(ctx context.Context, sess *difySession, kbID, filePath string, chunkSize, chunkOverlap int) error {
+	// Step 1: Upload file to Dify file storage
 	f, err := os.Open(filePath)
 	if err != nil {
 		return err
@@ -244,24 +332,60 @@ func uploadFile(ctx context.Context, kc *util.KubeClients, kbID, filePath string
 	writer := multipart.NewWriter(&buf)
 	part, _ := writer.CreateFormFile("file", filepath.Base(filePath))
 	io.Copy(part, f)
-	processRule := fmt.Sprintf(`{"indexing_technique":"high_quality","process_rule":{"mode":"custom","rules":{"segmentation":{"separator":"\n","max_tokens":%d,"chunk_overlap":%d}}}}`, chunkSize, chunkOverlap)
-	writer.WriteField("data", processRule)
+	writer.WriteField("source", "datasets")
 	writer.Close()
 
-	url := fmt.Sprintf("%s/v1/datasets/%s/document/create_by_file", endpoint, kbID)
-	req, _ := http.NewRequestWithContext(ctx, "POST", url, &buf)
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-
-	client := &http.Client{Timeout: 120 * time.Second}
-	resp, err := client.Do(req)
+	uploadResp, err := sess.do(ctx, "POST", "/console/api/files/upload", &buf, writer.FormDataContentType())
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("upload failed (%d): %s", resp.StatusCode, string(respBody))
+	defer uploadResp.Body.Close()
+	uploadBody, _ := io.ReadAll(uploadResp.Body)
+	if uploadResp.StatusCode >= 400 {
+		return fmt.Errorf("file upload failed (%d): %s", uploadResp.StatusCode, string(uploadBody))
+	}
+	var uploadResult map[string]interface{}
+	json.Unmarshal(uploadBody, &uploadResult)
+	fileID, _ := uploadResult["id"].(string)
+	if fileID == "" {
+		return fmt.Errorf("file upload returned no file ID: %s", string(uploadBody))
+	}
+
+	// Step 2: Create document in dataset referencing the uploaded file
+	docPayload := map[string]interface{}{
+		"data_source": map[string]interface{}{
+			"info_list": map[string]interface{}{
+				"data_source_type": "upload_file",
+				"file_info_list":   map[string]interface{}{"file_ids": []string{fileID}},
+			},
+		},
+		"indexing_technique": "high_quality",
+		"process_rule": map[string]interface{}{
+			"mode": "custom",
+			"rules": map[string]interface{}{
+				"pre_processing_rules": []map[string]interface{}{
+					{"id": "remove_extra_spaces", "enabled": true},
+					{"id": "remove_urls_emails", "enabled": false},
+				},
+				"segmentation": map[string]interface{}{
+					"separator":     "\n",
+					"max_tokens":    chunkSize,
+					"chunk_overlap": chunkOverlap,
+				},
+			},
+		},
+	}
+	docBody, _ := json.Marshal(docPayload)
+	docResp, err := sess.do(ctx, "POST",
+		fmt.Sprintf("/console/api/datasets/%s/documents", kbID),
+		bytes.NewReader(docBody), "application/json")
+	if err != nil {
+		return err
+	}
+	defer docResp.Body.Close()
+	if docResp.StatusCode >= 400 {
+		respBody, _ := io.ReadAll(docResp.Body)
+		return fmt.Errorf("document creation failed (%d): %s", docResp.StatusCode, string(respBody))
 	}
 	return nil
 }
@@ -287,13 +411,17 @@ func newRAGDeleteKBCmd() *cobra.Command {
 				return err
 			}
 			ctx := context.Background()
-
-			kbID, err := findKBIDByName(ctx, kc, args[0])
+			sess, err := newDifySession(ctx, kc)
 			if err != nil {
 				return err
 			}
 
-			delResp, err := difyRequest(ctx, kc, "DELETE", "/v1/datasets/"+kbID, nil)
+			kbID, err := findKBIDByName(ctx, sess, args[0])
+			if err != nil {
+				return err
+			}
+
+			delResp, err := sess.do(ctx, "DELETE", "/console/api/datasets/"+kbID, nil, "")
 			if err != nil {
 				return err
 			}
@@ -321,18 +449,27 @@ func newRAGQueryCmd() *cobra.Command {
 				return err
 			}
 			ctx := context.Background()
+			sess, err := newDifySession(ctx, kc)
+			if err != nil {
+				return err
+			}
 
-			kbID, err := findKBIDByName(ctx, kc, args[0])
+			kbID, err := findKBIDByName(ctx, sess, args[0])
 			if err != nil {
 				return err
 			}
 
 			payload := map[string]interface{}{
 				"query": prompt,
-				"top_k": topK,
+				"retrieval_model": map[string]interface{}{
+					"search_method":           "semantic_search",
+					"top_k":                   topK,
+					"score_threshold_enabled": false,
+					"reranking_enable":        false,
+				},
 			}
 			jsonBody, _ := json.Marshal(payload)
-			queryResp, err := difyRequest(ctx, kc, "POST", "/v1/datasets/"+kbID+"/retrieve", bytes.NewReader(jsonBody))
+			queryResp, err := sess.do(ctx, "POST", "/console/api/datasets/"+kbID+"/hit-testing", bytes.NewReader(jsonBody), "")
 			if err != nil {
 				return err
 			}
@@ -347,9 +484,14 @@ func newRAGQueryCmd() *cobra.Command {
 			var queryResult map[string]interface{}
 			json.Unmarshal(queryBody, &queryResult)
 			records, _ := queryResult["records"].([]interface{})
+			if len(records) == 0 {
+				fmt.Fprintln(os.Stdout, "No results found.")
+				return nil
+			}
 			for i, r := range records {
 				rec, _ := r.(map[string]interface{})
-				content, _ := rec["content"].(string)
+				segment, _ := rec["segment"].(map[string]interface{})
+				content, _ := segment["content"].(string)
 				score, _ := rec["score"].(float64)
 				fmt.Fprintf(os.Stdout, "[%d] (score: %.4f)\n%s\n\n", i+1, score, content)
 			}
