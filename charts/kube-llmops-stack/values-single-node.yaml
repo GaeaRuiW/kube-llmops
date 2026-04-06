@@ -95,6 +95,13 @@ litellm:
   langfuseSecretKey: "sk-lf-kube-llmops"
   rateLimiting:
     enabled: true
+  guardrails:
+    presidio:
+      enabled: true                # PII masking via Presidio (requires security.presidio.enabled)
+      mode: "pre_call"
+      defaultOn: false             # users opt-in per request via guardrails: ["presidio-pii"]
+    promptInjection:
+      enabled: true                # built-in similarity-based prompt injection detection
   postgresql:
     enabled: true
     image:

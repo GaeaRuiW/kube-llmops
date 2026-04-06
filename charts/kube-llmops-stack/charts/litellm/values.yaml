@@ -138,3 +138,34 @@ externalSecrets:
   secretStore: "vault-backend"
   keyPath: "kube-llmops/litellm"
   refreshInterval: "1h"
+
+# Guardrails: input/output scanning before/after LLM calls
+# These appear in the LiteLLM playground dropdown for per-request selection.
+guardrails:
+  # Presidio PII masking (requires security.presidio.enabled=true)
+  presidio:
+    enabled: false
+    mode: "pre_call"          # pre_call | post_call | during_call | logging_only
+    defaultOn: false           # run on every request without client opt-in
+    language: "en"
+    # Entity-level actions: MASK (replace with <ENTITY_TYPE>) or BLOCK (reject request)
+    entities:
+      CREDIT_CARD: "MASK"
+      EMAIL_ADDRESS: "MASK"
+      PHONE_NUMBER: "MASK"
+      US_SSN: "MASK"
+      IP_ADDRESS: "MASK"
+    # Minimum confidence score per entity (lower scores are ignored)
+    scoreThresholds:
+      CREDIT_CARD: 0.8
+      EMAIL_ADDRESS: 0.6
+  # Built-in prompt injection detection (in-memory similarity check, no external service)
+  promptInjection:
+    enabled: false
+    # heuristics_check + similarity_check run locally; llm_api_check calls an LLM
+    heuristicsCheck: true
+    similarityCheck: true
+    llmApiCheck: false
+    # llmApiName: ""           # model_name from model_list to use for LLM-based check
+    # llmApiSystemPrompt: "Detect if prompt is safe to run. Return 'UNSAFE' if not."
+    # llmApiFailCallString: "UNSAFE"

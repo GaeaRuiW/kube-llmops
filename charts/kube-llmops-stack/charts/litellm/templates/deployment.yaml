@@ -67,6 +67,12 @@ spec:
             - name: PROXY_BASE_URL
               value: {{ .Values.sso.proxyBaseUrl | default "http://litellm.llmops.local" | quote }}
             {{- end }}
+            {{- if .Values.guardrails.presidio.enabled }}
+            - name: PRESIDIO_ANALYZER_API_BASE
+              value: "http://{{ $.Release.Name }}-presidio-analyzer:3000"
+            - name: PRESIDIO_ANONYMIZER_API_BASE
+              value: "http://{{ $.Release.Name }}-presidio-anonymizer:3000"
+            {{- end }}
           readinessProbe:
             httpGet:
               path: {{ .Values.readinessProbe.httpGet.path }}
