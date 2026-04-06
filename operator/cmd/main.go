@@ -204,10 +204,23 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Configure LiteLLM gateway client.
+	// If GATEWAY_URL is set, use real HTTP client; otherwise fall back to NoopClient.
+	var gatewayClient gateway.Client
+	gatewayURL := os.Getenv("GATEWAY_URL")
+	gatewayMasterKey := os.Getenv("GATEWAY_MASTER_KEY")
+	if gatewayURL != "" {
+		gatewayClient = gateway.NewHTTPClient(gatewayURL, gatewayMasterKey)
+		setupLog.Info("LiteLLM gateway client enabled", "url", gatewayURL)
+	} else {
+		gatewayClient = &gateway.NoopClient{}
+		setupLog.Info("LiteLLM gateway client disabled (GATEWAY_URL not set)")
+	}
+
 	if err = (&controller.ModelDeploymentReconciler{
 		Client:        mgr.GetClient(),
 		Scheme:        mgr.GetScheme(),
-		GatewayClient: &gateway.NoopClient{},
+		GatewayClient: gatewayClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ModelDeployment")
 		os.Exit(1)

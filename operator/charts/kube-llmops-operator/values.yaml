@@ -18,3 +18,9 @@ resources:
     memory: 256Mi
 
 chartPath: /charts/kube-llmops-stack
+
+gateway:
+  # LiteLLM gateway URL. Set to enable model registration via /model/new API.
+  url: "http://kube-llmops-litellm:4000"
+  # Master key for LiteLLM API authentication.
+  masterKey: "sk-kube-llmops-default"
