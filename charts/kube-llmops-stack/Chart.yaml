@@ -133,3 +133,9 @@ dependencies:
     condition: jupyterhub.enabled,global.modules.finetune.enabled
     tags:
       - ml-platform
+  - name: dashboard
+    version: 0.1.0
+    repository: "file://charts/dashboard"
+    condition: dashboard.enabled
+    tags:
+      - dashboard

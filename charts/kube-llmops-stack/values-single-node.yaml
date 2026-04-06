@@ -119,6 +119,8 @@ litellm:
         password: dify-default-pw
       - name: mlflow
         password: mlflow-default-pw
+      - name: dashboard
+        password: dashboard-default-pw
 
 # ========== Observability ==========
 observability:
@@ -161,6 +163,14 @@ langfuse:
 # ========== Keycloak (SSO) ==========
 keycloak:
   enabled: true
+
+# ========== Dashboard ==========
+dashboard:
+  enabled: true
+  oidc:
+    enabled: true
+    clientId: dashboard
+    clientSecret: dashboard-oidc-secret
 
 # ========== Logging ==========
 logging:

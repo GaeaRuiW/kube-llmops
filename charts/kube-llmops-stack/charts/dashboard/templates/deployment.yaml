@@ -1,0 +1,83 @@
+{{- if .Values.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "dashboard.fullname" . }}
+  labels:
+    {{- include "dashboard.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "dashboard.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "dashboard.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "dashboard.fullname" . }}
+      containers:
+        - name: dashboard
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            - name: PORT
+              value: "3000"
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: DB_HOST
+              value: {{ .Release.Name }}-postgresql
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: dashboard
+            - name: DB_USER
+              value: dashboard
+            - name: DB_PASSWORD
+              value: dashboard-default-pw
+            {{- if .Values.oidc.enabled }}
+            - name: OIDC_ISSUER_URL
+              {{- if .Values.oidc.internalIssuerUrl }}
+              value: {{ .Values.oidc.internalIssuerUrl }}
+              {{- else }}
+              value: {{ .Values.oidc.issuerUrl }}
+              {{- end }}
+            - name: OIDC_CLIENT_ID
+              value: {{ .Values.oidc.clientId }}
+            - name: OIDC_CLIENT_SECRET
+              value: {{ .Values.oidc.clientSecret }}
+            {{- end }}
+            - name: PROXY_GRAFANA
+              value: http://{{ .Release.Name }}-grafana:3000
+            - name: PROXY_LANGFUSE
+              value: http://{{ .Release.Name }}-langfuse:3000
+            - name: PROXY_DIFY
+              value: http://{{ .Release.Name }}-dify-web:3000
+            - name: PROXY_MLFLOW
+              value: http://{{ .Release.Name }}-mlflow:5000
+            - name: PROXY_MINIO
+              value: http://{{ .Release.Name }}-minio:9001
+            - name: PROXY_KEYCLOAK
+              value: http://{{ .Release.Name }}-keycloak:8080
+            - name: PROXY_LITELLM
+              value: http://{{ .Release.Name }}-litellm:4000
+            - name: PROXY_PROMETHEUS
+              value: http://{{ .Release.Name }}-prometheus:9090
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+{{- end }}

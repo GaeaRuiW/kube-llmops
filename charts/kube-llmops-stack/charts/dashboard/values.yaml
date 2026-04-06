@@ -1,0 +1,25 @@
+enabled: true
+
+image:
+  repository: kube-llmops/dashboard
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  port: 3000
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+oidc:
+  enabled: true
+  clientId: dashboard
+  clientSecret: dashboard-oidc-secret
+  issuerUrl: ""
+  internalIssuerUrl: ""
+  redirectUrl: ""
