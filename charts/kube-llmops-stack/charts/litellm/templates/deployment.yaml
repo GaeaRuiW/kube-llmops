@@ -73,6 +73,10 @@ spec:
             - name: PRESIDIO_ANONYMIZER_API_BASE
               value: "http://{{ $.Release.Name }}-presidio-anonymizer:3000"
             {{- end }}
+            - name: UI_USERNAME
+              value: {{ .Values.ui.username | default "admin" | quote }}
+            - name: UI_PASSWORD
+              value: {{ .Values.ui.password | default .Values.masterKey | default "sk-kube-llmops-default" | quote }}
           readinessProbe:
             httpGet:
               path: {{ .Values.readinessProbe.httpGet.path }}

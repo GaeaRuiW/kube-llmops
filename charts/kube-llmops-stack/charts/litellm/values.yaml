@@ -66,6 +66,11 @@ replicas: 1
 
 masterKey: ""
 
+# UI authentication (for /ui and /ui/chat)
+ui:
+  username: "admin"
+  password: ""              # defaults to masterKey if empty
+
 service:
   type: ClusterIP
   port: 4000
