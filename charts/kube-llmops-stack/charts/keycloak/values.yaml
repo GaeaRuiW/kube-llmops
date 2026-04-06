@@ -19,6 +19,7 @@ realm:
     - langfuse
     - minio
     - litellm
+    - dashboard
   # Default user created in the realm
   defaultUser:
     username: admin

@@ -111,6 +111,16 @@ spec:
               value: {{ .Values.grafana.oidc.roleAttributePath | default "contains(realm_access.roles[*], 'admin') && 'Admin' || 'Viewer'" | quote }}
             - name: GF_SERVER_ROOT_URL
               value: {{ $grafanaRoot | quote }}
+            - name: GF_AUTH_PROXY_ENABLED
+              value: "true"
+            - name: GF_AUTH_PROXY_HEADER_NAME
+              value: "X-WEBAUTH-USER"
+            - name: GF_AUTH_PROXY_HEADER_PROPERTY
+              value: "username"
+            - name: GF_AUTH_PROXY_AUTO_SIGN_UP
+              value: "true"
+            - name: GF_AUTH_PROXY_HEADERS
+              value: "Email:X-WEBAUTH-EMAIL"
             {{- end }}
           readinessProbe:
             httpGet:
