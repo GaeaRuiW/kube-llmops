@@ -262,3 +262,11 @@ docs/
   disaggregated-serving.md    # llm-d architecture + configuration
   model-updates.md            # Canary deployment flow
 ```
+
+### Web Dashboard (v1.0.0)
+- React 18 + Go Gin single binary, NodePort 30302
+- 3 CRDs + 9 service integrations + dynamic RBAC
+- Build: `docker build -t kube-llmops/dashboard:latest -f dashboard/Dockerfile .`
+- Dev: `cd dashboard/web && npm run dev` (frontend) + `cd dashboard && go run .` (backend)
+- Tests: `cd dashboard && go test ./...` + `cd dashboard/web && npm run build`
+- Helm template tests: `python -m pytest tests/helm/test_dashboard_templates.py -v`
