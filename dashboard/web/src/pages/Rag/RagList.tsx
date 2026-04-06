@@ -24,7 +24,10 @@ const RagList: React.FC = () => {
 
   const { data: kbs, isLoading } = useQuery({
     queryKey: ['rag-kbs'],
-    queryFn: () => apiClient.get<KnowledgeBase[]>('/rag').then(r => r.data),
+    queryFn: () => apiClient.get('/rag').then(r => {
+      const d = r.data;
+      return Array.isArray(d) ? d as KnowledgeBase[] : (d?.items ?? []) as KnowledgeBase[];
+    }),
   });
 
   const createMutation = useMutation({

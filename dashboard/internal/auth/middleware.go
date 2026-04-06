@@ -60,6 +60,11 @@ func RequirePermission(resource, action string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		perms, ok := c.Get("permissions")
 		if !ok {
+			// No JWT middleware active (dev mode / no OIDC) — allow all
+			if _, hasUser := c.Get("user"); !hasUser {
+				c.Next()
+				return
+			}
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "no permissions"})
 			return
 		}

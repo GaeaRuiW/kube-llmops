@@ -156,7 +156,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("static fs: %v", err)
 	}
-	r.StaticFS("/assets", http.FS(staticSub))
+	assetsSub, err := fs.Sub(staticSub, "assets")
+	if err != nil {
+		log.Fatalf("assets fs: %v", err)
+	}
+	r.StaticFS("/assets", http.FS(assetsSub))
 	r.NoRoute(func(c *gin.Context) {
 		f, err := fs.ReadFile(staticSub, "index.html")
 		if err != nil {
