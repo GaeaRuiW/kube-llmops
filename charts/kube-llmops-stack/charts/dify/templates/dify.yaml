@@ -525,10 +525,20 @@ spec:
           env:
             - name: HOSTNAME
               value: "0.0.0.0"
+            {{- $consoleApiUrl := .Values.web.consoleApiUrl | default "" }}
+            {{- $appApiUrl := .Values.web.appApiUrl | default "" }}
+            {{- if and (not $consoleApiUrl) .Values.global .Values.global.nodePort .Values.global.nodePort.enabled .Values.global.nodePort.host }}
+            {{- $difyApiPort := "30501" }}
+            {{- if .Values.global.nodePort.difyApi }}
+            {{- $difyApiPort = .Values.global.nodePort.difyApi | toString }}
+            {{- end }}
+            {{- $consoleApiUrl = printf "http://%s:%s" .Values.global.nodePort.host $difyApiPort }}
+            {{- $appApiUrl = $consoleApiUrl }}
+            {{- end }}
             - name: CONSOLE_API_URL
-              value: {{ .Values.web.consoleApiUrl | default "" | quote }}
+              value: {{ $consoleApiUrl | quote }}
             - name: APP_API_URL
-              value: {{ .Values.web.appApiUrl | default "" | quote }}
+              value: {{ $appApiUrl | quote }}
           readinessProbe:
             httpGet:
               path: /
