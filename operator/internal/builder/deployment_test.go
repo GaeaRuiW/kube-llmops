@@ -53,7 +53,7 @@ func TestBuildDeployment_VLLMEngine(t *testing.T) {
 
 	// Main container image
 	mainContainer := dep.Spec.Template.Spec.Containers[0]
-	if mainContainer.Image != "vllm/vllm-openai:latest" {
+	if mainContainer.Image != "vllm/vllm-openai:v0.19.0" {
 		t.Errorf("expected vllm image, got %q", mainContainer.Image)
 	}
 
@@ -104,7 +104,7 @@ func TestBuildDeployment_TEIEngine(t *testing.T) {
 	mainContainer := dep.Spec.Template.Spec.Containers[0]
 
 	// TEI image
-	expectedImage := "ghcr.io/huggingface/text-embeddings-inference:cpu-1.6"
+	expectedImage := "ghcr.io/huggingface/text-embeddings-inference:cpu-1.9.3"
 	if mainContainer.Image != expectedImage {
 		t.Errorf("expected TEI image %q, got %q", expectedImage, mainContainer.Image)
 	}
@@ -130,7 +130,7 @@ func TestBuildDeployment_LlamaCppEngine(t *testing.T) {
 	mainContainer := dep.Spec.Template.Spec.Containers[0]
 
 	// llamacpp image
-	expectedImage := "ghcr.io/ggml-org/llama.cpp:server"
+	expectedImage := "ghcr.io/ggml-org/llama.cpp:server-b8672"
 	if mainContainer.Image != expectedImage {
 		t.Errorf("expected llamacpp image %q, got %q", expectedImage, mainContainer.Image)
 	}
