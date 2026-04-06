@@ -17,68 +17,77 @@ limitations under the License.
 package controller
 
 import (
-	"context"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
-	llmopsv1alpha1 "github.com/kube-llmops/operator/api/v1alpha1"
+	v1alpha1 "github.com/kube-llmops/operator/api/v1alpha1"
 )
 
 var _ = Describe("FineTuneRun Controller", func() {
-	Context("When reconciling a resource", func() {
-		const resourceName = "test-resource"
+	const (
+		timeout  = 30 * time.Second
+		interval = 250 * time.Millisecond
+	)
 
-		ctx := context.Background()
-
-		typeNamespacedName := types.NamespacedName{
-			Name:      resourceName,
-			Namespace: "default", // TODO(user):Modify as needed
-		}
-		finetunerun := &llmopsv1alpha1.FineTuneRun{}
+	Context("When creating a FineTuneRun", func() {
+		const resourceName = "test-ftr"
+		const namespace = "default"
 
 		BeforeEach(func() {
-			By("creating the custom resource for the Kind FineTuneRun")
-			err := k8sClient.Get(ctx, typeNamespacedName, finetunerun)
-			if err != nil && errors.IsNotFound(err) {
-				resource := &llmopsv1alpha1.FineTuneRun{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      resourceName,
-						Namespace: "default",
+			ftr := &v1alpha1.FineTuneRun{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      resourceName,
+					Namespace: namespace,
+				},
+				Spec: v1alpha1.FineTuneRunSpec{
+					BaseModel:  "meta-llama/Llama-3.1-8B",
+					OutputName: "my-finetuned-model",
+					Method:     "lora",
+					DataSource: v1alpha1.DataSourceSpec{
+						Type:   "huggingface",
+						Path:   "tatsu-lab/alpaca",
+						Format: "alpaca",
 					},
-					// TODO(user): Specify other spec details if needed.
-				}
-				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+				},
 			}
+			Expect(k8sClient.Create(ctx, ftr)).To(Succeed())
 		})
 
 		AfterEach(func() {
-			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &llmopsv1alpha1.FineTuneRun{}
-			err := k8sClient.Get(ctx, typeNamespacedName, resource)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Cleanup the specific resource instance FineTuneRun")
-			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
-		})
-		It("should successfully reconcile the resource", func() {
-			By("Reconciling the created resource")
-			controllerReconciler := &FineTuneRunReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
+			resource := &v1alpha1.FineTuneRun{}
+			err := k8sClient.Get(ctx, types.NamespacedName{Name: resourceName, Namespace: namespace}, resource)
+			if err == nil {
+				_ = k8sClient.Delete(ctx, resource)
 			}
+		})
 
-			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: typeNamespacedName,
-			})
-			Expect(err).NotTo(HaveOccurred())
-			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
-			// Example: If you expect a certain status condition after reconciliation, verify it here.
+		It("should set the status phase (Failed with ArgoCRDMissing since Argo CRD is not installed)", func() {
+			Eventually(func() string {
+				updated := &v1alpha1.FineTuneRun{}
+				if err := k8sClient.Get(ctx, types.NamespacedName{Name: resourceName, Namespace: namespace}, updated); err != nil {
+					return ""
+				}
+				return updated.Status.Phase
+			}, timeout, interval).ShouldNot(BeEmpty())
+		})
+
+		It("should have a condition with reason ArgoCRDMissing", func() {
+			Eventually(func() string {
+				updated := &v1alpha1.FineTuneRun{}
+				if err := k8sClient.Get(ctx, types.NamespacedName{Name: resourceName, Namespace: namespace}, updated); err != nil {
+					return ""
+				}
+				for _, c := range updated.Status.Conditions {
+					if c.Type == "WorkflowReady" {
+						return c.Reason
+					}
+				}
+				return ""
+			}, timeout, interval).Should(Equal("ArgoCRDMissing"))
 		})
 	})
 })

@@ -17,68 +17,95 @@ limitations under the License.
 package controller
 
 import (
-	"context"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 
-	llmopsv1alpha1 "github.com/kube-llmops/operator/api/v1alpha1"
+	v1alpha1 "github.com/kube-llmops/operator/api/v1alpha1"
 )
 
 var _ = Describe("ModelDeployment Controller", func() {
-	Context("When reconciling a resource", func() {
-		const resourceName = "test-resource"
+	const (
+		timeout  = 30 * time.Second
+		interval = 250 * time.Millisecond
+	)
 
-		ctx := context.Background()
+	Context("When creating a ModelDeployment", func() {
+		const resourceName = "test-md"
+		const namespace = "default"
 
-		typeNamespacedName := types.NamespacedName{
-			Name:      resourceName,
-			Namespace: "default", // TODO(user):Modify as needed
-		}
-		modeldeployment := &llmopsv1alpha1.ModelDeployment{}
+		var md *v1alpha1.ModelDeployment
 
 		BeforeEach(func() {
-			By("creating the custom resource for the Kind ModelDeployment")
-			err := k8sClient.Get(ctx, typeNamespacedName, modeldeployment)
-			if err != nil && errors.IsNotFound(err) {
-				resource := &llmopsv1alpha1.ModelDeployment{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      resourceName,
-						Namespace: "default",
+			md = &v1alpha1.ModelDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      resourceName,
+					Namespace: namespace,
+				},
+				Spec: v1alpha1.ModelDeploymentSpec{
+					Source:   "Qwen/Qwen2.5-7B-Instruct",
+					Engine:   "auto",
+					Replicas: ptr.To(int32(1)),
+					Resources: v1alpha1.ModelResources{
+						GPU:    1,
+						Memory: "16Gi",
+						CPU:    "4",
 					},
-					// TODO(user): Specify other spec details if needed.
-				}
-				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+				},
 			}
+			Expect(k8sClient.Create(ctx, md)).To(Succeed())
 		})
 
 		AfterEach(func() {
-			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &llmopsv1alpha1.ModelDeployment{}
-			err := k8sClient.Get(ctx, typeNamespacedName, resource)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Cleanup the specific resource instance ModelDeployment")
-			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
-		})
-		It("should successfully reconcile the resource", func() {
-			By("Reconciling the created resource")
-			controllerReconciler := &ModelDeploymentReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
+			resource := &v1alpha1.ModelDeployment{}
+			err := k8sClient.Get(ctx, types.NamespacedName{Name: resourceName, Namespace: namespace}, resource)
+			if err == nil {
+				// Remove finalizer so we can delete
+				resource.Finalizers = nil
+				_ = k8sClient.Update(ctx, resource)
+				_ = k8sClient.Delete(ctx, resource)
 			}
+		})
 
-			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: typeNamespacedName,
-			})
-			Expect(err).NotTo(HaveOccurred())
-			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
-			// Example: If you expect a certain status condition after reconciliation, verify it here.
+		It("should create a Deployment for the model", func() {
+			dep := &appsv1.Deployment{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{Name: resourceName, Namespace: namespace}, dep)
+			}, timeout, interval).Should(Succeed())
+
+			Expect(dep.Labels["kube-llmops/engine"]).To(Equal("vllm"))
+		})
+
+		It("should create a Service for the model", func() {
+			svc := &corev1.Service{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{Name: resourceName, Namespace: namespace}, svc)
+			}, timeout, interval).Should(Succeed())
+
+			Expect(svc.Spec.Type).To(Equal(corev1.ServiceTypeClusterIP))
+		})
+
+		It("should create a PVC for the model cache", func() {
+			pvc := &corev1.PersistentVolumeClaim{}
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{Name: resourceName + "-cache", Namespace: namespace}, pvc)
+			}, timeout, interval).Should(Succeed())
+		})
+
+		It("should set the status engine field", func() {
+			Eventually(func() string {
+				updated := &v1alpha1.ModelDeployment{}
+				if err := k8sClient.Get(ctx, types.NamespacedName{Name: resourceName, Namespace: namespace}, updated); err != nil {
+					return ""
+				}
+				return updated.Status.Engine
+			}, timeout, interval).Should(Equal("vllm"))
 		})
 	})
 })

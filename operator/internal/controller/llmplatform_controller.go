@@ -18,38 +18,152 @@ package controller
 
 import (
 	"context"
+	"fmt"
+	"time"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
-	llmopsv1alpha1 "github.com/kube-llmops/operator/api/v1alpha1"
+	v1alpha1 "github.com/kube-llmops/operator/api/v1alpha1"
+	"github.com/kube-llmops/operator/internal/helmbridge"
 )
 
-// LLMPlatformReconciler reconciles a LLMPlatform object
+// LLMPlatformReconciler reconciles a LLMPlatform object.
 type LLMPlatformReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme     *runtime.Scheme
+	HelmClient helmbridge.HelmClient
+	ChartPath  string
 }
 
 // +kubebuilder:rbac:groups=llmops.kubellmops.io,resources=llmplatforms,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=llmops.kubellmops.io,resources=llmplatforms/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=llmops.kubellmops.io,resources=llmplatforms/finalizers,verbs=update
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the LLMPlatform object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.20.4/pkg/reconcile
+// Reconcile moves the cluster state toward the desired LLMPlatform state.
 func (r *LLMPlatformReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = logf.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
-	// TODO(user): your logic here
+	// 1. Fetch the LLMPlatform
+	platform := &v1alpha1.LLMPlatform{}
+	if err := r.Get(ctx, req.NamespacedName, platform); err != nil {
+		if apierrors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, err
+	}
+
+	// 2. Translate spec to Helm values
+	values := helmbridge.TranslateValues(platform)
+
+	releaseName := platform.Name
+	namespace := platform.Namespace
+	chartPath := r.ChartPath
+	if chartPath == "" {
+		chartPath = "charts/kube-llmops-stack"
+	}
+
+	// 3. Check if release exists
+	existingRelease, err := r.HelmClient.GetRelease(releaseName, namespace)
+
+	if err != nil || existingRelease == nil {
+		// 4a. Install
+		log.Info("installing Helm release", "name", releaseName)
+		platform.Status.Phase = "Installing"
+		setCondition(&platform.Status.Conditions, metav1.Condition{
+			Type:               "HelmRelease",
+			Status:             metav1.ConditionFalse,
+			Reason:             "Installing",
+			Message:            "Helm release is being installed",
+			LastTransitionTime: metav1.NewTime(time.Now()),
+			ObservedGeneration: platform.Generation,
+		})
+		if statusErr := r.Status().Update(ctx, platform); statusErr != nil {
+			return ctrl.Result{}, statusErr
+		}
+
+		rel, installErr := r.HelmClient.Install(releaseName, namespace, chartPath, values)
+		if installErr != nil {
+			platform.Status.Phase = "Failed"
+			setCondition(&platform.Status.Conditions, metav1.Condition{
+				Type:               "HelmRelease",
+				Status:             metav1.ConditionFalse,
+				Reason:             "InstallFailed",
+				Message:            fmt.Sprintf("Helm install failed: %v", installErr),
+				LastTransitionTime: metav1.NewTime(time.Now()),
+				ObservedGeneration: platform.Generation,
+			})
+			if statusErr := r.Status().Update(ctx, platform); statusErr != nil {
+				return ctrl.Result{}, statusErr
+			}
+			return ctrl.Result{}, installErr
+		}
+
+		platform.Status.Phase = "Ready"
+		platform.Status.HelmRelease = rel.Name
+		platform.Status.HelmRevision = rel.Version
+		setCondition(&platform.Status.Conditions, metav1.Condition{
+			Type:               "HelmRelease",
+			Status:             metav1.ConditionTrue,
+			Reason:             "InstallSucceeded",
+			Message:            "Helm release installed successfully",
+			LastTransitionTime: metav1.NewTime(time.Now()),
+			ObservedGeneration: platform.Generation,
+		})
+	} else {
+		// 4b. Upgrade
+		log.Info("upgrading Helm release", "name", releaseName)
+		platform.Status.Phase = "Upgrading"
+		setCondition(&platform.Status.Conditions, metav1.Condition{
+			Type:               "HelmRelease",
+			Status:             metav1.ConditionFalse,
+			Reason:             "Upgrading",
+			Message:            "Helm release is being upgraded",
+			LastTransitionTime: metav1.NewTime(time.Now()),
+			ObservedGeneration: platform.Generation,
+		})
+		if statusErr := r.Status().Update(ctx, platform); statusErr != nil {
+			return ctrl.Result{}, statusErr
+		}
+
+		rel, upgradeErr := r.HelmClient.Upgrade(releaseName, namespace, chartPath, values)
+		if upgradeErr != nil {
+			platform.Status.Phase = "Failed"
+			setCondition(&platform.Status.Conditions, metav1.Condition{
+				Type:               "HelmRelease",
+				Status:             metav1.ConditionFalse,
+				Reason:             "UpgradeFailed",
+				Message:            fmt.Sprintf("Helm upgrade failed: %v", upgradeErr),
+				LastTransitionTime: metav1.NewTime(time.Now()),
+				ObservedGeneration: platform.Generation,
+			})
+			if statusErr := r.Status().Update(ctx, platform); statusErr != nil {
+				return ctrl.Result{}, statusErr
+			}
+			return ctrl.Result{}, upgradeErr
+		}
+
+		platform.Status.Phase = "Ready"
+		platform.Status.HelmRelease = rel.Name
+		platform.Status.HelmRevision = rel.Version
+		setCondition(&platform.Status.Conditions, metav1.Condition{
+			Type:               "HelmRelease",
+			Status:             metav1.ConditionTrue,
+			Reason:             "UpgradeSucceeded",
+			Message:            "Helm release upgraded successfully",
+			LastTransitionTime: metav1.NewTime(time.Now()),
+			ObservedGeneration: platform.Generation,
+		})
+	}
+
+	// 5. Final status update
+	if err := r.Status().Update(ctx, platform); err != nil {
+		return ctrl.Result{}, err
+	}
 
 	return ctrl.Result{}, nil
 }
@@ -57,7 +171,7 @@ func (r *LLMPlatformReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 // SetupWithManager sets up the controller with the Manager.
 func (r *LLMPlatformReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&llmopsv1alpha1.LLMPlatform{}).
+		For(&v1alpha1.LLMPlatform{}).
 		Named("llmplatform").
 		Complete(r)
 }
