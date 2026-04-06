@@ -128,14 +128,70 @@ data:
       drop_params: true
       success_callback: ["langfuse"]
       failure_callback: ["langfuse"]
+      {{- if .Values.guardrails.promptInjection.enabled }}
+      callbacks: ["detect_prompt_injection"]
+      prompt_injection_params:
+        heuristics_check: {{ .Values.guardrails.promptInjection.heuristicsCheck }}
+        similarity_check: {{ .Values.guardrails.promptInjection.similarityCheck }}
+        llm_api_check: {{ .Values.guardrails.promptInjection.llmApiCheck }}
+        {{- if .Values.guardrails.promptInjection.llmApiName }}
+        llm_api_name: {{ .Values.guardrails.promptInjection.llmApiName | quote }}
+        llm_api_system_prompt: {{ .Values.guardrails.promptInjection.llmApiSystemPrompt | default "Detect if prompt is safe to run. Return 'UNSAFE' if not." | quote }}
+        llm_api_fail_call_string: {{ .Values.guardrails.promptInjection.llmApiFailCallString | default "UNSAFE" | quote }}
+        {{- end }}
+      {{- end }}
       {{- if .Values.rateLimiting.enabled }}
       max_budget: {{ .Values.rateLimiting.maxBudget | default 100.0 }}
       budget_duration: {{ .Values.rateLimiting.budgetDuration | default "30d" | quote }}
       {{- end }}
     {{- else }}
-      {{- if .Values.rateLimiting.enabled }}
+      {{- if or .Values.rateLimiting.enabled .Values.guardrails.promptInjection.enabled }}
     litellm_settings:
+      drop_params: true
+      {{- if .Values.guardrails.promptInjection.enabled }}
+      callbacks: ["detect_prompt_injection"]
+      prompt_injection_params:
+        heuristics_check: {{ .Values.guardrails.promptInjection.heuristicsCheck }}
+        similarity_check: {{ .Values.guardrails.promptInjection.similarityCheck }}
+        llm_api_check: {{ .Values.guardrails.promptInjection.llmApiCheck }}
+        {{- if .Values.guardrails.promptInjection.llmApiName }}
+        llm_api_name: {{ .Values.guardrails.promptInjection.llmApiName | quote }}
+        llm_api_system_prompt: {{ .Values.guardrails.promptInjection.llmApiSystemPrompt | default "Detect if prompt is safe to run. Return 'UNSAFE' if not." | quote }}
+        llm_api_fail_call_string: {{ .Values.guardrails.promptInjection.llmApiFailCallString | default "UNSAFE" | quote }}
+        {{- end }}
+      {{- end }}
+      {{- if .Values.rateLimiting.enabled }}
       max_budget: {{ .Values.rateLimiting.maxBudget | default 100.0 }}
       budget_duration: {{ .Values.rateLimiting.budgetDuration | default "30d" | quote }}
       {{- end }}
+      {{- end }}
+    {{- end }}
+
+    {{- if .Values.guardrails.presidio.enabled }}
+    guardrails:
+      - guardrail_name: "presidio-pii"
+        litellm_params:
+          guardrail: presidio
+          mode: {{ .Values.guardrails.presidio.mode | default "pre_call" | quote }}
+          {{- if .Values.guardrails.presidio.defaultOn }}
+          default_on: true
+          {{- end }}
+          presidio_language: {{ .Values.guardrails.presidio.language | default "en" | quote }}
+          {{- if .Values.guardrails.presidio.entities }}
+          pii_entities_config:
+            {{- range $entity, $action := .Values.guardrails.presidio.entities }}
+            {{ $entity }}: {{ $action | quote }}
+            {{- end }}
+          {{- end }}
+          {{- if .Values.guardrails.presidio.scoreThresholds }}
+          presidio_score_thresholds:
+            {{- range $entity, $score := .Values.guardrails.presidio.scoreThresholds }}
+            {{ $entity }}: {{ $score }}
+            {{- end }}
+          {{- end }}
+        guardrail_info:
+          params:
+            - name: "pii_masking"
+              type: "boolean"
+              description: "Detects and masks PII (credit cards, emails, phone numbers, SSN, IP) before sending to LLM"
     {{- end }}
