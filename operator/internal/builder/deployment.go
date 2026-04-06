@@ -21,9 +21,9 @@ type engineConfig struct {
 }
 
 var engines = map[string]engineConfig{
-	"vllm":     {Image: "vllm/vllm-openai:latest", Port: 8000},
-	"tei":      {Image: "ghcr.io/huggingface/text-embeddings-inference:cpu-1.6", Port: 8080},
-	"llamacpp": {Image: "ghcr.io/ggml-org/llama.cpp:server", Port: 8080},
+	"vllm":     {Image: "vllm/vllm-openai:v0.19.0", Port: 8000},
+	"tei":      {Image: "ghcr.io/huggingface/text-embeddings-inference:cpu-1.9.3", Port: 8080},
+	"llamacpp": {Image: "ghcr.io/ggml-org/llama.cpp:server-b8672", Port: 8080},
 }
 
 // acceleratorResources maps accelerator vendor to the Kubernetes device plugin resource name.

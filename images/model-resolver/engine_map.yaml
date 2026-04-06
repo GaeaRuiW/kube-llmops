@@ -7,7 +7,7 @@ rules:
   - match:
       format: gguf
     engine: llamacpp
-    image: ghcr.io/ggerganov/llama.cpp:server
+    image: ghcr.io/ggml-org/llama.cpp:server-b8672
     args:
       --host: "0.0.0.0"
       --port: "8080"
@@ -17,14 +17,14 @@ rules:
   - match:
       model_type: embedding
     engine: tei
-    image: ghcr.io/huggingface/text-embeddings-inference:latest
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.9.3
     args: {}
 
   # Reranker models -> TEI
   - match:
       model_type: reranker
     engine: tei
-    image: ghcr.io/huggingface/text-embeddings-inference:latest
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.9.3
     args:
       --reranking: ""
 
@@ -33,7 +33,7 @@ rules:
       format: safetensors
       quant_method: gptq
     engine: vllm
-    image: vllm/vllm-openai:latest
+    image: vllm/vllm-openai:v0.19.0
     args:
       --quantization: gptq
 
@@ -42,7 +42,7 @@ rules:
       format: safetensors
       quant_method: awq
     engine: vllm
-    image: vllm/vllm-openai:latest
+    image: vllm/vllm-openai:v0.19.0
     args:
       --quantization: awq
 
@@ -51,7 +51,7 @@ rules:
       format: safetensors
       quant_method: fp8
     engine: vllm
-    image: vllm/vllm-openai:latest
+    image: vllm/vllm-openai:v0.19.0
     args:
       --quantization: fp8
 
@@ -59,19 +59,19 @@ rules:
   - match:
       format: safetensors
     engine: vllm
-    image: vllm/vllm-openai:latest
+    image: vllm/vllm-openai:v0.19.0
     args: {}
 
 # Fallback when no rule matches
 fallback:
   engine: vllm
-  image: vllm/vllm-openai:latest
+  image: vllm/vllm-openai:v0.19.0
   args: {}
 
 # CPU-only override (applied when no GPU is available)
 cpu_fallback:
   engine: llamacpp
-  image: ghcr.io/ggerganov/llama.cpp:server
+  image: ghcr.io/ggml-org/llama.cpp:server-b8672
   args:
     --host: "0.0.0.0"
     --port: "8080"

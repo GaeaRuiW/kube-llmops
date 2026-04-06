@@ -59,7 +59,7 @@ sso:
 
 image:
   repository: ghcr.io/berriai/litellm
-  tag: main-v1.82.3-stable
+  tag: main-v1.82.6-stable
   pullPolicy: IfNotPresent
 
 replicas: 1

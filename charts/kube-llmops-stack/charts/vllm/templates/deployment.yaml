@@ -92,7 +92,7 @@ spec:
               memory: 8Gi
         {{- if $.Values.unifiedMemory.enabled }}
         - name: drop-cache
-          image: busybox:latest
+          image: busybox:1.37
           command: ["sh", "-c"]
           args:
             - |

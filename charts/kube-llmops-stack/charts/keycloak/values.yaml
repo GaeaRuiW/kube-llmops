@@ -2,7 +2,7 @@ enabled: false
 
 image:
   repository: quay.io/keycloak/keycloak
-  tag: "26.5.6"
+  tag: "26.5.7"
   pullPolicy: IfNotPresent
 
 # Keycloak admin credentials

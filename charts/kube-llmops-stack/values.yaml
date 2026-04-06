@@ -144,7 +144,7 @@ litellm:
   masterKey: ""               # Set via --set or secret. REQUIRED.
   image:
     repository: ghcr.io/berriai/litellm
-    tag: main-v1.82.3-stable
+    tag: main-v1.82.6-stable
     pullPolicy: IfNotPresent
   service:
     type: ClusterIP
@@ -218,7 +218,7 @@ observability:
     enabled: true
     image:
       repository: grafana/grafana
-      tag: 12.4.1
+      tag: 12.4.2
       pullPolicy: IfNotPresent
     adminPassword: ""         # Set via --set or secret
     service:
@@ -233,7 +233,7 @@ langfuse:
   enabled: false              # Off in minimal, on in standard+
   image:
     repository: langfuse/langfuse
-    tag: "3.161.0"
+    tag: "3.163.0"
     pullPolicy: IfNotPresent
   replicas: 1
   service:

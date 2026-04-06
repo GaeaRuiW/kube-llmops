@@ -18,7 +18,7 @@ prometheus:
   enabled: true
   image:
     repository: prom/prometheus
-    tag: v3.9.1
+    tag: v3.11.0
     pullPolicy: IfNotPresent
   retention: 15d
   service:
