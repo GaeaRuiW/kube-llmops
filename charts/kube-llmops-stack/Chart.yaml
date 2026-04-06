@@ -82,19 +82,19 @@ dependencies:
   - name: security
     version: 0.1.0
     repository: "file://charts/security"
-    condition: security.enabled
+    condition: security.enabled,global.modules.security.enabled
     tags:
       - security
   - name: milvus
     version: 0.1.0
     repository: "file://charts/milvus"
-    condition: milvus.enabled
+    condition: milvus.enabled,global.modules.rag.enabled
     tags:
       - vectordb
   - name: dify
     version: 0.1.0
     repository: "file://charts/dify"
-    condition: dify.enabled
+    condition: dify.enabled,global.modules.rag.enabled
     tags:
       - rag
   - name: keycloak
@@ -106,13 +106,13 @@ dependencies:
   - name: rag-eval
     version: 0.1.0
     repository: "file://charts/rag-eval"
-    condition: rag-eval.enabled
+    condition: rag-eval.enabled,global.modules.rag.enabled
     tags:
       - rag
   - name: lightrag
     version: 0.1.0
     repository: "file://charts/lightrag"
-    condition: lightrag.enabled
+    condition: lightrag.enabled,global.modules.rag.enabled
     tags:
       - rag
   - name: postgresql
@@ -124,12 +124,12 @@ dependencies:
   - name: finetune
     version: 0.1.0
     repository: "file://charts/finetune"
-    condition: finetune.enabled
+    condition: finetune.enabled,global.modules.finetune.enabled
     tags:
       - ml-platform
   - name: jupyterhub
     version: 0.1.0
     repository: "file://charts/jupyterhub"
-    condition: jupyterhub.enabled
+    condition: jupyterhub.enabled,global.modules.finetune.enabled
     tags:
       - ml-platform

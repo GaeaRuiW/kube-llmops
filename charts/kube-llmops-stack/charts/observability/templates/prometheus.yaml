@@ -144,6 +144,8 @@ data:
               severity: critical
             annotations:
               summary: "Embedding service is down"
+      {{- $ragModule := default dict (default dict (default dict .Values.global).modules).rag }}
+      {{- if not (and (hasKey $ragModule "enabled") (not $ragModule.enabled)) }}
       - name: rag-quality-alerts
         rules:
           - alert: RAGFaithfulnessLow
@@ -186,6 +188,7 @@ data:
             annotations:
               summary: "RAG evaluation data is stale (>48h)"
               description: "Last Ragas evaluation was more than 48 hours ago"
+      {{- end }}
       - name: slo-alerts
         rules:
           - alert: TTFTSLOBreach

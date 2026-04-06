@@ -202,5 +202,28 @@ metadata:
     app.kubernetes.io/instance: {{ $.Release.Name }}
     app.kubernetes.io/part-of: kube-llmops
 data:
-  {{- (.Files.Glob "dashboards/*.json").AsConfig | nindent 2 }}
+  {{- $modules := default dict .Values.global.modules }}
+  {{- $rag := default dict $modules.rag }}
+  {{- $finetune := default dict $modules.finetune }}
+  {{- $security := default dict $modules.security }}
+  {{- range $path, $_ := .Files.Glob "dashboards/*.json" }}
+  {{- $name := base $path }}
+  {{- $isRag := or (eq $name "rag-quality.json") (eq $name "milvus-overview.json") }}
+  {{- $isFinetune := eq $name "finetune-overview.json" }}
+  {{- $isSecurity := eq $name "tenant-overview.json" }}
+  {{- $include := true }}
+  {{- if and $isRag (hasKey $rag "enabled") (not $rag.enabled) }}
+    {{- $include = false }}
+  {{- end }}
+  {{- if and $isFinetune (hasKey $finetune "enabled") (not $finetune.enabled) }}
+    {{- $include = false }}
+  {{- end }}
+  {{- if and $isSecurity (hasKey $security "enabled") (not $security.enabled) }}
+    {{- $include = false }}
+  {{- end }}
+  {{- if $include }}
+  {{ $name }}: |
+    {{- $.Files.Get $path | nindent 4 }}
+  {{- end }}
+  {{- end }}
 {{- end }}

@@ -1,4 +1,4 @@
-{{- if and .Values.enabled .Values.oidc.enabled }}
+{{- if .Values.oidc.enabled }}
 ---
 # OIDC configuration — shared across components
 apiVersion: v1

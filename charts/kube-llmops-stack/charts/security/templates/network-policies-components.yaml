@@ -1,4 +1,4 @@
-{{- if and .Values.enabled .Values.networkPolicy.enabled }}
+{{- if .Values.networkPolicy.enabled }}
 ---
 # PostgreSQL: only allow litellm, langfuse, dify, dify-plugin-daemon
 apiVersion: networking.k8s.io/v1

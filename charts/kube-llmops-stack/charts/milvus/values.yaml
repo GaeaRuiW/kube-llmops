@@ -1,5 +1,3 @@
-enabled: false
-
 # Milvus standalone mode (for development/small deployments)
 image:
   repository: milvusdb/milvus

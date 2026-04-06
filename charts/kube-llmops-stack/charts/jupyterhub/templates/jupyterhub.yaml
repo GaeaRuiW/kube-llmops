@@ -1,4 +1,3 @@
-{{- if .Values.enabled }}
 {{/*
 JupyterHub — interactive ML development environment with GPU notebook profiles.
 Deploys Hub server with KubeSpawner that dynamically creates per-user notebook pods.
@@ -279,4 +278,3 @@ spec:
       port: 8001
       targetPort: proxy
       protocol: TCP
-{{- end }}

@@ -1,5 +1,3 @@
-enabled: false
-
 image:
   repository: sbnb/lightrag
   tag: latest

@@ -1,5 +1,3 @@
-enabled: false
-
 image:
   api:
     repository: langgenius/dify-api
