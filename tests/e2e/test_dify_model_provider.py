@@ -8,19 +8,22 @@ Uses Playwright headless browser to automate Dify UI.
 # ///
 
 import json
+import os
 import sys
 from playwright.sync_api import sync_playwright
 
-DIFY_URL = "http://dify.llmops.local"
+DIFY_URL = os.environ.get("DIFY_URL", "http://dify.llmops.local")
+DIFY_API_URL = os.environ.get("DIFY_API_URL", DIFY_URL)
 ADMIN_EMAIL = "admin@kube-llmops.local"
 ADMIN_PASSWORD = "Admin123!"
 LITELLM_API_BASE = "http://kube-llmops-litellm:4000/v1"
 LITELLM_API_KEY = "sk-kube-llmops-dev"
+LLM_MODEL = os.environ.get("LLM_MODEL", "gemma-4-26b-a4b")
 
 
 def api_call(page, csrf, method, path, payload=None):
     """Make an authenticated API call via the browser's fetch."""
-    url = f"{DIFY_URL}{path}"
+    url = f"{DIFY_API_URL}{path}"
     body_js = f", body: JSON.stringify({json.dumps(payload)})" if payload else ""
     ct = "'Content-Type': 'application/json'," if payload else ""
     return page.evaluate(f"""async () => {{
@@ -84,9 +87,9 @@ def test_dify_model_providers():
             failed += 1
 
         # ── Step 3: Add LLM model ──
-        print("[3/5] Adding LLM model (qwen2-5-0-5b)...")
+        print(f"[3/5] Adding LLM model ({LLM_MODEL})...")
         resp2 = api_call(page, csrf, "POST", creds_url, {
-            "model": "qwen2-5-0-5b",
+            "model": LLM_MODEL,
             "model_type": "llm",
             "credentials": {
                 "api_key": LITELLM_API_KEY,
@@ -131,11 +134,11 @@ def test_dify_model_providers():
             providers = json.loads(vl["body"]).get("data", [])
             all_models = [m["model"] for p in providers for m in p.get("models", [])]
             print(f"  LLM models: {all_models}")
-            if any("qwen" in m for m in all_models):
-                print("  PASS: qwen2-5-0-5b found")
+            if any(LLM_MODEL in m for m in all_models):
+                print(f"  PASS: {LLM_MODEL} found")
                 passed += 1
             else:
-                print("  FAIL: qwen2-5-0-5b not found in model list")
+                print(f"  FAIL: {LLM_MODEL} not found in model list")
                 failed += 1
         else:
             print(f"  FAIL: API returned {vl['status']}")

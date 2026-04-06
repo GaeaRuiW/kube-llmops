@@ -8,14 +8,17 @@ Uses Playwright headless browser + Dify 1.x console API.
 # ///
 
 import json
+import os
 import sys
 import time
 from playwright.sync_api import sync_playwright
 
-DIFY_URL = "http://dify.llmops.local"
+DIFY_URL = os.environ.get("DIFY_URL", "http://dify.llmops.local")
+DIFY_API_URL = os.environ.get("DIFY_API_URL", DIFY_URL)
 ADMIN_EMAIL = "admin@kube-llmops.local"
 ADMIN_PASSWORD = "Admin123!"
 PROVIDER = "langgenius/openai_api_compatible/openai_api_compatible"
+LLM_MODEL = os.environ.get("LLM_MODEL", "gemma-4-26b-a4b")
 
 TEST_DOC = """kube-llmops is a Kubernetes-native LLMOps platform created in 2024.
 It uses Umbrella Helm Charts and runs on k3s with NVIDIA GPU support.
@@ -28,7 +31,7 @@ GPU memory utilization is set to 80 percent."""
 
 
 def api(page, csrf, method, path, payload=None, timeout=60000):
-    url = f"{DIFY_URL}{path}"
+    url = f"{DIFY_API_URL}{path}"
     body_js = f", body: JSON.stringify({json.dumps(payload)})" if payload else ""
     ct = "'Content-Type': 'application/json'," if payload else ""
     return page.evaluate(f"""async () => {{
@@ -46,7 +49,7 @@ def api(page, csrf, method, path, payload=None, timeout=60000):
 
 def upload_text_file(page, csrf, filename, content):
     """Upload a text file via /console/api/files/upload."""
-    url = f"{DIFY_URL}/console/api/files/upload"
+    url = f"{DIFY_API_URL}/console/api/files/upload"
     return page.evaluate(f"""async () => {{
         const blob = new Blob([{json.dumps(content)}], {{ type: 'text/plain' }});
         const file = new File([blob], '{filename}', {{ type: 'text/plain' }});
@@ -93,7 +96,7 @@ def test_rag():
         r = api(page, csrf, "POST", "/console/api/workspaces/current/default-model", {
             "model_settings": [
                 {"model_type": "text-embedding", "provider": PROVIDER, "model": "bge-small-en"},
-                {"model_type": "llm", "provider": PROVIDER, "model": "qwen2-5-0-5b"},
+                {"model_type": "llm", "provider": PROVIDER, "model": LLM_MODEL},
             ]
         })
         ok("Default models", r["status"] == 200, r["body"][:100])
@@ -179,7 +182,7 @@ def test_rag():
                 "pre_prompt": "Answer based on the knowledge base context. Be concise.",
                 "model": {
                     "provider": PROVIDER,
-                    "name": "qwen2-5-0-5b",
+                    "name": LLM_MODEL,
                     "mode": "chat",
                     "completion_params": {"temperature": 0.2, "max_tokens": 256},
                 },
