@@ -25,6 +25,15 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           args:
             - --health-probe-bind-address=:8081
+          env:
+            {{- if .Values.gateway.url }}
+            - name: GATEWAY_URL
+              value: {{ .Values.gateway.url | quote }}
+            {{- end }}
+            {{- if .Values.gateway.masterKey }}
+            - name: GATEWAY_MASTER_KEY
+              value: {{ .Values.gateway.masterKey | quote }}
+            {{- end }}
           ports:
             - name: health
               containerPort: 8081

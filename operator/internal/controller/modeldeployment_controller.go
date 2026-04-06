@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -221,11 +222,22 @@ func (r *ModelDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	// 10. When Ready, register with gateway
 	if md.Status.Phase == "Ready" && r.GatewayClient != nil {
+		// Use correct LiteLLM provider prefix based on model type:
+		// - TEI embedding/reranker → "huggingface/" (no /v1 suffix on APIBase)
+		// - vLLM / llama.cpp → "openai/" (OpenAI-compatible API)
+		modelType := engine.ResolveModelType(md.Spec.Source)
+		prefix := "openai/"
+		apiBase := md.Status.Endpoint
+		if modelType == "embedding" || modelType == "reranker" {
+			prefix = "huggingface/"
+			// TEI huggingface provider must NOT have /v1 suffix
+			apiBase = strings.TrimSuffix(apiBase, "/v1")
+		}
 		model := gateway.GatewayModel{
 			ModelName: md.Name,
 			LiteLLMParams: gateway.LiteLLMParams{
-				Model:   "openai/" + md.Name,
-				APIBase: md.Status.Endpoint,
+				Model:   prefix + md.Name,
+				APIBase: apiBase,
 			},
 		}
 		if err := r.GatewayClient.RegisterModel(ctx, model); err != nil {
