@@ -32,5 +32,32 @@ func NewRootCommand() *cobra.Command {
 	root.PersistentFlags().StringVar(&kubeconfig, "kubeconfig", "", "Path to kubeconfig")
 	root.PersistentFlags().StringVar(&kubeCtx, "context", "", "Kubernetes context to use")
 
+	// Model lifecycle commands
+	root.AddCommand(newDeployCmd())
+	root.AddCommand(newListCmd())
+	root.AddCommand(newStatusCmd())
+	root.AddCommand(newScaleCmd())
+	root.AddCommand(newDeleteCmd())
+
+	// Canary commands
+	root.AddCommand(newCanaryCmd())
+	root.AddCommand(newPromoteCmd())
+	root.AddCommand(newRollbackCmd())
+
+	// DX commands
+	root.AddCommand(newLogsCmd())
+	root.AddCommand(newTestCmd())
+	root.AddCommand(newEndpointCmd())
+	root.AddCommand(newPortForwardCmd())
+	root.AddCommand(newDashboardCmd())
+
+	// Subcommand groups
+	root.AddCommand(newFinetuneCmd())
+	root.AddCommand(newPlatformCmd())
+	root.AddCommand(newRAGCmd())
+
+	// Migration
+	root.AddCommand(newMigrateCmd())
+
 	return root
 }
