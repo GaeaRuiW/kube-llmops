@@ -146,10 +146,10 @@ func BuildArgoWorkflow(ftr *v1alpha1.FineTuneRun, releaseName string) *unstructu
 				"labels":    labels,
 			},
 			"spec": map[string]interface{}{
-				"serviceAccountName":  fmt.Sprintf("%s-finetune", releaseName),
+				"serviceAccountName":    fmt.Sprintf("%s-finetune", releaseName),
 				"activeDeadlineSeconds": int64(21600),
-				"entrypoint":           "main",
-				"volumeClaimTemplates": volumeClaimTemplates,
+				"entrypoint":            "main",
+				"volumeClaimTemplates":  volumeClaimTemplates,
 				"templates": []interface{}{
 					mainTemplate,
 					prepareData,

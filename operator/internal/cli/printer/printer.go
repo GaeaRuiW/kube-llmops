@@ -7,15 +7,27 @@ import (
 	"text/tabwriter"
 
 	v1alpha1 "github.com/kube-llmops/operator/api/v1alpha1"
-	"gopkg.in/yaml.v3"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	sigsyaml "sigs.k8s.io/yaml"
 )
+
+const apiVersion = "llmops.kubellmops.io/v1alpha1"
+
+// ensureMDTypeMeta restores TypeMeta that client-go strips on reads.
+func ensureMDTypeMeta(items []v1alpha1.ModelDeployment) {
+	for i := range items {
+		items[i].TypeMeta = metav1.TypeMeta{APIVersion: apiVersion, Kind: "ModelDeployment"}
+	}
+}
 
 // PrintModelDeployments prints a list of ModelDeployments in the specified format.
 func PrintModelDeployments(w io.Writer, format string, items []v1alpha1.ModelDeployment) {
 	switch format {
 	case "json":
+		ensureMDTypeMeta(items)
 		printJSON(w, items)
 	case "yaml":
+		ensureMDTypeMeta(items)
 		printYAML(w, items)
 	case "wide":
 		printMDTable(w, items, true)
@@ -26,6 +38,12 @@ func PrintModelDeployments(w io.Writer, format string, items []v1alpha1.ModelDep
 
 // PrintFineTuneRuns prints a list of FineTuneRuns in the specified format.
 func PrintFineTuneRuns(w io.Writer, format string, items []v1alpha1.FineTuneRun) {
+	switch format {
+	case "json", "yaml":
+		for i := range items {
+			items[i].TypeMeta = metav1.TypeMeta{APIVersion: apiVersion, Kind: "FineTuneRun"}
+		}
+	}
 	switch format {
 	case "json":
 		printJSON(w, items)
@@ -38,6 +56,9 @@ func PrintFineTuneRuns(w io.Writer, format string, items []v1alpha1.FineTuneRun)
 
 // PrintLLMPlatform prints an LLMPlatform in the specified format.
 func PrintLLMPlatform(w io.Writer, format string, item *v1alpha1.LLMPlatform) {
+	if format == "json" || format == "yaml" {
+		item.TypeMeta = metav1.TypeMeta{APIVersion: apiVersion, Kind: "LLMPlatform"}
+	}
 	switch format {
 	case "json":
 		printJSON(w, item)
@@ -103,7 +124,10 @@ func printJSON(w io.Writer, v interface{}) {
 }
 
 func printYAML(w io.Writer, v interface{}) {
-	enc := yaml.NewEncoder(w)
-	enc.SetIndent(2)
-	enc.Encode(v)
+	b, err := sigsyaml.Marshal(v)
+	if err != nil {
+		fmt.Fprintf(w, "error: %v\n", err)
+		return
+	}
+	w.Write(b)
 }

@@ -145,7 +145,7 @@ func TestTranslateValues_Ingress(t *testing.T) {
 func TestTranslateValues_NoIngress(t *testing.T) {
 	platform := &v1alpha1.LLMPlatform{
 		ObjectMeta: metav1.ObjectMeta{Name: "kube-llmops"},
-		Spec: v1alpha1.LLMPlatformSpec{},
+		Spec:       v1alpha1.LLMPlatformSpec{},
 	}
 	vals := TranslateValues(platform)
 

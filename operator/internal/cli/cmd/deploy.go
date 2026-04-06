@@ -88,7 +88,7 @@ func buildModelDeployment(source, name, eng string, replicas, gpu int32, memory,
 		name = util.SlugFromSource(source)
 	}
 	md := &v1alpha1.ModelDeployment{
-		TypeMeta: metav1.TypeMeta{APIVersion: "llmops.kubellmops.io/v1alpha1", Kind: "ModelDeployment"},
+		TypeMeta:   metav1.TypeMeta{APIVersion: "llmops.kubellmops.io/v1alpha1", Kind: "ModelDeployment"},
 		ObjectMeta: metav1.ObjectMeta{Name: name},
 		Spec: v1alpha1.ModelDeploymentSpec{
 			Source:        source,
