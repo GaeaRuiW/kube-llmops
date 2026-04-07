@@ -122,6 +122,12 @@ spec:
             - name: GF_AUTH_PROXY_HEADERS
               value: "Email:X-WEBAUTH-EMAIL"
             {{- end }}
+            - name: GF_SECURITY_ALLOW_EMBEDDING
+              value: "true"
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "true"
+            - name: GF_AUTH_ANONYMOUS_ORG_ROLE
+              value: "Viewer"
           readinessProbe:
             httpGet:
               path: /api/health

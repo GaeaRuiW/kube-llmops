@@ -1,0 +1,40 @@
+headlamp:
+  # ---- OIDC (Keycloak) -------------------------------------------------
+  config:
+    oidc:
+      clientID: ""
+      clientSecret: ""
+      issuerURL: ""
+      scopes: "openid profile email"
+
+  # ---- RBAC -------------------------------------------------------------
+  clusterRoleBinding:
+    create: true
+
+  # ---- Service -----------------------------------------------------------
+  service:
+    type: ClusterIP
+    port: 80
+
+  # ---- Plugin volume -----------------------------------------------------
+  extraVolumes:
+    - name: plugins
+      emptyDir: {}
+
+  extraVolumeMounts:
+    - name: plugins
+      mountPath: /headlamp/plugins
+
+  # ---- Plugin init container ---------------------------------------------
+  initContainers:
+    - name: install-llmops-plugin
+      image: "kube-llmops/headlamp-plugin:latest"
+      command: ["sh", "-c", "cp -r /plugins/* /headlamp/plugins/"]
+      volumeMounts:
+        - name: plugins
+          mountPath: /headlamp/plugins
+
+# -- Plugin image (overridable) ---
+plugin:
+  image: "kube-llmops/headlamp-plugin"
+  tag: "latest"

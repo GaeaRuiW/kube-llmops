@@ -1,0 +1,9 @@
+apiVersion: v2
+name: headlamp
+description: Headlamp — Kubernetes web UI with kube-llmops portal plugin
+version: 0.1.0
+type: application
+dependencies:
+  - name: headlamp
+    version: "0.25.0"
+    repository: "https://kubernetes-sigs.github.io/headlamp/"
