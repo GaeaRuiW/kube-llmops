@@ -31,24 +31,27 @@ const ServiceGrid: React.FC = () => {
     <div>
       <Title level={3}>Services</Title>
       <Row gutter={[16, 16]}>
-        {(services ?? []).map(svc => (
+        {(services ?? []).map(svc => {
+          const isAvailable = svc.phase === 'Running' || svc.phase === 'Ready';
+          return (
           <Col xs={24} sm={12} lg={8} xl={6} key={svc.name}>
             <Card
-              hoverable
-              onClick={() => navigate(`/services/${svc.name}`)}
-              style={{ textAlign: 'center' }}
+              hoverable={isAvailable}
+              onClick={isAvailable ? () => navigate(`/services/${svc.name}`) : undefined}
+              style={{ textAlign: 'center', opacity: isAvailable ? 1 : 0.5, cursor: isAvailable ? 'pointer' : 'default' }}
             >
               <div style={{ fontSize: 32, marginBottom: 8 }}>{iconMap[svc.icon] || <ApiOutlined />}</div>
               <Title level={5} style={{ margin: 0 }}>{svc.name}</Title>
               <Text type="secondary">{svc.description}</Text>
               <div style={{ marginTop: 8 }}>
-                <Tag color={svc.phase === 'Ready' || svc.phase === 'Running' ? 'success' : svc.phase === 'Unknown' ? 'default' : 'warning'}>
+                <Tag color={isAvailable ? 'success' : svc.phase === 'Progressing' ? 'processing' : svc.phase === 'NotFound' ? 'default' : 'warning'}>
                   {svc.phase}
                 </Tag>
               </div>
             </Card>
           </Col>
-        ))}
+          );
+        })}
       </Row>
     </div>
   );
