@@ -3,7 +3,10 @@ import { ConfigProvider, App as AntdApp } from 'antd';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useTheme } from './hooks/useTheme';
 import { AppLayout } from './components/Layout/AppLayout';
+import { AuthGuard } from './components/AuthGuard';
 
+import Login from './pages/Login/Login';
+import LoginCallback from './pages/Login/LoginCallback';
 import Overview from './pages/Overview/Overview';
 import ModelList from './pages/Models/ModelList';
 import ModelDetail from './pages/Models/ModelDetail';
@@ -40,28 +43,35 @@ function ThemedApp() {
       <AntdApp>
         <BrowserRouter>
           <Routes>
-            <Route element={<AppLayout />}>
-              <Route path="/" element={<Navigate to="/overview" replace />} />
-              <Route path="/overview" element={<Overview />} />
-              <Route path="/models" element={<ModelList />} />
-              <Route path="/models/deploy" element={<DeployWizard />} />
-              <Route path="/models/:name" element={<ModelDetail />} />
-              <Route path="/finetune" element={<FinetuneList />} />
-              <Route path="/finetune/create" element={<CreateWizard />} />
-              <Route path="/finetune/:name" element={<FinetuneDetail />} />
-              <Route path="/rag" element={<RagList />} />
-              <Route path="/rag/:id" element={<RagDetail />} />
-              <Route path="/services" element={<ServiceGrid />} />
-              <Route path="/services/:name" element={<ServiceEmbed />} />
-              <Route path="/monitoring" element={<MonitoringDashboard />} />
-              <Route path="/monitoring/:uid" element={<MonitoringDetail />} />
-              <Route path="/notebooks" element={<Placeholder title="Notebooks" />} />
-              <Route path="/logs" element={<Placeholder title="Logs" />} />
-              <Route path="/platform" element={<PlatformStatus />} />
-              <Route path="/users" element={<UserList />} />
-              <Route path="/users/roles" element={<RoleList />} />
-              <Route path="/users/permissions" element={<PermissionList />} />
-              <Route path="/profile" element={<Placeholder title="Profile" />} />
+            {/* Public routes — no auth required */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/login/callback" element={<LoginCallback />} />
+
+            {/* Protected routes — auth guard checks SSO */}
+            <Route element={<AuthGuard />}>
+              <Route element={<AppLayout />}>
+                <Route path="/" element={<Navigate to="/overview" replace />} />
+                <Route path="/overview" element={<Overview />} />
+                <Route path="/models" element={<ModelList />} />
+                <Route path="/models/deploy" element={<DeployWizard />} />
+                <Route path="/models/:name" element={<ModelDetail />} />
+                <Route path="/finetune" element={<FinetuneList />} />
+                <Route path="/finetune/create" element={<CreateWizard />} />
+                <Route path="/finetune/:name" element={<FinetuneDetail />} />
+                <Route path="/rag" element={<RagList />} />
+                <Route path="/rag/:id" element={<RagDetail />} />
+                <Route path="/services" element={<ServiceGrid />} />
+                <Route path="/services/:name" element={<ServiceEmbed />} />
+                <Route path="/monitoring" element={<MonitoringDashboard />} />
+                <Route path="/monitoring/:uid" element={<MonitoringDetail />} />
+                <Route path="/notebooks" element={<Placeholder title="Notebooks" />} />
+                <Route path="/logs" element={<Placeholder title="Logs" />} />
+                <Route path="/platform" element={<PlatformStatus />} />
+                <Route path="/users" element={<UserList />} />
+                <Route path="/users/roles" element={<RoleList />} />
+                <Route path="/users/permissions" element={<PermissionList />} />
+                <Route path="/profile" element={<Placeholder title="Profile" />} />
+              </Route>
             </Route>
             <Route path="*" element={<Navigate to="/overview" replace />} />
           </Routes>

@@ -54,7 +54,11 @@ func main() {
 		oidcProv, err = auth.NewOIDCProvider(cfg.OIDC.IssuerURL, cfg.OIDC.ClientID, cfg.OIDC.ClientSecret, cfg.OIDC.RedirectURL)
 		if err != nil {
 			log.Printf("WARN: OIDC provider unavailable: %v", err)
+		} else {
+			log.Printf("OIDC provider configured: %s", cfg.OIDC.IssuerURL)
 		}
+	} else {
+		log.Printf("OIDC not configured (dev mode — SSO disabled)")
 	}
 
 	// SSE broker
@@ -64,7 +68,8 @@ func main() {
 	api := r.Group("/api/v1")
 
 	// Public auth routes (no middleware)
-	api.GET("/auth/me", handler.GetCurrentUser(db))
+	api.GET("/auth/config", handler.AuthConfig(oidcProv))
+	api.GET("/auth/login", handler.AuthLogin(oidcProv))
 	api.GET("/auth/callback", handler.AuthCallback(oidcProv))
 	api.POST("/auth/logout", handler.AuthLogout())
 	api.GET("/events", sse.StreamEvents(eventBroker))
@@ -74,6 +79,9 @@ func main() {
 	if oidcProv != nil {
 		protected.Use(auth.JWTMiddleware(oidcProv, db))
 	}
+
+	// Auth (needs JWT to identify user)
+	protected.GET("/auth/me", handler.GetCurrentUser(db))
 
 	// Models
 	models := protected.Group("/models")

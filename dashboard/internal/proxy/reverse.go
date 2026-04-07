@@ -44,6 +44,13 @@ func NewReverseProxy(targetURL, stripPrefix string, authInject AuthInjector) gin
 				// Remove X-Frame-Options to allow iframe embedding
 				resp.Header.Del("X-Frame-Options")
 				resp.Header.Del("Content-Security-Policy")
+				// Rewrite absolute-path Location headers to include the proxy prefix
+				// e.g. upstream returns "Location: /login" → "/services/grafana/login"
+				if loc := resp.Header.Get("Location"); loc != "" && stripPrefix != "" {
+					if strings.HasPrefix(loc, "/") && !strings.HasPrefix(loc, stripPrefix) {
+						resp.Header.Set("Location", stripPrefix+loc)
+					}
+				}
 				return nil
 			},
 		}
