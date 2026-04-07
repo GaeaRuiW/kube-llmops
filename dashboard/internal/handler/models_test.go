@@ -32,14 +32,14 @@ func TestGetModel_NilClient(t *testing.T) {
 	}
 }
 
-func TestCreateModel_NilClient(t *testing.T) {
+func TestCreateModel_NotImplemented(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.POST("/models", CreateModel(nil))
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("POST", "/models", nil)
 	r.ServeHTTP(w, req)
-	if w.Code != 503 {
-		t.Errorf("expected 503, got %d", w.Code)
+	if w.Code != 501 {
+		t.Errorf("expected 501 (Not Implemented), got %d", w.Code)
 	}
 }
