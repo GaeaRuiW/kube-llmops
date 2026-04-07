@@ -45,3 +45,5 @@ test-report-*.txt
 # Temporary
 tmp/
 .tmp/
+dashboard/dashboard
+.superpowers/

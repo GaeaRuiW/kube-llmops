@@ -204,25 +204,25 @@ spec:
       targetPort: 8000
       nodePort: {{ $np.jupyterhub | default 30888 }}
 {{- end }}
-{{- if (index .Values "dashboard" | default dict).enabled }}
+{{- if (index .Values "headlamp" | default dict).enabled }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Name }}-dashboard-np
+  name: {{ .Release.Name }}-headlamp-np
   labels:
-    app.kubernetes.io/name: dashboard-nodeport
+    app.kubernetes.io/name: headlamp-nodeport
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/part-of: kube-llmops
 spec:
   type: NodePort
   selector:
-    app.kubernetes.io/name: dashboard
+    app.kubernetes.io/name: headlamp
     app.kubernetes.io/instance: {{ .Release.Name }}
   ports:
     - name: http
-      port: 3000
-      targetPort: 3000
-      nodePort: {{ $np.dashboard | default 30302 }}
+      port: 80
+      targetPort: 4466
+      nodePort: {{ $np.headlamp | default 30302 }}
 {{- end }}
 {{- end }}

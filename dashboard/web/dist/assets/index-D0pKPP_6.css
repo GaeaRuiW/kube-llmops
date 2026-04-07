@@ -1,1 +1,0 @@
-:root{--lightningcss-light:initial;--lightningcss-dark: ;color-scheme:light dark;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif}@media (prefers-color-scheme:dark){:root{--lightningcss-light: ;--lightningcss-dark:initial}}body{min-width:320px;min-height:100vh;margin:0;padding:0}#root{min-height:100vh}

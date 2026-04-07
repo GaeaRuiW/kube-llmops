@@ -1,5 +1,0 @@
-apiVersion: v2
-name: dashboard
-description: kube-llmops Web Dashboard
-version: 0.1.0
-type: application

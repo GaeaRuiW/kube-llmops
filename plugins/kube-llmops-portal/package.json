@@ -1,0 +1,21 @@
+{
+  "name": "kube-llmops-portal",
+  "version": "0.1.0",
+  "description": "kube-llmops service links and monitoring portal for Headlamp",
+  "homepage": "https://github.com/your-org/kube-llmops",
+  "license": "Apache-2.0",
+  "scripts": {
+    "start": "headlamp-plugin start",
+    "build": "headlamp-plugin build",
+    "format": "headlamp-plugin format",
+    "lint": "headlamp-plugin lint",
+    "tsc": "headlamp-plugin tsc"
+  },
+  "dependencies": {
+    "@kinvolk/headlamp-plugin": "^0.9.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.0",
+    "typescript": "^5.0.0"
+  }
+}

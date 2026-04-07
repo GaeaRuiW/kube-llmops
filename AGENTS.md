@@ -24,6 +24,9 @@ cd charts/kube-llmops-stack && rm -f charts/*.tgz Chart.lock && helm dependency 
 # Build model-loader image (first time only)
 docker build -t kube-llmops/model-loader:latest images/model-loader/
 
+# Build Headlamp plugin image (first time only)
+docker build -t kube-llmops/headlamp-plugin:latest plugins/kube-llmops-portal/
+
 # Run Playwright E2E tests
 uv run tests/e2e/test_dify_model_provider.py
 uv run tests/e2e/test_dify_rag_e2e.py
@@ -66,6 +69,7 @@ python -m pytest tests/helm/test_phase5_templates.py -v
 │ Keycloak (SSO:8080)                               │
 │ Argo Workflows + LLaMA-Factory (Fine-tune)          │
 │ MLflow (Experiment Tracking:5000)                    │
+│ Headlamp (K8s UI:4466) + Portal Plugin             │
 │ MinIO (S3:9000) + PostgreSQL:5432                  │
 └──────────────────────────────────────────────────┘
 ```
@@ -110,7 +114,8 @@ pod start   → model-loader init  → MinIO hit → local PVC (<1s)
 --set global.nodePort.enabled=true --set global.nodePort.host=$NODE_IP
 ```
 Ports: LiteLLM :30400, Grafana :30300, Langfuse :30301, Dify :30500,
-       Keycloak :30808, Prometheus :30909, MinIO :30900/:30901
+       Keycloak :30808, Prometheus :30909, MinIO :30900/:30901,
+       Headlamp :30302
 
 SSO works automatically — OIDC URLs auto-computed from nodePort.host.
 
@@ -241,10 +246,13 @@ charts/kube-llmops-stack/
     logging/                  # Loki + Fluent Bit
     finetune/                 # LLaMA-Factory + Argo Workflows + MLflow
     fluid/                    # MinIO
+    headlamp/                 # Headlamp K8s UI (wraps upstream chart)
     keda/                     # KEDA autoscaling (multi-trigger)
 images/
   model-loader/               # Pre-built model downloader (minio + huggingface_hub + hf-transfer)
   model-resolver/             # Engine auto-detection logic
+plugins/
+  kube-llmops-portal/         # Headlamp plugin (Service Links + Grafana Monitoring)
 tests/e2e/                    # Playwright E2E tests
 tests/e2e/test_finetune_e2e.py  # Finetune pipeline E2E (MLflow + Argo + QG)
 tests/helm/                   # Helm template unit tests (pytest)
@@ -263,10 +271,9 @@ docs/
   model-updates.md            # Canary deployment flow
 ```
 
-### Web Dashboard (v1.0.0)
-- React 18 + Go Gin single binary, NodePort 30302
-- 3 CRDs + 9 service integrations + dynamic RBAC
-- Build: `docker build -t kube-llmops/dashboard:latest -f dashboard/Dockerfile .`
-- Dev: `cd dashboard/web && npm run dev` (frontend) + `cd dashboard && go run .` (backend)
-- Tests: `cd dashboard && go test ./...` + `cd dashboard/web && npm run build`
-- Helm template tests: `python -m pytest tests/helm/test_dashboard_templates.py -v`
+### Headlamp Dashboard
+- CNCF Kubernetes web UI with custom `kube-llmops-portal` plugin
+- NodePort 30302, Keycloak OIDC integration
+- Plugin pages: Service Links (card grid with NodePort URLs) + Monitoring (Grafana iframe embeds)
+- Build plugin image: `docker build -t kube-llmops/headlamp-plugin:latest plugins/kube-llmops-portal/`
+- Grafana configured with `allow_embedding=true` + anonymous Viewer access for iframes

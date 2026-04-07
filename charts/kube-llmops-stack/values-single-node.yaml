@@ -119,8 +119,6 @@ litellm:
         password: dify-default-pw
       - name: mlflow
         password: mlflow-default-pw
-      - name: dashboard
-        password: dashboard-default-pw
 
 # ========== Observability ==========
 observability:
@@ -164,13 +162,18 @@ langfuse:
 keycloak:
   enabled: true
 
-# ========== Dashboard ==========
-dashboard:
+# ========== Headlamp (K8s Dashboard) ==========
+headlamp:
   enabled: true
-  oidc:
-    enabled: true
-    clientId: dashboard
-    clientSecret: dashboard-oidc-secret
+  headlamp:
+    config:
+      oidc:
+        clientID: headlamp
+        clientSecret: headlamp-oidc-secret
+        issuerURL: ""
+        scopes: "openid profile email"
+    clusterRoleBinding:
+      create: true
 
 # ========== Logging ==========
 logging:
