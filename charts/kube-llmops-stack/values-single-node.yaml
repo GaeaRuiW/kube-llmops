@@ -166,12 +166,6 @@ keycloak:
 headlamp:
   enabled: true
   headlamp:
-    config:
-      oidc:
-        clientID: headlamp
-        clientSecret: headlamp-oidc-secret
-        issuerURL: ""
-        scopes: "openid profile email"
     clusterRoleBinding:
       create: true
 
