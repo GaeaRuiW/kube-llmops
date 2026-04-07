@@ -16,6 +16,7 @@ import RagDetail from './pages/Rag/RagDetail';
 import ServiceGrid from './pages/Services/ServiceGrid';
 import ServiceEmbed from './pages/Services/ServiceEmbed';
 import MonitoringDashboard from './pages/Monitoring/MonitoringDashboard';
+import MonitoringDetail from './pages/Monitoring/MonitoringDetail';
 import PlatformStatus from './pages/Platform/PlatformStatus';
 import UserList from './pages/Users/UserList';
 import RoleList from './pages/Users/RoleList';
@@ -53,6 +54,7 @@ function ThemedApp() {
               <Route path="/services" element={<ServiceGrid />} />
               <Route path="/services/:name" element={<ServiceEmbed />} />
               <Route path="/monitoring" element={<MonitoringDashboard />} />
+              <Route path="/monitoring/:uid" element={<MonitoringDetail />} />
               <Route path="/notebooks" element={<Placeholder title="Notebooks" />} />
               <Route path="/logs" element={<Placeholder title="Logs" />} />
               <Route path="/platform" element={<PlatformStatus />} />

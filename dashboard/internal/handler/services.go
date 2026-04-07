@@ -19,13 +19,15 @@ type ServiceInfo struct {
 	ProxyPath   string `json:"proxyPath"`
 }
 
-// serviceRegistry maps logical service names to their Kubernetes deployment
-// name suffix and metadata. The deployment name is: kube-llmops-{deployKey}.
+// serviceRegistry maps logical service names to their Kubernetes workload
+// name suffix and metadata. The workload name is: kube-llmops-{deployKey}.
+// Only services with a non-empty ProxyPath are shown to users (the proxy
+// route must exist in proxy/registry.go for the iframe embed to work).
 var serviceRegistry = []struct {
 	Name        string
 	Description string
 	Icon        string
-	DeployKey   string // suffix after "kube-llmops-" in the deployment name
+	DeployKey   string // suffix after "kube-llmops-" in the workload name
 	ProxyPath   string
 }{
 	{"grafana", "Monitoring Dashboards", "dashboard", "grafana", "/services/grafana/"},
@@ -36,31 +38,45 @@ var serviceRegistry = []struct {
 	{"keycloak", "Identity Management", "lock", "keycloak", "/services/keycloak/"},
 	{"litellm", "AI Gateway", "api", "litellm", "/services/litellm/"},
 	{"prometheus", "Metrics Query", "bar-chart", "prometheus", "/services/prometheus/"},
-	{"alertmanager", "Alert Manager", "warning", "alertmanager", ""},
-	{"loki", "Log Aggregation", "file-text", "loki", ""},
 }
 
-// deploymentPhase checks a real Kubernetes Deployment and returns its health
-// phase as one of: "Running", "Progressing", "Failed", or "NotFound".
-func deploymentPhase(ctx context.Context, kc *kube.Clients, name string) (string, error) {
+// workloadPhase checks a Kubernetes Deployment or StatefulSet and returns its
+// health phase as one of: "Running", "Progressing", "Failed", or "NotFound".
+func workloadPhase(ctx context.Context, kc *kube.Clients, name string) string {
+	// Try Deployment first.
 	deploy, err := kc.Clientset.AppsV1().Deployments(kc.Namespace).Get(ctx, name, metav1.GetOptions{})
-	if err != nil {
-		return "NotFound", nil
-	}
-	ready := deploy.Status.ReadyReplicas
-	desired := int32(1)
-	if deploy.Spec.Replicas != nil {
-		desired = *deploy.Spec.Replicas
-	}
-	if ready >= desired && desired > 0 {
-		return "Running", nil
-	}
-	for _, cond := range deploy.Status.Conditions {
-		if cond.Type == "Progressing" && cond.Status == "True" {
-			return "Progressing", nil
+	if err == nil {
+		ready := deploy.Status.ReadyReplicas
+		desired := int32(1)
+		if deploy.Spec.Replicas != nil {
+			desired = *deploy.Spec.Replicas
 		}
+		if ready >= desired && desired > 0 {
+			return "Running"
+		}
+		for _, cond := range deploy.Status.Conditions {
+			if cond.Type == "Progressing" && cond.Status == "True" {
+				return "Progressing"
+			}
+		}
+		return "Failed"
 	}
-	return "Failed", nil
+
+	// Fallback: try StatefulSet.
+	sts, err := kc.Clientset.AppsV1().StatefulSets(kc.Namespace).Get(ctx, name, metav1.GetOptions{})
+	if err == nil {
+		ready := sts.Status.ReadyReplicas
+		desired := int32(1)
+		if sts.Spec.Replicas != nil {
+			desired = *sts.Spec.Replicas
+		}
+		if ready >= desired && desired > 0 {
+			return "Running"
+		}
+		return "Progressing"
+	}
+
+	return "NotFound"
 }
 
 func ListServices(kc *kube.Clients) gin.HandlerFunc {
@@ -70,7 +86,6 @@ func ListServices(kc *kube.Clients) gin.HandlerFunc {
 			return
 		}
 
-		// Detect the Helm release prefix by finding any kube-llmops-* deployment.
 		prefix := "kube-llmops"
 
 		var services []ServiceInfo
@@ -83,9 +98,8 @@ func ListServices(kc *kube.Clients) gin.HandlerFunc {
 				ProxyPath:   sr.ProxyPath,
 			}
 
-			deployName := fmt.Sprintf("%s-%s", prefix, sr.DeployKey)
-			phase, _ := deploymentPhase(c.Request.Context(), kc, deployName)
-			svc.Phase = phase
+			workloadName := fmt.Sprintf("%s-%s", prefix, sr.DeployKey)
+			svc.Phase = workloadPhase(c.Request.Context(), kc, workloadName)
 
 			services = append(services, svc)
 		}

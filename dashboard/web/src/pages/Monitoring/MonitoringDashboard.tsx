@@ -37,7 +37,7 @@ const MonitoringDashboard: React.FC = () => {
           <Col xs={24} sm={12} lg={8} key={d.uid}>
             <Card
               hoverable
-              onClick={() => navigate(`/services/grafana`)}
+              onClick={() => navigate(`/monitoring/${d.uid}`)}
               size="small"
             >
               <Card.Meta
