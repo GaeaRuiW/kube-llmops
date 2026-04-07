@@ -56,13 +56,32 @@ spec:
               value: "true"
             - name: KC_HTTP_RELATIVE_PATH
               value: "/"
+            {{- if .Values.tls.enabled }}
+            - name: KC_HTTPS_CERTIFICATE_FILE
+              value: "/opt/keycloak/tls/tls.crt"
+            - name: KC_HTTPS_CERTIFICATE_KEY_FILE
+              value: "/opt/keycloak/tls/tls.key"
+            {{- if and .Values.global .Values.global.nodePort .Values.global.nodePort.enabled .Values.global.nodePort.host }}
+            - name: KC_HOSTNAME_URL
+              value: "https://{{ .Values.global.nodePort.host }}:{{ .Values.service.httpsNodePort | default 30809 }}"
+            {{- end }}
+            - name: KC_HTTPS_PORT
+              value: "8443"
+            {{- end }}
           ports:
             - name: http
               containerPort: 8080
+            {{- if .Values.tls.enabled }}
+            - name: https
+              containerPort: 8443
+            {{- end }}
           readinessProbe:
             httpGet:
               path: /health/ready
               port: 9000
+              {{- if .Values.tls.enabled }}
+              scheme: HTTPS
+              {{- end }}
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
@@ -71,6 +90,9 @@ spec:
             httpGet:
               path: /health/live
               port: 9000
+              {{- if .Values.tls.enabled }}
+              scheme: HTTPS
+              {{- end }}
             initialDelaySeconds: 60
             periodSeconds: 30
             timeoutSeconds: 5
@@ -82,6 +104,11 @@ spec:
               mountPath: /opt/keycloak/data
             - name: realm-import
               mountPath: /opt/keycloak/data/import
+            {{- if .Values.tls.enabled }}
+            - name: tls-cert
+              mountPath: /opt/keycloak/tls
+              readOnly: true
+            {{- end }}
       volumes:
         - name: data
           persistentVolumeClaim:
@@ -89,6 +116,11 @@ spec:
         - name: realm-import
           configMap:
             name: {{ .Release.Name }}-keycloak-realm
+        {{- if .Values.tls.enabled }}
+        - name: tls-cert
+          secret:
+            secretName: {{ .Values.tls.existingSecret | default (printf "%s-keycloak-tls" .Release.Name) }}
+        {{- end }}
 ---
 apiVersion: v1
 kind: Service
@@ -108,6 +140,14 @@ spec:
       {{- if and (eq .Values.service.type "NodePort") .Values.service.nodePort }}
       nodePort: {{ .Values.service.nodePort }}
       {{- end }}
+    {{- if .Values.tls.enabled }}
+    - name: https
+      port: {{ .Values.service.httpsPort | default 8443 }}
+      targetPort: https
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.httpsNodePort }}
+      nodePort: {{ .Values.service.httpsNodePort }}
+      {{- end }}
+    {{- end }}
   selector:
     app.kubernetes.io/name: keycloak
     app.kubernetes.io/instance: {{ .Release.Name }}

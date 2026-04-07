@@ -114,10 +114,91 @@ pod start   → model-loader init  → MinIO hit → local PVC (<1s)
 --set global.nodePort.enabled=true --set global.nodePort.host=$NODE_IP
 ```
 Ports: LiteLLM :30400, Grafana :30300, Langfuse :30301, Dify :30500,
-       Keycloak :30808, Prometheus :30909, MinIO :30900/:30901,
-       Headlamp :30302
+       Keycloak :30808 (HTTP) / :30809 (HTTPS), Prometheus :30909,
+       MinIO :30900/:30901, Headlamp :30302
 
 SSO works automatically — OIDC URLs auto-computed from nodePort.host.
+
+### Keycloak HTTPS + K8s OIDC (Headlamp SSO)
+Full SSO chain: Headlamp → Keycloak OIDC → K8s API Server.
+Requires HTTPS for Keycloak (K8s API Server mandates HTTPS OIDC issuer).
+
+**Quick Setup (k3s + self-signed cert using k3s CA):**
+```bash
+# 1. Enable Keycloak TLS in values-single-node.yaml (already enabled by default)
+#    keycloak.tls.enabled: true
+
+# 2. Generate cert signed by k3s CA (reuses existing CA — no new CA to manage)
+K3S_TLS=/var/lib/rancher/k3s/server/tls
+NODE_IP=$(kubectl get node -o jsonpath='{.items[0].status.addresses[0].address}')
+
+# Create CSR config
+cat > /tmp/keycloak.cnf << EOF
+[req]
+distinguished_name = req_dn
+req_extensions = v3_req
+prompt = no
+[req_dn]
+CN = keycloak
+[v3_req]
+basicConstraints = CA:FALSE
+keyUsage = digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = IP:${NODE_IP},IP:127.0.0.1,DNS:kube-llmops-keycloak,DNS:kube-llmops-keycloak.default.svc.cluster.local
+EOF
+
+# Sign with k3s CA
+openssl genrsa -out /tmp/kc.key 2048
+openssl req -new -key /tmp/kc.key -out /tmp/kc.csr -config /tmp/keycloak.cnf
+sudo openssl x509 -req -in /tmp/kc.csr \
+  -CA $K3S_TLS/server-ca.crt -CAkey $K3S_TLS/server-ca.key -CAcreateserial \
+  -out /tmp/kc.crt -days 3650 -extensions v3_req -extfile /tmp/keycloak.cnf
+
+# Create K8s secret
+kubectl create secret generic keycloak-tls-k3sca \
+  --from-file=tls.crt=/tmp/kc.crt --from-file=tls.key=/tmp/kc.key \
+  --from-file=ca.crt=$K3S_TLS/server-ca.crt --type=kubernetes.io/tls
+
+# 3. Configure k3s API Server for OIDC
+sudo tee /etc/rancher/k3s/config.yaml << EOF
+kube-apiserver-arg:
+  - "oidc-issuer-url=https://${NODE_IP}:30809/realms/kube-llmops"
+  - "oidc-client-id=headlamp"
+  - "oidc-username-claim=preferred_username"
+  - "oidc-username-prefix=-"
+  - "oidc-groups-claim=groups"
+  - "oidc-ca-file=/var/lib/rancher/k3s/server/tls/server-ca.crt"
+EOF
+sudo systemctl restart k3s
+
+# 4. Deploy with OIDC
+helm upgrade kube-llmops charts/kube-llmops-stack \
+  -f charts/kube-llmops-stack/values-single-node.yaml \
+  --set global.nodePort.enabled=true --set global.nodePort.host=$NODE_IP \
+  --set headlamp.headlamp.config.oidc.issuerURL=https://$NODE_IP:30809/realms/kube-llmops \
+  --no-hooks
+```
+
+**User-provided cert (production):**
+```yaml
+keycloak:
+  tls:
+    enabled: true
+    selfSigned: false
+    existingSecret: "my-keycloak-tls"   # must have tls.crt, tls.key, ca.crt
+```
+Then configure k3s `--oidc-ca-file` with your CA.
+
+**OIDC RBAC** — maps Keycloak users to K8s ClusterRoles:
+```yaml
+oidcRBAC:
+  enabled: true
+  bindings:
+    - username: admin           # must match Keycloak preferred_username
+      clusterRole: cluster-admin
+    - username: dev@company.com
+      clusterRole: edit
+```
 
 ### Fine-tuning Pipeline (v0.4.0)
 - Argo Workflows DAG: prepare-data → finetune → merge-upload → evaluate → quality-gate → deploy

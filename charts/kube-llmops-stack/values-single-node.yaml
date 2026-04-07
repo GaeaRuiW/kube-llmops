@@ -161,11 +161,33 @@ langfuse:
 # ========== Keycloak (SSO) ==========
 keycloak:
   enabled: true
+  tls:
+    enabled: true
+    selfSigned: false          # using k3s CA-signed cert (see AGENTS.md for setup)
+    existingSecret: "keycloak-tls-k3sca"  # k3s CA-signed cert (see AGENTS.md for setup)
+
+# ========== OIDC RBAC (Headlamp → K8s API) ==========
+# Maps Keycloak users to Kubernetes ClusterRoles.
+# The username must match Keycloak's "preferred_username" claim.
+oidcRBAC:
+  enabled: true
+  bindings:
+    - username: admin
+      clusterRole: cluster-admin
 
 # ========== Headlamp (K8s Dashboard) ==========
 headlamp:
   enabled: true
   headlamp:
+    config:
+      oidc:
+        clientID: headlamp
+        clientSecret: headlamp-oidc-secret
+        issuerURL: ""   # auto-set via --set when using NodePort
+        scopes: "openid profile email"
+      # Accept self-signed Keycloak certs (remove when using trusted certs)
+      extraArgs:
+        - --insecure-ssl
     clusterRoleBinding:
       create: true
 

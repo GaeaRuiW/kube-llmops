@@ -82,6 +82,14 @@ spec:
       port: 8080
       targetPort: 8080
       nodePort: {{ $np.keycloak | default 30808 }}
+{{- if (index .Values "keycloak" | default dict).tls }}
+{{- if (index .Values "keycloak").tls.enabled }}
+    - name: https
+      port: 8443
+      targetPort: 8443
+      nodePort: {{ $np.keycloakHttps | default 30809 }}
+{{- end }}
+{{- end }}
 ---
 apiVersion: v1
 kind: Service

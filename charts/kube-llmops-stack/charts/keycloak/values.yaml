@@ -10,6 +10,20 @@ admin:
   username: admin
   password: admin123!
 
+# TLS for HTTPS (required for Kubernetes OIDC integration)
+# Options:
+#   1. Self-signed (dev/lab): tls.enabled=true, tls.selfSigned=true
+#   2. User-provided cert:    tls.enabled=true, tls.existingSecret=my-tls-secret
+# The TLS secret must contain: tls.crt, tls.key, ca.crt
+# Extract CA for k3s OIDC:
+#   kubectl get secret <release>-keycloak-tls -o jsonpath='{.data.ca\.crt}' | base64 -d
+tls:
+  enabled: false
+  # Auto-generate self-signed cert (persisted via lookup, not regenerated on upgrade)
+  selfSigned: true
+  # Use an existing kubernetes.io/tls Secret (must contain tls.crt, tls.key, ca.crt)
+  existingSecret: ""
+
 # Realm to auto-import on first startup
 realm:
   name: kube-llmops
@@ -33,7 +47,9 @@ realm:
 service:
   type: ClusterIP
   port: 8080
+  httpsPort: 8443
   nodePort: null              # Set when service.type=NodePort, e.g. 30808
+  httpsNodePort: null         # Set for HTTPS NodePort, e.g. 30809
 
 resources:
   requests:
