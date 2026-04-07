@@ -17,18 +17,18 @@ headlamp:
     port: 80
 
   # ---- Plugin volume -----------------------------------------------------
-  extraVolumes:
+  volumes:
     - name: plugins
       emptyDir: {}
 
-  extraVolumeMounts:
+  volumeMounts:
     - name: plugins
       mountPath: /headlamp/plugins
 
   # ---- Plugin init container ---------------------------------------------
   initContainers:
     - name: install-llmops-plugin
-      image: "kube-llmops/headlamp-plugin:latest"
+      image: "localhost:5000/kube-llmops/headlamp-plugin:latest"
       command: ["sh", "-c", "cp -r /plugins/* /headlamp/plugins/"]
       volumeMounts:
         - name: plugins
@@ -36,5 +36,5 @@ headlamp:
 
 # -- Plugin image (overridable) ---
 plugin:
-  image: "kube-llmops/headlamp-plugin"
+  image: "localhost:5000/kube-llmops/headlamp-plugin"
   tag: "latest"
