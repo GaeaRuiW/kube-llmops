@@ -16,16 +16,33 @@ headlamp:
     type: ClusterIP
     port: 80
 
-  # ---- Plugin volume -----------------------------------------------------
+  # ---- Trust Keycloak CA (for OIDC TLS) ---------------------------------
+  env:
+    - name: SSL_CERT_FILE
+      value: /custom-certs/ca-certificates.crt
+
+  # ---- Volumes -----------------------------------------------------------
   volumes:
     - name: plugins
+      emptyDir: {}
+    - name: keycloak-ca
+      secret:
+        secretName: keycloak-tls-k3sca
+        items:
+          - key: ca.crt
+            path: keycloak-ca.crt
+        optional: true
+    - name: ssl-certs
       emptyDir: {}
 
   volumeMounts:
     - name: plugins
       mountPath: /headlamp/plugins
+    - name: ssl-certs
+      mountPath: /custom-certs
+      readOnly: true
 
-  # ---- Plugin init container ---------------------------------------------
+  # ---- Init containers ---------------------------------------------------
   initContainers:
     - name: install-llmops-plugin
       image: "localhost:5000/kube-llmops/headlamp-plugin:latest"
@@ -33,6 +50,24 @@ headlamp:
       volumeMounts:
         - name: plugins
           mountPath: /headlamp/plugins
+    - name: build-ca-bundle
+      image: "alpine:3.20"
+      command:
+        - sh
+        - -c
+        - |
+          cp /etc/ssl/certs/ca-certificates.crt /custom-certs/ca-certificates.crt
+          if [ -f /keycloak-ca/keycloak-ca.crt ]; then
+            cat /keycloak-ca/keycloak-ca.crt >> /custom-certs/ca-certificates.crt
+            echo "Appended Keycloak CA to trust store"
+          else
+            echo "No Keycloak CA found, using system certs only"
+          fi
+      volumeMounts:
+        - name: keycloak-ca
+          mountPath: /keycloak-ca
+        - name: ssl-certs
+          mountPath: /custom-certs
 
 # -- Plugin image (overridable) ---
 plugin:
