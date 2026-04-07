@@ -11,10 +11,9 @@
     "lint": "headlamp-plugin lint",
     "tsc": "headlamp-plugin tsc"
   },
-  "dependencies": {
-    "@kinvolk/headlamp-plugin": "^0.9.0"
-  },
+  "dependencies": {},
   "devDependencies": {
+    "@kinvolk/headlamp-plugin": "^0.9.0",
     "@types/react": "^18.0.0",
     "typescript": "^5.0.0"
   }
