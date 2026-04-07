@@ -1,0 +1,34 @@
+{{/*
+  RBAC for OIDC-authenticated users.
+  Maps Keycloak users to Kubernetes ClusterRoles.
+  Required for Headlamp OIDC login to access the K8s API.
+
+  Usage in values:
+    oidcRBAC:
+      enabled: true
+      bindings:
+        - username: admin         # Keycloak username (matched via --oidc-username-claim)
+          clusterRole: cluster-admin
+*/}}
+{{- if and .Values.oidcRBAC .Values.oidcRBAC.enabled }}
+{{- range .Values.oidcRBAC.bindings }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $.Release.Name }}-oidc-{{ .username | replace "@" "-at-" | replace "." "-" }}
+  labels:
+    app.kubernetes.io/name: oidc-rbac
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/component: auth
+    app.kubernetes.io/part-of: kube-llmops
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .clusterRole | default "cluster-admin" }}
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: User
+    name: {{ .username }}
+{{- end }}
+{{- end }}
