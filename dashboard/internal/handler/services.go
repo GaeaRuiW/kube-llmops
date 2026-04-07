@@ -1,12 +1,13 @@
 package handler
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	v1alpha1 "github.com/kube-llmops/operator/api/v1alpha1"
 	"github.com/kube-llmops/dashboard/internal/kube"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type ServiceInfo struct {
@@ -18,22 +19,48 @@ type ServiceInfo struct {
 	ProxyPath   string `json:"proxyPath"`
 }
 
+// serviceRegistry maps logical service names to their Kubernetes deployment
+// name suffix and metadata. The deployment name is: kube-llmops-{deployKey}.
 var serviceRegistry = []struct {
 	Name        string
 	Description string
 	Icon        string
-	Component   string
+	DeployKey   string // suffix after "kube-llmops-" in the deployment name
 	ProxyPath   string
 }{
 	{"grafana", "Monitoring Dashboards", "dashboard", "grafana", "/services/grafana/"},
 	{"langfuse", "LLM Tracing & Analytics", "search", "langfuse", "/services/langfuse/"},
-	{"dify", "RAG Platform", "robot", "dify", "/services/dify/"},
+	{"dify", "RAG Platform", "robot", "dify-api", "/services/dify/"},
 	{"mlflow", "Experiment Tracking", "experiment", "mlflow", "/services/mlflow/"},
-	{"jupyterhub", "Notebook Development", "code", "jupyterhub", "/services/jupyterhub/"},
 	{"minio", "Object Storage", "database", "minio", "/services/minio/"},
 	{"keycloak", "Identity Management", "lock", "keycloak", "/services/keycloak/"},
-	{"litellm", "AI Gateway", "api", "gateway", "/services/litellm/"},
+	{"litellm", "AI Gateway", "api", "litellm", "/services/litellm/"},
 	{"prometheus", "Metrics Query", "bar-chart", "prometheus", "/services/prometheus/"},
+	{"alertmanager", "Alert Manager", "warning", "alertmanager", ""},
+	{"loki", "Log Aggregation", "file-text", "loki", ""},
+}
+
+// deploymentPhase checks a real Kubernetes Deployment and returns its health
+// phase as one of: "Running", "Progressing", "Failed", or "NotFound".
+func deploymentPhase(ctx context.Context, kc *kube.Clients, name string) (string, error) {
+	deploy, err := kc.Clientset.AppsV1().Deployments(kc.Namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return "NotFound", nil
+	}
+	ready := deploy.Status.ReadyReplicas
+	desired := int32(1)
+	if deploy.Spec.Replicas != nil {
+		desired = *deploy.Spec.Replicas
+	}
+	if ready >= desired && desired > 0 {
+		return "Running", nil
+	}
+	for _, cond := range deploy.Status.Conditions {
+		if cond.Type == "Progressing" && cond.Status == "True" {
+			return "Progressing", nil
+		}
+	}
+	return "Failed", nil
 }
 
 func ListServices(kc *kube.Clients) gin.HandlerFunc {
@@ -42,19 +69,9 @@ func ListServices(kc *kube.Clients) gin.HandlerFunc {
 			c.JSON(503, gin.H{"error": "K8s unavailable"})
 			return
 		}
-		var platforms v1alpha1.LLMPlatformList
-		kc.CR.List(c.Request.Context(), &platforms, client.InNamespace(kc.Namespace))
 
-		components := map[string]*v1alpha1.ComponentStatus{}
-		if len(platforms.Items) > 0 {
-			cs := platforms.Items[0].Status.Components
-			components["grafana"] = cs.Grafana
-			components["langfuse"] = cs.Langfuse
-			components["dify"] = cs.Dify
-			components["minio"] = cs.MinIO
-			components["gateway"] = cs.Gateway
-			components["prometheus"] = cs.Prometheus
-		}
+		// Detect the Helm release prefix by finding any kube-llmops-* deployment.
+		prefix := "kube-llmops"
 
 		var services []ServiceInfo
 		for _, sr := range serviceRegistry {
@@ -62,13 +79,14 @@ func ListServices(kc *kube.Clients) gin.HandlerFunc {
 				Name:        sr.Name,
 				Description: sr.Description,
 				Icon:        sr.Icon,
-				Phase:       "Unknown",
+				Phase:       "NotFound",
 				ProxyPath:   sr.ProxyPath,
 			}
-			if cs, ok := components[sr.Component]; ok && cs != nil {
-				svc.Phase = cs.Phase
-				svc.Endpoint = cs.Endpoint
-			}
+
+			deployName := fmt.Sprintf("%s-%s", prefix, sr.DeployKey)
+			phase, _ := deploymentPhase(c.Request.Context(), kc, deployName)
+			svc.Phase = phase
+
 			services = append(services, svc)
 		}
 		c.JSON(http.StatusOK, services)

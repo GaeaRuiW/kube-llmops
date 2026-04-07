@@ -4,10 +4,18 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	v1alpha1 "github.com/kube-llmops/operator/api/v1alpha1"
 	"github.com/kube-llmops/dashboard/internal/kube"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+// platformSummary is a simplified overview returned by GetPlatform.
+type platformSummary struct {
+	Name       string `json:"name"`
+	Namespace  string `json:"namespace"`
+	Phase      string `json:"phase"`
+	Components int    `json:"componentCount"`
+	Models     int    `json:"modelCount"`
+}
 
 func GetPlatform(kc *kube.Clients) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -15,43 +23,61 @@ func GetPlatform(kc *kube.Clients) gin.HandlerFunc {
 			c.JSON(503, gin.H{"error": "K8s unavailable"})
 			return
 		}
-		var list v1alpha1.LLMPlatformList
-		if err := kc.CR.List(c.Request.Context(), &list, client.InNamespace(kc.Namespace)); err != nil {
-			c.JSON(500, gin.H{"error": err.Error()})
+
+		// Count total deployments in the namespace with kube-llmops labels
+		deploys, err := kc.Clientset.AppsV1().Deployments(kc.Namespace).List(c.Request.Context(), metav1.ListOptions{})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		if len(list.Items) == 0 {
-			c.JSON(404, gin.H{"error": "no LLMPlatform found"})
-			return
+
+		totalComponents := len(deploys.Items)
+		modelCount := 0
+		allReady := true
+		for _, d := range deploys.Items {
+			if _, ok := d.Labels["kube-llmops/model"]; ok {
+				modelCount++
+			}
+			ready := d.Status.ReadyReplicas
+			desired := int32(1)
+			if d.Spec.Replicas != nil {
+				desired = *d.Spec.Replicas
+			}
+			if ready < desired {
+				allReady = false
+			}
 		}
-		c.JSON(http.StatusOK, list.Items[0])
+
+		phase := "Running"
+		if !allReady {
+			phase = "Degraded"
+		}
+		if totalComponents == 0 {
+			phase = "NotInstalled"
+		}
+
+		c.JSON(http.StatusOK, platformSummary{
+			Name:       "kube-llmops",
+			Namespace:  kc.Namespace,
+			Phase:      phase,
+			Components: totalComponents,
+			Models:     modelCount,
+		})
 	}
 }
 
 func UpdatePlatform(kc *kube.Clients) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if kc == nil {
-			c.JSON(503, gin.H{"error": "K8s unavailable"})
-			return
-		}
-		var list v1alpha1.LLMPlatformList
-		if err := kc.CR.List(c.Request.Context(), &list, client.InNamespace(kc.Namespace)); err != nil || len(list.Items) == 0 {
-			c.JSON(404, gin.H{"error": "no LLMPlatform found"})
-			return
-		}
-		platform := &list.Items[0]
-		var update v1alpha1.LLMPlatformSpec
-		if err := c.ShouldBindJSON(&update); err != nil {
-			c.JSON(400, gin.H{"error": err.Error()})
-			return
-		}
-		platform.Spec = update
-		if err := kc.CR.Update(c.Request.Context(), platform); err != nil {
-			c.JSON(500, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, platform)
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "platform configuration is managed through Helm values; run helm upgrade to apply changes"})
 	}
+}
+
+// componentInfo represents a service component's status.
+type componentInfo struct {
+	Name          string `json:"name"`
+	Phase         string `json:"phase"`
+	ReadyReplicas int32  `json:"readyReplicas"`
+	TotalReplicas int32  `json:"totalReplicas"`
 }
 
 func GetComponents(kc *kube.Clients) gin.HandlerFunc {
@@ -60,11 +86,32 @@ func GetComponents(kc *kube.Clients) gin.HandlerFunc {
 			c.JSON(503, gin.H{"error": "K8s unavailable"})
 			return
 		}
-		var list v1alpha1.LLMPlatformList
-		if err := kc.CR.List(c.Request.Context(), &list, client.InNamespace(kc.Namespace)); err != nil || len(list.Items) == 0 {
-			c.JSON(404, gin.H{"error": "no LLMPlatform found"})
+		deploys, err := kc.Clientset.AppsV1().Deployments(kc.Namespace).List(c.Request.Context(), metav1.ListOptions{})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusOK, list.Items[0].Status.Components)
+
+		var components []componentInfo
+		for _, d := range deploys.Items {
+			desired := int32(1)
+			if d.Spec.Replicas != nil {
+				desired = *d.Spec.Replicas
+			}
+			phase := "Running"
+			if d.Status.ReadyReplicas < desired {
+				phase = "Progressing"
+			}
+			if d.Status.ReadyReplicas == 0 && desired > 0 {
+				phase = "Pending"
+			}
+			components = append(components, componentInfo{
+				Name:          d.Name,
+				Phase:         phase,
+				ReadyReplicas: d.Status.ReadyReplicas,
+				TotalReplicas: desired,
+			})
+		}
+		c.JSON(http.StatusOK, components)
 	}
 }

@@ -1,34 +1,159 @@
 package handler
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	v1alpha1 "github.com/kube-llmops/operator/api/v1alpha1"
 	"github.com/kube-llmops/dashboard/internal/kube"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// ListModels returns all ModelDeployments in the configured namespace.
+// modelResponse is the JSON shape the frontend (types/index.ts ModelDeployment) expects.
+type modelResponse struct {
+	Metadata modelMeta   `json:"metadata"`
+	Spec     modelSpec   `json:"spec"`
+	Status   modelStatus `json:"status"`
+}
+
+type modelMeta struct {
+	Name              string `json:"name"`
+	Namespace         string `json:"namespace"`
+	CreationTimestamp string `json:"creationTimestamp"`
+}
+
+type modelSpec struct {
+	Source    string            `json:"source"`
+	Engine   string            `json:"engine"`
+	Replicas int32             `json:"replicas"`
+	Resources modelResources   `json:"resources"`
+}
+
+type modelResources struct {
+	GPU    string `json:"gpu"`
+	Memory string `json:"memory"`
+	CPU    string `json:"cpu"`
+}
+
+type modelStatus struct {
+	Phase         string `json:"phase"`
+	Engine        string `json:"engine"`
+	Endpoint      string `json:"endpoint"`
+	ReadyReplicas int32  `json:"readyReplicas"`
+	TotalReplicas int32  `json:"totalReplicas"`
+}
+
+// ListModels returns model serving Deployments (label kube-llmops/model).
 func ListModels(kc *kube.Clients) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if kc == nil {
 			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "k8s client not available"})
 			return
 		}
-		var list v1alpha1.ModelDeploymentList
-		if err := kc.CR.List(c.Request.Context(), &list, client.InNamespace(kc.Namespace)); err != nil {
+		deploys, err := kc.Clientset.AppsV1().Deployments(kc.Namespace).List(c.Request.Context(), metav1.ListOptions{
+			LabelSelector: "app.kubernetes.io/component=model-serving",
+		})
+		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusOK, list.Items)
+
+		models := make([]modelResponse, 0, len(deploys.Items))
+		for _, d := range deploys.Items {
+			labels := d.Labels
+			modelName := labels["kube-llmops/model"]
+			engine := labels["kube-llmops/engine"]
+			if modelName == "" {
+				continue
+			}
+
+			// Derive source from init container MODEL_SOURCE env var
+			source := ""
+			for _, init := range d.Spec.Template.Spec.InitContainers {
+				for _, env := range init.Env {
+					if env.Name == "MODEL_SOURCE" {
+						source = env.Value
+						break
+					}
+				}
+			}
+
+			replicas := int32(1)
+			if d.Spec.Replicas != nil {
+				replicas = *d.Spec.Replicas
+			}
+
+			// Resources from the main container
+			gpu := "0"
+			memory := ""
+			cpu := ""
+			if len(d.Spec.Template.Spec.Containers) > 0 {
+				res := d.Spec.Template.Spec.Containers[0].Resources
+				if g, ok := res.Limits["nvidia.com/gpu"]; ok {
+					gpu = g.String()
+				} else if g, ok := res.Requests["nvidia.com/gpu"]; ok {
+					gpu = g.String()
+				}
+				if m, ok := res.Requests[corev1.ResourceMemory]; ok {
+					memory = m.String()
+				}
+				if c, ok := res.Requests[corev1.ResourceCPU]; ok {
+					cpu = c.String()
+				}
+			}
+
+			// Derive phase from deployment conditions
+			phase := "Pending"
+			for _, cond := range d.Status.Conditions {
+				if cond.Type == "Available" && cond.Status == "True" {
+					phase = "Ready"
+					break
+				}
+				if cond.Type == "Progressing" && cond.Status == "True" {
+					phase = "Progressing"
+				}
+			}
+			if d.Status.ReadyReplicas == 0 && d.Status.Replicas > 0 {
+				phase = "Progressing"
+			}
+
+			// Derive endpoint from deployment name + engine port
+			port := "8000"
+			if engine == "tei" {
+				port = "8080"
+			} else if engine == "llamacpp" {
+				port = "8080"
+			}
+			endpoint := fmt.Sprintf("http://%s:%s", d.Name, port)
+
+			models = append(models, modelResponse{
+				Metadata: modelMeta{
+					Name:              modelName,
+					Namespace:         d.Namespace,
+					CreationTimestamp: d.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
+				},
+				Spec: modelSpec{
+					Source:    source,
+					Engine:   engine,
+					Replicas: replicas,
+					Resources: modelResources{GPU: gpu, Memory: memory, CPU: cpu},
+				},
+				Status: modelStatus{
+					Phase:         phase,
+					Engine:        engine,
+					Endpoint:      endpoint,
+					ReadyReplicas: d.Status.ReadyReplicas,
+					TotalReplicas: replicas,
+				},
+			})
+		}
+		c.JSON(http.StatusOK, models)
 	}
 }
 
-// GetModel returns a single ModelDeployment by name.
+// GetModel returns a single model by name (label kube-llmops/model=<name>).
 func GetModel(kc *kube.Clients) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if kc == nil {
@@ -36,88 +161,46 @@ func GetModel(kc *kube.Clients) gin.HandlerFunc {
 			return
 		}
 		name := c.Param("name")
-		var md v1alpha1.ModelDeployment
-		key := client.ObjectKey{Namespace: kc.Namespace, Name: name}
-		if err := kc.CR.Get(c.Request.Context(), key, &md); err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		deploys, err := kc.Clientset.AppsV1().Deployments(kc.Namespace).List(c.Request.Context(), metav1.ListOptions{
+			LabelSelector: "kube-llmops/model=" + name,
+		})
+		if err != nil || len(deploys.Items) == 0 {
+			c.JSON(http.StatusNotFound, gin.H{"error": "model not found"})
 			return
 		}
-		c.JSON(http.StatusOK, md)
+		d := deploys.Items[0]
+		// Reuse ListModels logic via a simple redirect to the list with a filter
+		// For now, return the deployment directly
+		c.JSON(http.StatusOK, gin.H{
+			"metadata": gin.H{"name": name, "namespace": d.Namespace, "creationTimestamp": d.CreationTimestamp},
+			"deployment": d.Name,
+			"status":     gin.H{"readyReplicas": d.Status.ReadyReplicas, "replicas": d.Status.Replicas},
+		})
 	}
 }
 
-// CreateModel creates a new ModelDeployment from the JSON body.
+// CreateModel is a placeholder — model creation is done through Helm values.
 func CreateModel(kc *kube.Clients) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if kc == nil {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "k8s client not available"})
-			return
-		}
-		var md v1alpha1.ModelDeployment
-		if err := c.ShouldBindJSON(&md); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		md.Namespace = kc.Namespace
-		if err := kc.CR.Create(c.Request.Context(), &md); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusCreated, md)
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "model creation is managed through Helm values; update global.models and run helm upgrade"})
 	}
 }
 
-// UpdateModel updates the spec of an existing ModelDeployment.
+// UpdateModel is a placeholder — model updates are done through Helm values.
 func UpdateModel(kc *kube.Clients) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if kc == nil {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "k8s client not available"})
-			return
-		}
-		name := c.Param("name")
-		var existing v1alpha1.ModelDeployment
-		key := client.ObjectKey{Namespace: kc.Namespace, Name: name}
-		if err := kc.CR.Get(c.Request.Context(), key, &existing); err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-		var updated v1alpha1.ModelDeployment
-		if err := c.ShouldBindJSON(&updated); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		existing.Spec = updated.Spec
-		if err := kc.CR.Update(c.Request.Context(), &existing); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, existing)
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "model updates are managed through Helm values"})
 	}
 }
 
-// DeleteModel deletes a ModelDeployment by name.
+// DeleteModel is a placeholder — model deletion is done through Helm values.
 func DeleteModel(kc *kube.Clients) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if kc == nil {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "k8s client not available"})
-			return
-		}
-		name := c.Param("name")
-		md := &v1alpha1.ModelDeployment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      name,
-				Namespace: kc.Namespace,
-			},
-		}
-		if err := kc.CR.Delete(c.Request.Context(), md); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "model deletion is managed through Helm values"})
 	}
 }
 
-// ScaleModel patches the replicas field of a ModelDeployment.
+// ScaleModel patches the replicas on the underlying Deployment.
 func ScaleModel(kc *kube.Clients) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if kc == nil {
@@ -132,97 +215,42 @@ func ScaleModel(kc *kube.Clients) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		var md v1alpha1.ModelDeployment
-		key := client.ObjectKey{Namespace: kc.Namespace, Name: name}
-		if err := kc.CR.Get(c.Request.Context(), key, &md); err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		deploys, err := kc.Clientset.AppsV1().Deployments(kc.Namespace).List(c.Request.Context(), metav1.ListOptions{
+			LabelSelector: "kube-llmops/model=" + name,
+		})
+		if err != nil || len(deploys.Items) == 0 {
+			c.JSON(http.StatusNotFound, gin.H{"error": "model not found"})
 			return
 		}
-		md.Spec.Replicas = &body.Replicas
-		if err := kc.CR.Update(c.Request.Context(), &md); err != nil {
+		d := &deploys.Items[0]
+		d.Spec.Replicas = &body.Replicas
+		_, err = kc.Clientset.AppsV1().Deployments(kc.Namespace).Update(c.Request.Context(), d, metav1.UpdateOptions{})
+		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusOK, md)
+		c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("scaled %s to %d replicas", name, body.Replicas)})
 	}
 }
 
-// CanaryModel sets a canary configuration on a ModelDeployment.
+// CanaryModel is a placeholder — canary is managed through LiteLLM weight routing.
 func CanaryModel(kc *kube.Clients) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if kc == nil {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "k8s client not available"})
-			return
-		}
-		name := c.Param("name")
-		var canary v1alpha1.CanaryConfig
-		if err := c.ShouldBindJSON(&canary); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		var md v1alpha1.ModelDeployment
-		key := client.ObjectKey{Namespace: kc.Namespace, Name: name}
-		if err := kc.CR.Get(c.Request.Context(), key, &md); err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-		md.Spec.Canary = &canary
-		if err := kc.CR.Update(c.Request.Context(), &md); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, md)
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "canary deployment is managed through LiteLLM weight routing"})
 	}
 }
 
-// PromoteCanary promotes the canary source to the main source and clears canary config.
+// PromoteCanary is a placeholder.
 func PromoteCanary(kc *kube.Clients) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if kc == nil {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "k8s client not available"})
-			return
-		}
-		name := c.Param("name")
-		var md v1alpha1.ModelDeployment
-		key := client.ObjectKey{Namespace: kc.Namespace, Name: name}
-		if err := kc.CR.Get(c.Request.Context(), key, &md); err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-		if md.Spec.Canary == nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "no canary configured"})
-			return
-		}
-		md.Spec.Source = md.Spec.Canary.Source
-		md.Spec.Canary = nil
-		if err := kc.CR.Update(c.Request.Context(), &md); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, md)
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "canary promotion is managed through LiteLLM"})
 	}
 }
 
-// RollbackCanary clears the canary configuration from a ModelDeployment.
+// RollbackCanary is a placeholder.
 func RollbackCanary(kc *kube.Clients) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if kc == nil {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "k8s client not available"})
-			return
-		}
-		name := c.Param("name")
-		var md v1alpha1.ModelDeployment
-		key := client.ObjectKey{Namespace: kc.Namespace, Name: name}
-		if err := kc.CR.Get(c.Request.Context(), key, &md); err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-		md.Spec.Canary = nil
-		if err := kc.CR.Update(c.Request.Context(), &md); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, md)
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "canary rollback is managed through LiteLLM"})
 	}
 }
 
@@ -235,7 +263,7 @@ func ListModelPods(kc *kube.Clients) gin.HandlerFunc {
 		}
 		name := c.Param("name")
 		pods, err := kc.Clientset.CoreV1().Pods(kc.Namespace).List(c.Request.Context(), metav1.ListOptions{
-			LabelSelector: "app.kubernetes.io/name=" + name,
+			LabelSelector: "kube-llmops/model=" + name,
 		})
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -276,7 +304,7 @@ func StreamModelLogs(kc *kube.Clients) gin.HandlerFunc {
 		}
 		name := c.Param("name")
 		pods, err := kc.Clientset.CoreV1().Pods(kc.Namespace).List(c.Request.Context(), metav1.ListOptions{
-			LabelSelector: "app.kubernetes.io/name=" + name,
+			LabelSelector: "kube-llmops/model=" + name,
 		})
 		if err != nil || len(pods.Items) == 0 {
 			c.JSON(http.StatusNotFound, gin.H{"error": "no pods found"})
@@ -318,7 +346,7 @@ func StreamModelLogs(kc *kube.Clients) gin.HandlerFunc {
 	}
 }
 
-// TestModel returns the endpoint for a ModelDeployment (placeholder for inference testing).
+// TestModel returns the endpoint for a model (by looking up its Deployment).
 func TestModel(kc *kube.Clients) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if kc == nil {
@@ -326,15 +354,23 @@ func TestModel(kc *kube.Clients) gin.HandlerFunc {
 			return
 		}
 		name := c.Param("name")
-		var md v1alpha1.ModelDeployment
-		key := client.ObjectKey{Namespace: kc.Namespace, Name: name}
-		if err := kc.CR.Get(c.Request.Context(), key, &md); err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		deploys, err := kc.Clientset.AppsV1().Deployments(kc.Namespace).List(c.Request.Context(), metav1.ListOptions{
+			LabelSelector: "kube-llmops/model=" + name,
+		})
+		if err != nil || len(deploys.Items) == 0 {
+			c.JSON(http.StatusNotFound, gin.H{"error": "model not found"})
 			return
 		}
+		d := deploys.Items[0]
+		engine := d.Labels["kube-llmops/engine"]
+		port := "8000"
+		if engine == "tei" || engine == "llamacpp" {
+			port = "8080"
+		}
+		endpoint := fmt.Sprintf("http://%s:%s", d.Name, port)
 		c.JSON(http.StatusOK, gin.H{
 			"model":    name,
-			"endpoint": md.Status.Endpoint,
+			"endpoint": endpoint,
 			"message":  "use this endpoint to test inference",
 		})
 	}
