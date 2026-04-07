@@ -42,15 +42,23 @@ spec:
               value: dashboard-default-pw
             {{- if .Values.oidc.enabled }}
             - name: OIDC_ISSUER_URL
-              {{- if .Values.oidc.internalIssuerUrl }}
-              value: {{ .Values.oidc.internalIssuerUrl }}
-              {{- else }}
-              value: {{ .Values.oidc.issuerUrl }}
+              {{- if .Values.oidc.issuerUrl }}
+              value: {{ .Values.oidc.issuerUrl | quote }}
+              {{- else if and .Values.global (index .Values.global "nodePort") .Values.global.nodePort.enabled .Values.global.nodePort.host }}
+              value: "http://{{ .Values.global.nodePort.host }}:{{ .Values.global.nodePort.keycloak | default 30808 }}/realms/kube-llmops"
+              {{- else if .Values.oidc.internalIssuerUrl }}
+              value: {{ .Values.oidc.internalIssuerUrl | quote }}
               {{- end }}
             - name: OIDC_CLIENT_ID
               value: {{ .Values.oidc.clientId }}
             - name: OIDC_CLIENT_SECRET
               value: {{ .Values.oidc.clientSecret }}
+            - name: OIDC_REDIRECT_URL
+              {{- if .Values.oidc.redirectUrl }}
+              value: {{ .Values.oidc.redirectUrl | quote }}
+              {{- else if and .Values.global (index .Values.global "nodePort") .Values.global.nodePort.enabled .Values.global.nodePort.host }}
+              value: "http://{{ .Values.global.nodePort.host }}:{{ .Values.global.nodePort.dashboard | default 30302 }}/api/v1/auth/callback"
+              {{- end }}
             {{- end }}
             - name: PROXY_GRAFANA
               value: http://{{ .Release.Name }}-grafana:3000
