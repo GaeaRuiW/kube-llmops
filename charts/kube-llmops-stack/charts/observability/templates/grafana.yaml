@@ -104,23 +104,19 @@ spec:
             - name: GF_AUTH_GENERIC_OAUTH_AUTH_URL
               value: "{{ $keycloakUrl }}/protocol/openid-connect/auth"
             - name: GF_AUTH_GENERIC_OAUTH_TOKEN_URL
-              value: "{{ .Values.grafana.oidc.internalIssuerUrl | default $keycloakUrl }}/protocol/openid-connect/token"
+              value: "{{ $keycloakUrl }}/protocol/openid-connect/token"
             - name: GF_AUTH_GENERIC_OAUTH_API_URL
-              value: "{{ .Values.grafana.oidc.internalIssuerUrl | default $keycloakUrl }}/protocol/openid-connect/userinfo"
+              value: "{{ $keycloakUrl }}/protocol/openid-connect/userinfo"
+            - name: GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP
+              value: "true"
+            - name: GF_AUTH_GENERIC_OAUTH_LOGIN_ATTRIBUTE_PATH
+              value: "preferred_username"
             - name: GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH
               value: {{ .Values.grafana.oidc.roleAttributePath | default "contains(realm_access.roles[*], 'admin') && 'Admin' || 'Viewer'" | quote }}
+            - name: GF_AUTH_OAUTH_ALLOW_INSECURE_EMAIL_LOOKUP
+              value: "true"
             - name: GF_SERVER_ROOT_URL
               value: {{ $grafanaRoot | quote }}
-            - name: GF_AUTH_PROXY_ENABLED
-              value: "true"
-            - name: GF_AUTH_PROXY_HEADER_NAME
-              value: "X-WEBAUTH-USER"
-            - name: GF_AUTH_PROXY_HEADER_PROPERTY
-              value: "username"
-            - name: GF_AUTH_PROXY_AUTO_SIGN_UP
-              value: "true"
-            - name: GF_AUTH_PROXY_HEADERS
-              value: "Email:X-WEBAUTH-EMAIL"
             {{- end }}
             - name: GF_SECURITY_ALLOW_EMBEDDING
               value: "true"
