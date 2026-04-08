@@ -6,10 +6,13 @@ import ServiceLinksPage from './ServiceLinksPage';
 import MonitoringPage from './MonitoringPage';
 
 // ---- Sidebar section ----
+// Parent entry needs a url so clicking it navigates (and auto-expands children).
+// Without a url, Headlamp v0.25.x renders it as <a href="/"> which just reloads root.
 registerSidebarEntry({
   parent: null,
   name: 'llmops',
   label: 'LLMOps',
+  url: '/kube-llmops/services',
   icon: 'mdi:brain',
 });
 
