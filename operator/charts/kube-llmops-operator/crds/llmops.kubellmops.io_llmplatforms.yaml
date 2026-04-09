@@ -75,6 +75,20 @@ spec:
                       tag:
                         type: string
                     type: object
+                  langfuseEnabled:
+                    description: LangfuseEnabled enables Langfuse callback integration
+                      in LiteLLM.
+                    type: boolean
+                  langfusePublicKey:
+                    description: LangfusePublicKey is the Langfuse public key for
+                      LiteLLM callbacks.
+                    type: string
+                  langfuseSecretKey:
+                    description: LangfuseSecretKey is the Langfuse secret key for
+                      LiteLLM callbacks.
+                    type: string
+                  masterKey:
+                    type: string
                   rateLimiting:
                     description: EnabledToggle is a simple enabled/disabled toggle.
                     properties:
@@ -83,6 +97,12 @@ spec:
                     type: object
                   routing:
                     type: string
+                type: object
+              headlamp:
+                description: Headlamp enables the Headlamp Kubernetes dashboard.
+                properties:
+                  enabled:
+                    type: boolean
                 type: object
               hfToken:
                 description: HFToken is a HuggingFace API token for gated models.
@@ -134,6 +154,53 @@ spec:
                   secretKey:
                     type: string
                 type: object
+              models:
+                description: Models defines the list of models to deploy.
+                items:
+                  description: ModelSpec defines a model to deploy.
+                  properties:
+                    engine:
+                      description: Engine overrides auto-detection (vllm, tei, llamacpp,
+                        sglang).
+                      type: string
+                    engineArgs:
+                      additionalProperties:
+                        type: string
+                      description: EngineArgs are additional engine-specific arguments.
+                      type: object
+                    name:
+                      description: Name is the short name used to reference this model.
+                      type: string
+                    replicas:
+                      description: Replicas is the number of serving replicas.
+                      type: integer
+                    resources:
+                      description: Resources specifies GPU, CPU, and memory requirements.
+                      properties:
+                        cpu:
+                          default: "4"
+                          description: CPU is the CPU limit (e.g. "4").
+                          type: string
+                        gpu:
+                          default: 1
+                          description: GPU is the number of GPUs to request (0 for
+                            CPU-only).
+                          format: int32
+                          minimum: 0
+                          type: integer
+                        memory:
+                          default: 16Gi
+                          description: Memory is the memory limit (e.g. "16Gi").
+                          type: string
+                      type: object
+                    source:
+                      description: Source is the HuggingFace model ID or path.
+                      type: string
+                  required:
+                  - name
+                  - source
+                  type: object
+                type: array
               modules:
                 description: Modules toggles high-level feature modules.
                 properties:
@@ -360,6 +427,11 @@ spec:
                 type: string
               helmRevision:
                 description: HelmRevision is the Helm release revision number.
+                type: integer
+              observedGeneration:
+                description: ObservedGeneration is the most recent generation observed
+                  by the controller.
+                format: int64
                 type: integer
               phase:
                 description: Phase is the high-level lifecycle phase.

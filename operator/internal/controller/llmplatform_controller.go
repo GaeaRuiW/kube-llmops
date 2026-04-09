@@ -57,7 +57,13 @@ func (r *LLMPlatformReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
-	// 2. Translate spec to Helm values
+	// 2. Skip if already reconciled for this generation (avoid upgrade loop)
+	if platform.Status.ObservedGeneration == platform.Generation &&
+		(platform.Status.Phase == "Ready" || platform.Status.Phase == "Upgrading" || platform.Status.Phase == "Installing") {
+		return ctrl.Result{}, nil
+	}
+
+	// 3. Translate spec to Helm values
 	values := helmbridge.TranslateValues(platform)
 
 	releaseName := platform.Name
@@ -67,13 +73,22 @@ func (r *LLMPlatformReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		chartPath = "charts/kube-llmops-stack"
 	}
 
-	// 3. Check if release exists
+	// 3. Fix stuck releases (pending-install / pending-upgrade)
+	if sdk, ok := r.HelmClient.(*helmbridge.SDKClient); ok {
+		if fixed, _ := sdk.FixStuckRelease(releaseName, namespace); fixed {
+			log.Info("fixed stuck Helm release, retrying", "name", releaseName)
+			return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+		}
+	}
+
+	// 4. Check if release exists
 	existingRelease, err := r.HelmClient.GetRelease(releaseName, namespace)
 
 	if err != nil || existingRelease == nil {
 		// 4a. Install
 		log.Info("installing Helm release", "name", releaseName)
 		platform.Status.Phase = "Installing"
+		platform.Status.ObservedGeneration = platform.Generation
 		setCondition(&platform.Status.Conditions, metav1.Condition{
 			Type:               "HelmRelease",
 			Status:             metav1.ConditionFalse,
@@ -106,6 +121,7 @@ func (r *LLMPlatformReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		platform.Status.Phase = "Ready"
 		platform.Status.HelmRelease = rel.Name
 		platform.Status.HelmRevision = rel.Version
+		platform.Status.ObservedGeneration = platform.Generation
 		setCondition(&platform.Status.Conditions, metav1.Condition{
 			Type:               "HelmRelease",
 			Status:             metav1.ConditionTrue,
@@ -115,9 +131,10 @@ func (r *LLMPlatformReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			ObservedGeneration: platform.Generation,
 		})
 	} else {
-		// 4b. Upgrade
+		// 5b. Upgrade
 		log.Info("upgrading Helm release", "name", releaseName)
 		platform.Status.Phase = "Upgrading"
+		platform.Status.ObservedGeneration = platform.Generation
 		setCondition(&platform.Status.Conditions, metav1.Condition{
 			Type:               "HelmRelease",
 			Status:             metav1.ConditionFalse,
@@ -150,6 +167,7 @@ func (r *LLMPlatformReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		platform.Status.Phase = "Ready"
 		platform.Status.HelmRelease = rel.Name
 		platform.Status.HelmRevision = rel.Version
+		platform.Status.ObservedGeneration = platform.Generation
 		setCondition(&platform.Status.Conditions, metav1.Condition{
 			Type:               "HelmRelease",
 			Status:             metav1.ConditionTrue,

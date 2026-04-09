@@ -5,7 +5,11 @@ metadata:
 spec:
   gateway:
     enabled: true
+    masterKey: "sk-kube-llmops-dev"
     routing: latency-based-routing
+    langfuseEnabled: true
+    langfusePublicKey: "pk-lf-kube-llmops"
+    langfuseSecretKey: "sk-lf-kube-llmops"
   observability:
     enabled: true
     grafana:
@@ -18,7 +22,7 @@ spec:
     rag:
       enabled: true
     finetune:
-      enabled: true
+      enabled: false
     security:
       enabled: false
   modelStore:
@@ -29,8 +33,41 @@ spec:
     secretKey: minioadmin
     hfTransferConcurrency: 32
     image: kube-llmops/model-loader:latest
+  hfToken: ""
+  models:
+    - name: gemma-4-26b-a4b
+      source: cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit
+      replicas: 1
+      resources:
+        gpu: 1
+        memory: 24Gi
+      engineArgs:
+        --gpu-memory-utilization: "0.93"
+        --max-model-len: "8192"
+        --dtype: "half"
+        --enforce-eager: ""
+        --enable-chunked-prefill: ""
+        --max-num-batched-tokens: "4096"
+    - name: bge-small-en
+      source: BAAI/bge-small-en-v1.5
+      replicas: 1
+      resources:
+        gpu: 0
+        cpu: "0.5"
+        memory: 256Mi
+    - name: bge-reranker-base
+      source: BAAI/bge-reranker-base
+      replicas: 1
+      resources:
+        gpu: 0
+        cpu: "1"
+        memory: 2Gi
   postgresql:
+    enabled: true
+  keycloak:
     enabled: true
   nodePort:
     enabled: true
     host: "172.29.193.187"
+  headlamp:
+    enabled: true

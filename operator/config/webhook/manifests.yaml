@@ -1,0 +1,66 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-llmops-kubeai-io-v1alpha1-finetunerun
+  failurePolicy: Fail
+  name: vfinetunerun.kb.io
+  rules:
+  - apiGroups:
+    - llmops.kubeai.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - finetuneruns
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-llmops-kubeai-io-v1alpha1-llmplatform
+  failurePolicy: Fail
+  name: vllmplatform.kb.io
+  rules:
+  - apiGroups:
+    - llmops.kubeai.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - llmplatforms
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-llmops-kubeai-io-v1alpha1-modeldeployment
+  failurePolicy: Fail
+  name: vmodeldeployment.kb.io
+  rules:
+  - apiGroups:
+    - llmops.kubeai.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - modeldeployments
+  sideEffects: None

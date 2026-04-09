@@ -35,6 +35,38 @@ func TranslateValues(platform *v1alpha1.LLMPlatform) map[string]interface{} {
 		global["hfToken"] = platform.Spec.HFToken
 	}
 
+	// Models
+	if len(platform.Spec.Models) > 0 {
+		models := make([]interface{}, len(platform.Spec.Models))
+		for i, m := range platform.Spec.Models {
+			model := map[string]interface{}{
+				"name":   m.Name,
+				"source": m.Source,
+			}
+			if m.Engine != "" {
+				model["engine"] = m.Engine
+			}
+			if m.Replicas > 0 {
+				model["replicas"] = m.Replicas
+			}
+			res := map[string]interface{}{}
+			// Always set GPU (0 means CPU-only; omitting defaults to 1 in chart)
+			res["gpu"] = int(m.Resources.GPU)
+			if m.Resources.CPU != "" {
+				res["cpu"] = m.Resources.CPU
+			}
+			if m.Resources.Memory != "" {
+				res["memory"] = m.Resources.Memory
+			}
+			model["resources"] = res
+			if len(m.EngineArgs) > 0 {
+				model["engineArgs"] = m.EngineArgs
+			}
+			models[i] = model
+		}
+		global["models"] = models
+	}
+
 	// NodePort
 	global["nodePort"] = map[string]interface{}{
 		"enabled": platform.Spec.NodePort.Enabled,
@@ -46,11 +78,21 @@ func TranslateValues(platform *v1alpha1.LLMPlatform) map[string]interface{} {
 	// LiteLLM (gateway)
 	gw := platform.Spec.Gateway
 	litellm := map[string]interface{}{
-		"enabled":         gw.Enabled,
-		"routingStrategy": gw.Routing,
+		"enabled": gw.Enabled,
+	}
+	if gw.Routing != "" {
+		litellm["routingStrategy"] = gw.Routing
+	}
+	if gw.MasterKey != "" {
+		litellm["masterKey"] = gw.MasterKey
 	}
 	if gw.Image.Tag != "" {
 		litellm["image"] = map[string]interface{}{"tag": gw.Image.Tag}
+	}
+	if gw.LangfuseEnabled {
+		litellm["langfuseEnabled"] = true
+		litellm["langfusePublicKey"] = gw.LangfusePublicKey
+		litellm["langfuseSecretKey"] = gw.LangfuseSecretKey
 	}
 	vals["litellm"] = litellm
 
@@ -94,6 +136,11 @@ func TranslateValues(platform *v1alpha1.LLMPlatform) map[string]interface{} {
 			"className": platform.Spec.Ingress.ClassName,
 			"host":      platform.Spec.Ingress.Host,
 		}
+	}
+
+	// Headlamp
+	vals["headlamp"] = map[string]interface{}{
+		"enabled": platform.Spec.Headlamp.Enabled,
 	}
 
 	return vals

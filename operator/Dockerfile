@@ -27,7 +27,13 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o ma
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /
+
 COPY --from=builder /workspace/manager .
+
+# Embed the umbrella Helm chart so the LLMPlatform controller can install it.
+# The chart directory (with pre-built .tgz dependencies) is copied at build time.
+COPY _build_charts/kube-llmops-stack /charts/kube-llmops-stack
+
 USER 65532:65532
 
 ENTRYPOINT ["/manager"]

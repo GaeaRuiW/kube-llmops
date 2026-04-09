@@ -1,9 +1,9 @@
 replicaCount: 1
 
 image:
-  repository: kube-llmops/operator
+  repository: localhost:5000/kube-llmops/operator
   tag: latest
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 serviceAccount:
   create: true
