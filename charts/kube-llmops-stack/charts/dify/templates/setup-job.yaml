@@ -66,15 +66,18 @@ data:
     #       dify-plugin-daemon decode/from_identifier endpoint.
     echo "[4/5] Installing plugins..."
     DAEMON="http://{{ .Release.Name }}-dify-plugin-daemon:5002"
+    DAEMON_KEY="{{ .Values.pluginDaemon.key }}"
 
     # Get tenant ID from current workspace
-    TENANT_ID=$(G "/console/api/workspaces/current" | \
+    TENANT_ID=$(P "/console/api/workspaces/current" "{}" | \
       python3 -c "import json,sys; print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
     [ -z "$TENANT_ID" ] && { echo "  ERROR: could not get tenant ID" >&2; exit 1; }
     echo "  Tenant ID: $TENANT_ID"
 
-    INSTALLED=$(G "/console/api/workspaces/current/plugin/list?page=1&page_size=100" | \
-      python3 -c "import json,sys; print(' '.join(p['plugin_id'] for p in json.load(sys.stdin).get('plugins',[])))" 2>/dev/null)
+    # Query daemon directly (Dify API has response-format parsing issues with daemon)
+    DH() { curl -sf -H "X-Api-Key: $DAEMON_KEY" "$DAEMON/plugin/$TENANT_ID$1"; }
+    INSTALLED=$(DH "/management/list?page=1&page_size=100&response_type=paged" | \
+      python3 -c "import json,sys; print(' '.join(p['plugin_id'] for p in json.load(sys.stdin).get('data',{}).get('list',[])))" 2>/dev/null)
 
     {{- range .Values.setup.plugins }}
     PLUGIN_ID="{{ .id }}"
@@ -95,21 +98,35 @@ data:
       [ -z "$PLUGIN_UID" ] && { echo "  Upload failed"; continue; }
       echo "  Uploaded: ${PLUGIN_UID:0:60}..."
 
-      # Install via daemon API directly (bypasses PascalCase bug)
+      # Trigger first install attempt (daemon extracts plugin to cwd/ but may fail
+      # on uv sync --offline if Python deps aren't cached yet)
       echo "  Installing via daemon API..."
-      for attempt in 1 2 3; do
-        sleep 5
-        RESP=$(curl -sf -X POST "$DAEMON/plugin/$TENANT_ID/management/install/identifiers" \
-          -H "Content-Type: application/json" \
-          -d "{\"plugin_unique_identifiers\":[\"$PLUGIN_UID\"],\"source\":\"local\",\"metas\":[{\"type\":\"local\"}]}" 2>&1) && break
-        echo "  Attempt $attempt failed, retrying..."
-      done
+      curl -sf -X POST "$DAEMON/plugin/$TENANT_ID/management/install/identifiers" \
+        -H "Content-Type: application/json" \
+        -H "X-Api-Key: $DAEMON_KEY" \
+        -d "{\"plugin_unique_identifiers\":[\"$PLUGIN_UID\"],\"source\":\"local\",\"metas\":[{\"type\":\"local\"}]}" > /dev/null 2>&1
+      sleep 15
 
-      # Verify installation
-      sleep 10
-      INSTALLED2=$(G "/console/api/workspaces/current/plugin/list?page=1&page_size=100" | \
-        python3 -c "import json,sys; print(' '.join(p['plugin_id'] for p in json.load(sys.stdin).get('plugins',[])))" 2>/dev/null)
-      if echo "$INSTALLED2" | grep -qw "$PLUGIN_ID"; then
+      # Pre-install Python deps if daemon's offline install failed
+      # (daemon extracts plugin to /app/storage/cwd/ = /plugin-storage/cwd/ on shared PVC)
+      PLUGIN_CWD=$(find /plugin-storage/cwd -maxdepth 3 -name "pyproject.toml" -path "*${PLUGIN_SHORT}*" -exec dirname {} \; 2>/dev/null | head -1)
+      INSTALLED2=$(DH "/management/list?page=1&page_size=100&response_type=paged" | \
+        python3 -c "import json,sys; print(' '.join(p['plugin_id'] for p in json.load(sys.stdin).get('data',{}).get('list',[])))" 2>/dev/null)
+      if ! echo "$INSTALLED2" | grep -qw "$PLUGIN_ID" && [ -n "$PLUGIN_CWD" ]; then
+        echo "  First install failed (offline deps), pre-installing with network..."
+        uv sync --directory "$PLUGIN_CWD" --quiet 2>&1 || echo "  WARN: uv sync failed"
+        echo "  Retrying daemon install..."
+        curl -sf -X POST "$DAEMON/plugin/$TENANT_ID/management/install/identifiers" \
+          -H "Content-Type: application/json" \
+          -H "X-Api-Key: $DAEMON_KEY" \
+          -d "{\"plugin_unique_identifiers\":[\"$PLUGIN_UID\"],\"source\":\"local\",\"metas\":[{\"type\":\"local\"}]}" > /dev/null 2>&1
+        sleep 15
+      fi
+
+      # Verify installation (query daemon directly)
+      INSTALLED3=$(DH "/management/list?page=1&page_size=100&response_type=paged" | \
+        python3 -c "import json,sys; print(' '.join(p['plugin_id'] for p in json.load(sys.stdin).get('data',{}).get('list',[])))" 2>/dev/null)
+      if echo "$INSTALLED3" | grep -qw "$PLUGIN_ID"; then
         echo "  $PLUGIN_ID installed successfully"
       else
         echo "  WARNING: $PLUGIN_ID may not have installed correctly"
@@ -197,7 +214,7 @@ spec:
       containers:
         - name: setup
           image: python:3.12-slim
-          command: ["bash", "-c", "apt-get update -qq && apt-get install -qq -y curl > /dev/null 2>&1 && bash /scripts/setup.sh"]
+          command: ["bash", "-c", "apt-get update -qq && apt-get install -qq -y curl > /dev/null 2>&1 && pip install -q uv && bash /scripts/setup.sh"]
           volumeMounts:
             - name: scripts
               mountPath: /scripts
