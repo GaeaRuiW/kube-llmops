@@ -53,6 +53,9 @@ modelLoader:
     repository: python
     tag: "3.13-slim"
     pullPolicy: IfNotPresent
+  # HuggingFace token for gated models (Llama, Gemma, etc.)
+  # Usually passed from global.hfToken; set here for per-subchart override
+  hfToken: ""
 
 # Model cache volume
 modelCache:

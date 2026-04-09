@@ -1,4 +1,4 @@
-{{- if and .Values.enabled .Values.setup.enabled }}
+{{- if .Values.setup.enabled }}
 {{- $apiUrl := printf "http://%s-dify-api:5001" .Release.Name }}
 {{- $litellmHost := .Values.litellm.host | default (printf "%s-litellm" .Release.Name) }}
 {{- $litellmUrl := printf "http://%s:%v/v1" $litellmHost (.Values.litellm.port | default 4000) }}

@@ -51,6 +51,8 @@ oidc:
 # Multi-tenant namespace isolation
 multiTenant:
   enabled: false
+  teams: []
+  # Example:
   # teams:
   #   - name: team-a
   #     namespace: llm-team-a
@@ -81,3 +83,4 @@ envoyGateway:
   #     adapters:
   #       - name: chinese-adapter
   #         weight: 100
+ight: 100

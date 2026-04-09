@@ -62,3 +62,50 @@ For small models (embedding, reranker), use MIG to share a GPU:
     migDevice: "nvidia.com/mig-1g.5gb"
     memory: 2Gi
 ```
+
+## Pipeline Parallelism
+
+For models that exceed the memory of a single node, combine tensor and pipeline parallelism:
+
+```yaml
+- name: llama-405b
+  source: meta-llama/Llama-3.1-405B-Instruct
+  resources:
+    gpu: 8
+    memory: 512Gi
+  engineArgs:
+    --tensor-parallel-size: "4"
+    --pipeline-parallel-size: "2"
+```
+
+This splits the model across 2 nodes with 4 GPUs each (8 total).
+
+## Spot/Preemptible GPU Instances
+
+Reduce cost by running on spot instances:
+
+```yaml
+- name: my-model
+  source: org/model
+  spotToleration: true
+  resources:
+    gpu: 1
+    memory: 24Gi
+```
+
+This adds tolerations for AWS spot, GCP preemptible, and Karpenter spot capacity types. Combine with KEDA autoscaling for automatic replacement.
+
+## Memory Optimization Tips
+
+1. **KV Cache**: vLLM auto-computes `--max-model-len` based on available GPU memory. Override with `engineArgs: { "--max-model-len": "4096" }` to reduce memory usage.
+2. **GPU Memory Utilization**: Default is 0.8 (80%). Increase to 0.9 for memory-constrained setups: `engineArgs: { "--gpu-memory-utilization": "0.9" }`.
+3. **Unified Memory (GB10/Grace Blackwell)**: Enable `unifiedMemory.enabled: true` for integrated GPU systems.
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| OOM on model load | Insufficient GPU memory | Reduce `--max-model-len` or add GPUs |
+| Slow first token | Model loading from HuggingFace | Check MinIO cache hit; rebuild model-loader image |
+| CUDA out of memory at runtime | KV cache too large | Lower `--max-model-len` or `--gpu-memory-utilization` |
+| Pod pending | No GPU node available | Check `kubectl describe node` for allocatable GPUs |

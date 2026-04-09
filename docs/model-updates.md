@@ -49,3 +49,52 @@ Set canary weight to 0 or disable canary:
 ```bash
 helm upgrade ... --set 'global.models[0].canary.enabled=false'
 ```
+
+## Monitoring Canary Deployments
+
+### Key Metrics
+
+Monitor these on the **LiteLLM AI Gateway** Grafana dashboard during canary rollout:
+
+| Metric | Stable Baseline | Canary Alert Threshold |
+|--------|----------------|----------------------|
+| Error rate | < 1% | > 5% |
+| P95 latency | Model-specific | > 2x baseline |
+| Token throughput | Model-specific | < 50% of baseline |
+
+### Automated Quality Check
+
+Use the Ragas evaluation CronJob to compare canary vs stable quality:
+
+```bash
+# Trigger evaluation targeting the canary
+kubectl create job ragas-canary --from=cronjob/kube-llmops-ragas-eval
+kubectl logs job/ragas-canary --tail=50
+```
+
+## Rollback Strategies
+
+### Immediate Rollback
+
+```bash
+helm upgrade kube-llmops charts/kube-llmops-stack \
+  -f charts/kube-llmops-stack/values-single-node.yaml \
+  --set 'global.models[0].canary.enabled=false' --no-hooks
+```
+
+### Gradual Rollback
+
+Decrease canary weight step-by-step:
+```bash
+# 10% → 5% → 0%
+helm upgrade kube-llmops ... --set 'global.models[0].canary.weight=5' --no-hooks
+helm upgrade kube-llmops ... --set 'global.models[0].canary.enabled=false' --no-hooks
+```
+
+## Best Practices
+
+1. **Start small**: Begin with 5-10% canary weight
+2. **Bake time**: Run canary for at least 1 hour before promotion
+3. **Compare metrics**: Check P95 latency and error rate on Grafana before promoting
+4. **Use same prompts**: Test canary with production traffic, not synthetic
+5. **Automate**: Integrate with CI/CD to auto-promote if metrics are healthy

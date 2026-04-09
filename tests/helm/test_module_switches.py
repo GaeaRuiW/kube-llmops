@@ -29,6 +29,9 @@ def find_by_name(docs, name):
     return [d for d in docs if isinstance(d, dict) and d.get("metadata", {}).get("name") == name]
 
 # Minimal base values to avoid GPU/model dependencies
+# Module-controlled subcharts (dify, milvus, lightrag, rag-eval, finetune,
+# jupyterhub, security) are NOT listed here — their lifecycle is controlled
+# by global.modules.* via Chart.yaml dual-path conditions.
 BASE = {
     "vllm.enabled": "false",
     "llamacpp.enabled": "false",
@@ -42,6 +45,7 @@ BASE = {
     "postgresql.enabled": "false",
     "keda.enabled": "false",
     "harbor.enabled": "false",
+    "headlamp.enabled": "false",
 }
 
 
@@ -94,7 +98,13 @@ class TestFinetuneModuleSwitch:
             assert not any(keyword in n for n in names), f"Found {keyword} when modules.finetune not set"
 
     def test_finetune_module_on(self):
-        vals = {**BASE, "global.modules.finetune.enabled": "true"}
+        vals = {
+            **BASE,
+            "global.modules.finetune.enabled": "true",
+            "finetune.baseModel": "Qwen/Qwen2.5-0.5B",
+            "finetune.outputName": "test-ft",
+            "finetune.dataSource.path": "s3://data/train.json",
+        }
         docs = helm_template(set_values=vals)
         names = [d["metadata"]["name"] for d in docs if isinstance(d, dict) and d.get("metadata")]
         name_str = " ".join(names)
@@ -102,7 +112,14 @@ class TestFinetuneModuleSwitch:
         assert "jupyterhub" in name_str, "jupyterhub not rendered"
 
     def test_finetune_explicit_override(self):
-        vals = {**BASE, "global.modules.finetune.enabled": "true", "jupyterhub.enabled": "false"}
+        vals = {
+            **BASE,
+            "global.modules.finetune.enabled": "true",
+            "jupyterhub.enabled": "false",
+            "finetune.baseModel": "Qwen/Qwen2.5-0.5B",
+            "finetune.outputName": "test-ft",
+            "finetune.dataSource.path": "s3://data/train.json",
+        }
         docs = helm_template(set_values=vals)
         names = [d["metadata"]["name"] for d in docs if isinstance(d, dict) and d.get("metadata")]
         name_str = " ".join(names)
@@ -161,7 +178,12 @@ class TestDashboardConditional:
         assert "finetune-overview.json" not in keys
 
     def test_finetune_dashboard_present_when_on(self):
-        keys = self._get_dashboard_keys({"global.modules.finetune.enabled": "true"})
+        keys = self._get_dashboard_keys({
+            "global.modules.finetune.enabled": "true",
+            "finetune.baseModel": "Qwen/Qwen2.5-0.5B",
+            "finetune.outputName": "test-ft",
+            "finetune.dataSource.path": "s3://data/train.json",
+        })
         assert "finetune-overview.json" in keys
 
     def test_security_dashboard_absent_when_off(self):

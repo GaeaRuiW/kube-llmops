@@ -1,5 +1,5 @@
 """
-Helm template unit tests for the dashboard subchart.
+Helm template unit tests for the headlamp subchart.
 Validates that helm template renders correct K8s manifests.
 
 Usage:
@@ -42,77 +42,78 @@ def find_by_kind(docs, kind, name_contains=None):
     return found
 
 
-class TestDashboardDeployment:
-    """Tests for dashboard Deployment manifest."""
+class TestHeadlampDeployment:
+    """Tests for headlamp Deployment manifest."""
 
     def test_deployment_exists(self):
-        docs = helm_template(show_only="charts/dashboard/templates/deployment.yaml")
+        docs = helm_template(show_only="charts/headlamp/charts/headlamp/templates/deployment.yaml")
         assert len(docs) == 1
         dep = docs[0]
         assert dep["kind"] == "Deployment"
-        assert "dashboard" in dep["metadata"]["name"]
+        assert "headlamp" in dep["metadata"]["name"]
 
     def test_deployment_image(self):
-        docs = helm_template(show_only="charts/dashboard/templates/deployment.yaml")
+        docs = helm_template(show_only="charts/headlamp/charts/headlamp/templates/deployment.yaml")
         dep = docs[0]
         container = dep["spec"]["template"]["spec"]["containers"][0]
-        assert container["image"] == "kube-llmops/dashboard:latest"
+        assert "headlamp" in container["image"]
 
     def test_deployment_port(self):
-        docs = helm_template(show_only="charts/dashboard/templates/deployment.yaml")
+        docs = helm_template(show_only="charts/headlamp/charts/headlamp/templates/deployment.yaml")
         dep = docs[0]
         container = dep["spec"]["template"]["spec"]["containers"][0]
         ports = [p["containerPort"] for p in container.get("ports", [])]
-        assert 3000 in ports
-
-    def test_deployment_has_env_vars(self):
-        docs = helm_template(show_only="charts/dashboard/templates/deployment.yaml")
-        dep = docs[0]
-        container = dep["spec"]["template"]["spec"]["containers"][0]
-        env_names = [e["name"] for e in container.get("env", [])]
-        assert "PORT" in env_names
-        assert "NAMESPACE" in env_names
-
-    def test_deployment_service_account(self):
-        docs = helm_template(show_only="charts/dashboard/templates/deployment.yaml")
-        dep = docs[0]
-        sa = dep["spec"]["template"]["spec"].get("serviceAccountName", "")
-        assert "dashboard" in sa
+        assert 4466 in ports
 
     def test_deployment_replicas(self):
-        docs = helm_template(show_only="charts/dashboard/templates/deployment.yaml")
+        docs = helm_template(show_only="charts/headlamp/charts/headlamp/templates/deployment.yaml")
         dep = docs[0]
         assert dep["spec"]["replicas"] == 1
 
-    def test_deployment_resource_limits(self):
-        docs = helm_template(show_only="charts/dashboard/templates/deployment.yaml")
+    def test_deployment_service_account(self):
+        docs = helm_template(show_only="charts/headlamp/charts/headlamp/templates/deployment.yaml")
+        dep = docs[0]
+        sa = dep["spec"]["template"]["spec"].get("serviceAccountName", "")
+        assert "headlamp" in sa
+
+    def test_deployment_has_liveness_probe(self):
+        docs = helm_template(show_only="charts/headlamp/charts/headlamp/templates/deployment.yaml")
         dep = docs[0]
         container = dep["spec"]["template"]["spec"]["containers"][0]
-        resources = container.get("resources", {})
-        assert "limits" in resources
-        assert "requests" in resources
+        assert "livenessProbe" in container
+
+    def test_deployment_has_readiness_probe(self):
+        docs = helm_template(show_only="charts/headlamp/charts/headlamp/templates/deployment.yaml")
+        dep = docs[0]
+        container = dep["spec"]["template"]["spec"]["containers"][0]
+        assert "readinessProbe" in container
 
 
-class TestDashboardService:
-    """Tests for dashboard Service manifest."""
+class TestHeadlampService:
+    """Tests for headlamp Service manifest."""
 
     def test_service_exists(self):
-        docs = helm_template(show_only="charts/dashboard/templates/service.yaml")
+        docs = helm_template(show_only="charts/headlamp/charts/headlamp/templates/service.yaml")
         assert len(docs) >= 1
         svc = docs[0]
         assert svc["kind"] == "Service"
-        assert "dashboard" in svc["metadata"]["name"]
+        assert "headlamp" in svc["metadata"]["name"]
 
     def test_service_port(self):
-        docs = helm_template(show_only="charts/dashboard/templates/service.yaml")
+        docs = helm_template(show_only="charts/headlamp/charts/headlamp/templates/service.yaml")
         svc = docs[0]
         ports = svc["spec"]["ports"]
         port_numbers = [p["port"] for p in ports]
-        assert 3000 in port_numbers
+        assert 80 in port_numbers
+
+    def test_service_type_clusterip(self):
+        docs = helm_template(show_only="charts/headlamp/charts/headlamp/templates/service.yaml")
+        svc = docs[0]
+        assert svc["spec"]["type"] == "ClusterIP"
 
 
-class TestDashboardNodePort:
-    """Tests for dashboard NodePort in parent template."""
+class TestHeadlampNodePort:
+    """Tests for headlamp NodePort in parent template."""
 
     def test_nodeport_exists(self):
         docs = helm_template(
@@ -120,8 +121,8 @@ class TestDashboardNodePort:
             show_only="templates/nodeport-services.yaml",
         )
         svc_names = [d["metadata"]["name"] for d in docs if d["kind"] == "Service"]
-        dashboard_svcs = [n for n in svc_names if "dashboard" in n]
-        assert len(dashboard_svcs) >= 1, f"No dashboard NodePort found in: {svc_names}"
+        headlamp_svcs = [n for n in svc_names if "headlamp" in n]
+        assert len(headlamp_svcs) >= 1, f"No headlamp NodePort found in: {svc_names}"
 
     def test_nodeport_is_30302(self):
         docs = helm_template(
@@ -129,48 +130,106 @@ class TestDashboardNodePort:
             show_only="templates/nodeport-services.yaml",
         )
         for doc in docs:
-            if doc["kind"] == "Service" and "dashboard" in doc["metadata"]["name"]:
+            if doc["kind"] == "Service" and "headlamp" in doc["metadata"]["name"]:
                 node_ports = [p.get("nodePort") for p in doc["spec"]["ports"]]
                 assert 30302 in node_ports, f"Expected NodePort 30302, got {node_ports}"
                 return
-        pytest.fail("Dashboard NodePort service not found")
+        pytest.fail("Headlamp NodePort service not found")
+
+    def test_nodeport_target_port(self):
+        docs = helm_template(
+            set_values={"global.nodePort.enabled": "true", "global.nodePort.host": "10.0.0.1"},
+            show_only="templates/nodeport-services.yaml",
+        )
+        for doc in docs:
+            if doc["kind"] == "Service" and "headlamp" in doc["metadata"]["name"]:
+                target_ports = [p.get("targetPort") for p in doc["spec"]["ports"]]
+                assert 4466 in target_ports, f"Expected targetPort 4466, got {target_ports}"
+                return
+        pytest.fail("Headlamp NodePort service not found")
 
 
-class TestDashboardRBAC:
-    """Tests for dashboard RBAC resources."""
+class TestHeadlampPlugin:
+    """Tests for headlamp plugin init container and volumes."""
+
+    def test_plugin_init_container_exists(self):
+        docs = helm_template(show_only="charts/headlamp/charts/headlamp/templates/deployment.yaml")
+        dep = docs[0]
+        init_containers = dep["spec"]["template"]["spec"].get("initContainers", [])
+        init_names = [c["name"] for c in init_containers]
+        assert "install-llmops-plugin" in init_names, f"Plugin init container not found in: {init_names}"
+
+    def test_plugin_init_container_image(self):
+        docs = helm_template(show_only="charts/headlamp/charts/headlamp/templates/deployment.yaml")
+        dep = docs[0]
+        init_containers = dep["spec"]["template"]["spec"].get("initContainers", [])
+        plugin_container = [c for c in init_containers if c["name"] == "install-llmops-plugin"][0]
+        assert "headlamp-plugin" in plugin_container["image"]
+
+    def test_plugins_volume_exists(self):
+        docs = helm_template(show_only="charts/headlamp/charts/headlamp/templates/deployment.yaml")
+        dep = docs[0]
+        volumes = dep["spec"]["template"]["spec"].get("volumes", [])
+        volume_names = [v["name"] for v in volumes]
+        assert "plugins" in volume_names, f"plugins volume not found in: {volume_names}"
+
+    def test_plugins_volume_mounted_on_container(self):
+        docs = helm_template(show_only="charts/headlamp/charts/headlamp/templates/deployment.yaml")
+        dep = docs[0]
+        container = dep["spec"]["template"]["spec"]["containers"][0]
+        mount_paths = [m["mountPath"] for m in container.get("volumeMounts", [])]
+        assert "/headlamp/plugins" in mount_paths
+
+    def test_plugins_dir_arg(self):
+        docs = helm_template(show_only="charts/headlamp/charts/headlamp/templates/deployment.yaml")
+        dep = docs[0]
+        container = dep["spec"]["template"]["spec"]["containers"][0]
+        args = container.get("args", [])
+        assert "-plugins-dir=/headlamp/plugins" in args
+
+    def test_ca_bundle_init_container_exists(self):
+        docs = helm_template(show_only="charts/headlamp/charts/headlamp/templates/deployment.yaml")
+        dep = docs[0]
+        init_containers = dep["spec"]["template"]["spec"].get("initContainers", [])
+        init_names = [c["name"] for c in init_containers]
+        assert "build-ca-bundle" in init_names, f"CA bundle init container not found in: {init_names}"
+
+
+class TestHeadlampRBAC:
+    """Tests for headlamp RBAC resources."""
 
     def test_serviceaccount_exists(self):
-        docs = helm_template(show_only="charts/dashboard/templates/serviceaccount.yaml")
+        docs = helm_template(show_only="charts/headlamp/charts/headlamp/templates/serviceaccount.yaml")
         assert len(docs) >= 1
         sa = docs[0]
         assert sa["kind"] == "ServiceAccount"
-        assert "dashboard" in sa["metadata"]["name"]
+        assert "headlamp" in sa["metadata"]["name"]
+
+    def test_clusterrolebinding_exists(self):
+        docs = helm_template(show_only="charts/headlamp/charts/headlamp/templates/clusterrolebinding.yaml")
+        assert len(docs) >= 1
+        crb = docs[0]
+        assert crb["kind"] == "ClusterRoleBinding"
+        assert "headlamp" in crb["metadata"]["name"]
 
 
-class TestDashboardIntegration:
-    """Tests for dashboard integrations with other components."""
+class TestHeadlampIntegration:
+    """Tests for headlamp integrations with other components."""
 
-    def test_keycloak_has_dashboard_client(self):
-        """Dashboard OIDC client should be registered in Keycloak realm."""
+    def test_keycloak_has_headlamp_client(self):
+        """Headlamp OIDC client should be registered in Keycloak realm."""
         docs = helm_template(show_only="charts/keycloak/templates/realm-configmap.yaml")
         assert len(docs) >= 1
         cm = docs[0]
         realm_data = cm["data"].get("realm-import.json", "") or cm["data"].get("realm.json", "")
-        assert "dashboard" in realm_data, "Dashboard client not found in Keycloak realm"
+        assert "headlamp" in realm_data, "Headlamp client not found in Keycloak realm"
 
-    def test_postgresql_has_dashboard_db(self):
-        """PostgreSQL init should create dashboard database."""
-        docs = helm_template(show_only="charts/litellm/templates/postgresql.yaml")
-        for doc in docs:
-            if doc["kind"] == "ConfigMap" and "init" in doc["metadata"]["name"]:
-                init_script = list(doc["data"].values())[0]
-                assert "dashboard" in init_script, "Dashboard DB not in PostgreSQL init"
-                return
-        # Try alternative locations
-        all_docs = helm_template()
-        for doc in all_docs:
-            if doc.get("kind") == "ConfigMap" and "postgres" in doc["metadata"]["name"].lower():
-                for v in doc.get("data", {}).values():
-                    if "dashboard" in v:
-                        return
-        pytest.skip("PostgreSQL init ConfigMap not found in expected location")
+    def test_oidc_args_in_deployment(self):
+        """Headlamp deployment should contain OIDC args for Keycloak integration."""
+        docs = helm_template(show_only="charts/headlamp/charts/headlamp/templates/deployment.yaml")
+        dep = docs[0]
+        container = dep["spec"]["template"]["spec"]["containers"][0]
+        args = container.get("args", [])
+        args_str = " ".join(args)
+        assert "-oidc-client-id" in args_str, "OIDC client-id arg not found"
+        assert "-oidc-client-secret" in args_str, "OIDC client-secret arg not found"

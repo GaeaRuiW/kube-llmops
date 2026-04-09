@@ -1,4 +1,4 @@
-{{- if and .Values.enabled .Values.ragasEval.enabled }}
+{{- if .Values.ragasEval.enabled }}
 ---
 apiVersion: v1
 kind: ConfigMap

@@ -1,4 +1,3 @@
-{{- if .Values.enabled }}
 {{- $_ := required "finetune.baseModel is required when finetune is enabled" .Values.baseModel }}
 {{- $_ := required "finetune.outputName is required when finetune is enabled" .Values.outputName }}
 {{- if and (eq .Values.dataSource.type "minio") (not .Values.dataSource.path) }}
@@ -1090,5 +1089,4 @@ spec:
           requests:
             cpu: 250m
             memory: 256Mi
-{{- end }}
 {{- end }}
