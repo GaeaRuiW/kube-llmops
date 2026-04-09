@@ -1,7 +1,7 @@
 # Module Switches Design Spec
 
 **Date:** 2026-04-05
-**Status:** Approved
+**Status:** Implemented in v0.5.0
 **Goal:** Unified module-level feature toggles for RAG, fine-tuning, and security — one switch controls all related services, dashboards, and alert rules.
 
 ## Problem

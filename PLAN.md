@@ -1,13 +1,15 @@
 # kube-llmops Implementation Plan
 
-> **STATUS: ARCHIVED** -- v0.1.0, v0.2.0, and v0.3.0 are all released. This document is preserved for historical reference.
+> **STATUS: ARCHIVED** -- v0.1.0 through v0.5.0 are all released. This document is preserved for historical reference.
 >
 > For current status, see [CHANGELOG.md](CHANGELOG.md) and [README.md](README.md).
 >
-> Last updated: 2026-03-25 (archived)
+> Last updated: 2026-04-09 (archived)
 >
-> This plan covered **Phase 1 (MVP)** and **Phase 2 (Production Readiness)** in detail.
-> Phase 3 (RAG) was completed as v0.3.0. Phase 4-6 remain as future roadmap items.
+> This plan covered **Phase 1 (MVP)** through **Phase 2 (Production Readiness)** in detail.
+> Phase 3 (RAG) completed as v0.3.0. Phase 4 (Fine-tuning) completed as v0.4.0.
+> Phase 5 (Advanced Inference) completed as v0.5.0. Phase 6 (Operator/CLI/Dashboard) remains as future roadmap.
+> See [docs/superpowers/](docs/superpowers/README.md) for Phase 4-6 design specs and plans.
 
 ---
 

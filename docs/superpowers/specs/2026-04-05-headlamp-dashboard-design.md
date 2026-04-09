@@ -1,7 +1,7 @@
 # Design: Replace Custom Dashboard with Headlamp + Plugin
 
 **Date:** 2026-04-05
-**Status:** Draft
+**Status:** Implemented in v0.5.0 (replaced custom dashboard plan with Headlamp + plugin)
 
 ## Context
 

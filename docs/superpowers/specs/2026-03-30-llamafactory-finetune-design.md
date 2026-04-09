@@ -2,7 +2,7 @@
 
 > **Date**: 2026-03-30
 > **Phase**: v0.4.0 (ML Platform) — Sub-project 1 of 6
-> **Status**: Approved, ready for implementation planning
+> **Status**: Implemented in v0.4.0
 
 ---
 

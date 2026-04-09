@@ -107,9 +107,14 @@ Every technology choice with its CNCF status:
 
 ---
 
-## NEW: Model Resolver (Engine Auto-Selection)
+## Model Resolver (Engine Auto-Selection)
 
 > **Core idea: User specifies the model, platform automatically picks the optimal engine.**
+>
+> Implemented in v0.3.1 via Helm template functions (`resolveEngine`, `resolveModelType`)
+> in `_helpers.tpl`. The actual implementation uses source-name pattern matching
+> rather than the full HuggingFace API-based detection described below.
+> See [AGENTS.md](../AGENTS.md) for the current auto-detection rules.
 
 ### Problem
 
@@ -448,15 +453,17 @@ spec:
 - **Canary rollout**: A/B split between model versions via InferenceModel CRD
 - **Flow control**: Priority + fairness between workloads
 
-### Tier 2 Rollout Strategy (Future)
+### Tier 2 Rollout Strategy
 
-> Note: Tier 2 gateway is a future roadmap item. Current architecture uses LiteLLM as the sole gateway.
+> As of v0.5.0, llm-d disaggregated serving templates are available (experimental).
+> The full Envoy AI Gateway integration is a future roadmap item.
 
 ```
-Current:           LiteLLM -> vLLM directly (no Tier 2)
+v0.5.0 (current):  LiteLLM -> vLLM directly (no Tier 2)
+                    llm-d templates available (experimental, opt-in)
 Future Phase 1:    LiteLLM -> Envoy AI Gateway (basic) -> vLLM
 Future Phase 2:    LiteLLM -> Envoy + IGW (full inference scheduling) -> vLLM
-Future Phase 3:    LiteLLM -> IGW + llm-d (disaggregated P/D serving)
+Future Phase 3:    LiteLLM -> IGW + llm-d (disaggregated P/D serving, production)
 ```
 
 ---
