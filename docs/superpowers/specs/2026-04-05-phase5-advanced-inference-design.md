@@ -3,7 +3,7 @@
 > Smart routing, SLO guarantees, cost control, disaggregated serving, multi-accelerator support.
 
 **Date:** 2026-04-05
-**Status:** Approved
+**Status:** Implemented in v0.5.0
 **Scope:** kube-llmops v0.5.0
 
 ---

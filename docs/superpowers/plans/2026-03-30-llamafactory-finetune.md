@@ -1,5 +1,8 @@
 # LLaMA-Factory Fine-tuning Pipeline — Implementation Plan
 
+> **STATUS: COMPLETED** — Implemented in v0.4.0. All tasks executed successfully.
+> See: `charts/kube-llmops-stack/charts/finetune/`, `tests/helm/test_finetune_templates.py`, `tests/e2e/test_finetune_e2e.py`
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add a production-grade fine-tuning pipeline (LLaMA-Factory + Argo Workflows + MLflow) to kube-llmops as a new Helm subchart.

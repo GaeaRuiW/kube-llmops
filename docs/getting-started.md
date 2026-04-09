@@ -548,74 +548,49 @@ kubectl port-forward svc/kube-llmops-minio 9001:9001 &
 
 ## Single Sign-On (Keycloak)
 
-kube-llmops supports OIDC-based SSO for Grafana via Keycloak or any OIDC provider.
+Keycloak is included as a subchart and auto-provisions a realm (`kube-llmops`), OIDC clients
+(Grafana, Langfuse, MinIO, LiteLLM), roles, and users on first deploy. No manual setup required.
 
-### Deploy Keycloak
+### Enable Keycloak
 
-Keycloak is not included in the Helm chart (it's a cluster-level service). Deploy separately:
+Keycloak is enabled by default in `values-single-node.yaml`. To enable it in custom values:
 
-```bash
-# Quick dev deployment
-kubectl apply -f - <<EOF
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: keycloak
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: keycloak
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: keycloak
-    spec:
-      containers:
-        - name: keycloak
-          image: quay.io/keycloak/keycloak:26.0
-          args: ["start-dev"]
-          env:
-            - name: KC_BOOTSTRAP_ADMIN_USERNAME
-              value: admin
-            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
-              value: admin123!
-            - name: KC_HEALTH_ENABLED
-              value: "true"
-          ports:
-            - containerPort: 8080
-          readinessProbe:
-            httpGet:
-              path: /health/ready
-              port: 9000
-            initialDelaySeconds: 30
-          resources:
-            requests: { cpu: 250m, memory: 512Mi }
-            limits: { cpu: "1", memory: 768Mi }
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: kube-llmops-keycloak
-spec:
-  ports: [{ port: 8080, targetPort: 8080 }]
-  selector:
-    app.kubernetes.io/name: keycloak
-EOF
+```yaml
+keycloak:
+  enabled: true
 ```
 
-### Configure Keycloak Realm
+### Access Keycloak Admin Console
 
 ```bash
+# Via NodePort (if global.nodePort.enabled=true)
+# Open http://<NODE_IP>:30808
+# Login: admin / admin (default, change in production)
+
+# Via port-forward
 kubectl port-forward svc/kube-llmops-keycloak 8080:8080 &
-# Open http://localhost:8080 → Login: admin / admin123!
-# 1. Create realm: kube-llmops
-# 2. Create client: grafana (Client authentication: On, redirect URI: http://localhost:3000/*)
-# 3. Note the client secret from Credentials tab
-# 4. Create users as needed
+# Open http://localhost:8080
 ```
 
-### Enable Grafana SSO
+### HTTPS + K8s OIDC (Headlamp SSO)
+
+For full SSO integration (Headlamp -> Keycloak -> K8s API Server), Keycloak needs HTTPS
+because the K8s API Server requires an HTTPS OIDC issuer URL.
+
+```yaml
+keycloak:
+  tls:
+    enabled: true          # Enable HTTPS (NodePort :30809)
+    selfSigned: true       # Auto-generate self-signed cert
+    existingSecret: ""     # Or provide your own TLS secret
+```
+
+See [AGENTS.md](../AGENTS.md) for the full k3s OIDC setup guide.
+
+### Grafana SSO
+
+Grafana SSO is auto-configured when Keycloak is enabled. The OIDC client is created
+automatically by the Keycloak setup job. To customize:
 
 ```yaml
 observability:
@@ -623,17 +598,16 @@ observability:
     oidc:
       enabled: true
       clientId: grafana
-      clientSecret: <your-client-secret>
+      clientSecret: <your-client-secret>    # auto-generated if not set
       issuerUrl: http://kube-llmops-keycloak:8080/realms/kube-llmops
       grafanaRootUrl: http://localhost:3000
 ```
 
-After upgrade, the Grafana login page will show a "Sign in with Keycloak" button.
-
 | Service | URL | Credentials |
 |---|---|---|
-| **Keycloak Admin** | `http://localhost:8080` | `admin` / `admin123!` |
-| **Grafana** (SSO) | `http://localhost:3000` | via Keycloak SSO |
+| **Keycloak Admin** | `http://<NODE_IP>:30808` or port-forward `:8080` | `admin` / `admin` |
+| **Keycloak HTTPS** | `https://<NODE_IP>:30809` (when TLS enabled) | `admin` / `admin` |
+| **Grafana** (SSO) | `http://<NODE_IP>:30300` | via Keycloak SSO |
 
 ---
 

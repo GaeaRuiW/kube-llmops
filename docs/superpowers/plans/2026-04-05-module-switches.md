@@ -1,5 +1,8 @@
 # Module Switches Implementation Plan
 
+> **STATUS: COMPLETED** — Implemented in v0.5.0. All tasks executed successfully.
+> See: `charts/kube-llmops-stack/Chart.yaml` (dual-path conditions), `tests/helm/test_module_switches.py` (19 tests passing)
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add `modules.rag`, `modules.finetune`, `modules.security` switches that control entire feature groups (services + dashboards + alerts) with one flag, while preserving per-component override capability.
