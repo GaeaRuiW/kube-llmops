@@ -141,7 +141,7 @@ litellm:
   enabled: true
   models: []                  # Populated from top-level models[] for config generation
   replicas: 1
-  masterKey: ""               # Set via --set or secret. REQUIRED.
+  masterKey: "sk-kube-llmops-default"  # Default dev key; override in production
   image:
     repository: ghcr.io/berriai/litellm
     tag: v1.83.1-nightly
@@ -181,8 +181,16 @@ litellm:
     auth:
       database: litellm
       username: litellm
-      password: ""            # Set via --set or secret
-    extraDatabases: []        # e.g. [{name: langfuse, password: pw}]
+      password: "llmops-pg-dev-pw"  # Default dev password; override in production
+    extraDatabases:
+      - name: langfuse
+        password: langfuse-default-pw
+      - name: dify
+        password: dify-default-pw
+      - name: dify_plugin
+        password: dify-default-pw
+      - name: mlflow
+        password: mlflow-default-pw
     storage:
       size: 5Gi
       storageClass: ""
@@ -220,7 +228,7 @@ observability:
       repository: grafana/grafana
       tag: 12.4.2
       pullPolicy: IfNotPresent
-    adminPassword: ""         # Set via --set or secret
+    adminPassword: "admin"    # Default dev password; override in production
     service:
       type: ClusterIP
       port: 3000

@@ -1,3 +1,10 @@
 # More info: https://docs.docker.com/engine/reference/builder/#dockerignore-file
 # Ignore build and test binaries.
 bin/
+# Ignore test and config directories not needed in the image.
+test/
+config/
+hack/
+# Exclude the operator's own Helm chart (only _build_charts/ is needed for embedding).
+charts/
+# Keep _build_charts/ (staged by build.sh for embedding in the image).

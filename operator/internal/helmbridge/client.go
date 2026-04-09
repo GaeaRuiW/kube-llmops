@@ -15,6 +15,7 @@ type HelmClient interface {
 	Upgrade(name, namespace, chartPath string, values map[string]interface{}) (*release.Release, error)
 	GetRelease(name, namespace string) (*release.Release, error)
 	Uninstall(name, namespace string) error
+	Rollback(name, namespace string, version int) error
 }
 
 // SDKClient implements HelmClient using the Helm SDK.
@@ -47,6 +48,9 @@ func (c *SDKClient) Install(name, namespace, chartPath string, values map[string
 	install.Namespace = namespace
 	install.CreateNamespace = false
 	install.Wait = false
+	install.DisableOpenAPIValidation = true
+	install.SkipCRDs = true   // CRDs managed separately
+	install.DisableHooks = true // Hooks block on long-running jobs
 
 	return install.Run(chart, values)
 }
@@ -66,6 +70,7 @@ func (c *SDKClient) Upgrade(name, namespace, chartPath string, values map[string
 	upgrade := action.NewUpgrade(cfg)
 	upgrade.Namespace = namespace
 	upgrade.Wait = false
+	upgrade.DisableHooks = true // Hooks block on long-running jobs
 
 	return upgrade.Run(name, chart, values)
 }
@@ -91,6 +96,47 @@ func (c *SDKClient) Uninstall(name, namespace string) error {
 	uninstall := action.NewUninstall(cfg)
 	_, err = uninstall.Run(name)
 	return err
+}
+
+// Rollback rolls back a Helm release to the specified version (0 = previous).
+func (c *SDKClient) Rollback(name, namespace string, version int) error {
+	cfg, err := c.actionConfig(namespace)
+	if err != nil {
+		return err
+	}
+
+	rollback := action.NewRollback(cfg)
+	rollback.Version = version
+	rollback.CleanupOnFail = true
+	return rollback.Run(name)
+}
+
+// FixStuckRelease detects and recovers from pending-install / pending-upgrade states.
+// Returns true if the release was fixed and the caller should retry.
+func (c *SDKClient) FixStuckRelease(name, namespace string) (bool, error) {
+	rel, err := c.GetRelease(name, namespace)
+	if err != nil || rel == nil {
+		return false, nil
+	}
+
+	switch rel.Info.Status {
+	case release.StatusPendingInstall:
+		// Stuck in pending-install — uninstall and let caller re-install
+		_ = c.Uninstall(name, namespace)
+		return true, nil
+	case release.StatusPendingUpgrade, release.StatusPendingRollback:
+		// Stuck in pending-upgrade — rollback to last good version
+		if err := c.Rollback(name, namespace, 0); err != nil {
+			// Rollback failed — uninstall as last resort
+			_ = c.Uninstall(name, namespace)
+		}
+		return true, nil
+	case release.StatusFailed:
+		// Last operation failed — try upgrade (Helm allows upgrade from failed state)
+		return false, nil
+	default:
+		return false, nil
+	}
 }
 
 // MockHelmClient is a test double for HelmClient.
@@ -125,5 +171,10 @@ func (m *MockHelmClient) GetRelease(name, namespace string) (*release.Release, e
 
 // Uninstall is a no-op for the mock.
 func (m *MockHelmClient) Uninstall(name, namespace string) error {
+	return nil
+}
+
+// Rollback is a no-op for the mock.
+func (m *MockHelmClient) Rollback(name, namespace string, version int) error {
 	return nil
 }

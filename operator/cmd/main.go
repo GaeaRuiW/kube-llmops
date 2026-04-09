@@ -229,6 +229,7 @@ func main() {
 		Client:     mgr.GetClient(),
 		Scheme:     mgr.GetScheme(),
 		HelmClient: &helmbridge.SDKClient{},
+		ChartPath:  os.Getenv("CHART_PATH"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "LLMPlatform")
 		os.Exit(1)

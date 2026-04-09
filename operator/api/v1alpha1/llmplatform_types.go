@@ -46,6 +46,10 @@ type LLMPlatformSpec struct {
 	// +optional
 	HFToken string `json:"hfToken,omitempty"`
 
+	// Models defines the list of models to deploy.
+	// +optional
+	Models []ModelSpec `json:"models,omitempty"`
+
 	// Keycloak configures SSO.
 	// +optional
 	Keycloak KeycloakSpec `json:"keycloak,omitempty"`
@@ -65,15 +69,30 @@ type LLMPlatformSpec struct {
 	// Ingress configures ingress-based access.
 	// +optional
 	Ingress IngressSpec `json:"ingress,omitempty"`
+
+	// Headlamp enables the Headlamp Kubernetes dashboard.
+	// +optional
+	Headlamp EnabledToggle `json:"headlamp,omitempty"`
 }
 
 // GatewaySpec configures LiteLLM.
 type GatewaySpec struct {
 	Enabled       bool          `json:"enabled,omitempty"`
+	MasterKey     string        `json:"masterKey,omitempty"`
 	Routing       string        `json:"routing,omitempty"`
 	Image         ImageSpec     `json:"image,omitempty"`
 	RateLimiting  EnabledToggle `json:"rateLimiting,omitempty"`
 	BudgetControl EnabledToggle `json:"budgetControl,omitempty"`
+
+	// LangfuseEnabled enables Langfuse callback integration in LiteLLM.
+	// +optional
+	LangfuseEnabled bool `json:"langfuseEnabled,omitempty"`
+	// LangfusePublicKey is the Langfuse public key for LiteLLM callbacks.
+	// +optional
+	LangfusePublicKey string `json:"langfusePublicKey,omitempty"`
+	// LangfuseSecretKey is the Langfuse secret key for LiteLLM callbacks.
+	// +optional
+	LangfuseSecretKey string `json:"langfuseSecretKey,omitempty"`
 }
 
 // ObservabilitySpec configures monitoring and tracing.
@@ -151,12 +170,36 @@ type EnabledToggle struct {
 	Enabled bool `json:"enabled,omitempty"`
 }
 
+// ModelSpec defines a model to deploy.
+type ModelSpec struct {
+	// Name is the short name used to reference this model.
+	Name string `json:"name"`
+	// Source is the HuggingFace model ID or path.
+	Source string `json:"source"`
+	// Engine overrides auto-detection (vllm, tei, llamacpp, sglang).
+	// +optional
+	Engine string `json:"engine,omitempty"`
+	// Replicas is the number of serving replicas.
+	// +optional
+	Replicas int `json:"replicas,omitempty"`
+	// Resources specifies GPU, CPU, and memory requirements.
+	// +optional
+	Resources ModelResources `json:"resources,omitempty"`
+	// EngineArgs are additional engine-specific arguments.
+	// +optional
+	EngineArgs map[string]string `json:"engineArgs,omitempty"`
+}
+
 // LLMPlatformStatus defines the observed state of LLMPlatform.
 type LLMPlatformStatus struct {
 	// Phase is the high-level lifecycle phase.
 	// +kubebuilder:validation:Enum=Pending;Installing;Ready;Upgrading;Degraded;Failed
 	// +optional
 	Phase string `json:"phase,omitempty"`
+
+	// ObservedGeneration is the most recent generation observed by the controller.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
 	// HelmRelease is the name of the managed Helm release.
 	// +optional

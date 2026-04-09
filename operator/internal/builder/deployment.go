@@ -285,19 +285,27 @@ func buildInitContainers(md *v1alpha1.ModelDeployment, platform *v1alpha1.LLMPla
 		concurrency = 4
 	}
 
+	envVars := []corev1.EnvVar{
+		{Name: "MODEL_SOURCE", Value: md.Spec.Source},
+		{Name: "MODEL_SLUG", Value: slug},
+		{Name: "MINIO_ENDPOINT", Value: endpoint},
+		{Name: "MINIO_BUCKET", Value: bucket},
+		{Name: "MINIO_ACCESS_KEY", Value: ms.AccessKey},
+		{Name: "MINIO_SECRET_KEY", Value: ms.SecretKey},
+		{Name: "HF_TRANSFER_CONCURRENCY", Value: fmt.Sprintf("%d", concurrency)},
+		{Name: "HF_HUB_ENABLE_HF_TRANSFER", Value: "1"},
+	}
+
+	// Pass HF token for gated models (Llama, Gemma, etc.)
+	if platform.Spec.HFToken != "" {
+		envVars = append(envVars, corev1.EnvVar{Name: "HF_TOKEN", Value: platform.Spec.HFToken})
+	}
+
 	return []corev1.Container{
 		{
-			Name:  "model-loader",
-			Image: ms.Image,
-			Env: []corev1.EnvVar{
-				{Name: "MODEL_SOURCE", Value: md.Spec.Source},
-				{Name: "MODEL_SLUG", Value: slug},
-				{Name: "MINIO_ENDPOINT", Value: endpoint},
-				{Name: "MINIO_BUCKET", Value: bucket},
-				{Name: "MINIO_ACCESS_KEY", Value: ms.AccessKey},
-				{Name: "MINIO_SECRET_KEY", Value: ms.SecretKey},
-				{Name: "HF_TRANSFER_CONCURRENCY", Value: fmt.Sprintf("%d", concurrency)},
-			},
+			Name:         "model-loader",
+			Image:        ms.Image,
+			Env:          envVars,
 			VolumeMounts: []corev1.VolumeMount{
 				{Name: "model-cache", MountPath: "/models"},
 			},
