@@ -12,11 +12,13 @@ NODE_IP=$(kubectl get node -o jsonpath='{.items[0].status.addresses[0].address}'
 helm install kube-llmops charts/kube-llmops-stack \
   -f charts/kube-llmops-stack/values-single-node.yaml \
   --set global.nodePort.enabled=true \
-  --set global.nodePort.host=$NODE_IP
+  --set global.nodePort.host=$NODE_IP \
+  --set global.hfToken=$HF_TOKEN
 
 # Upgrade
 helm upgrade kube-llmops charts/kube-llmops-stack \
-  -f charts/kube-llmops-stack/values-single-node.yaml --no-hooks
+  -f charts/kube-llmops-stack/values-single-node.yaml \
+  --set global.hfToken=$HF_TOKEN --no-hooks
 
 # IMPORTANT: After changing any subchart template, rebuild archives:
 cd charts/kube-llmops-stack && rm -f charts/*.tgz Chart.lock && helm dependency update .

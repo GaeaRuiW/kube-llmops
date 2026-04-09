@@ -68,7 +68,8 @@ global:
     hfTransferConcurrency: 32                # concurrent file downloads (hf-transfer)
     image: kube-llmops/model-loader:latest   # pre-built with minio+huggingface_hub
   # HuggingFace token for gated models (Llama, Gemma, etc.)
-  hfToken: ***REMOVED***
+  # Pass at deploy time: --set global.hfToken=$HF_TOKEN
+  hfToken: ""
 
 # ========== Engine Settings ==========
 vllm:
