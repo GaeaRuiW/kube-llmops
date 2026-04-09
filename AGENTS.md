@@ -226,6 +226,7 @@ oidcRBAC:
 ### Advanced Inference (v0.5.0)
 - Latency-based routing (default strategy, configurable per deployment)
 - Prefix caching for repeated system prompts
+- Session affinity via Envoy sidecar (`litellm.sessionAffinity.enabled`)
 - Multi-trigger KEDA autoscaling (queue + TTFT P95 + TPOT P95)
 - Scale-to-zero with LiteLLM fallback for cold start
 - Spot/preemptible GPU tolerations (AWS, GCP, Azure, Karpenter)
@@ -234,6 +235,7 @@ oidcRBAC:
 - llm-d disaggregated serving (experimental, prefill/decode split)
 - Multi-accelerator support (nvidia, amd, gaudi)
 - SLO alerts (TTFT/TPOT breach thresholds)
+- Envoy AI Gateway with InferencePool + InferenceModel CRDs (IGW extension)
 
 ## Critical Gotchas
 
@@ -243,6 +245,13 @@ Helm uses `.tgz` archives in `charts/` over directory sources. After editing any
 rm -f charts/kube-llmops-stack/charts/*.tgz charts/kube-llmops-stack/Chart.lock
 helm dependency update charts/kube-llmops-stack/
 ```
+
+### Module Switch Condition Order
+Chart.yaml uses dual-path conditions: `dify.enabled,global.modules.rag.enabled`.
+Module-controlled subcharts (dify, milvus, lightrag, rag-eval, finetune, jupyterhub)
+must NOT have `enabled: true` in their own values.yaml — otherwise the subchart default
+takes precedence and the module switch never gets checked. The security subchart uses
+nested enabled fields (e.g. `llmGuard.enabled`) which don't conflict.
 
 ### LiteLLM Embedding Config
 - Use `huggingface/` prefix (NOT `openai/`) for TEI embedding models
@@ -286,6 +295,7 @@ helm dependency update charts/kube-llmops-stack/
 | Finetune Sample Data | CI | 1 | Alpaca-format validation (>=10 samples) |
 | Phase 5 Templates | pytest | 39 | routing, KEDA multi-trigger, scale-to-zero, canary, llm-d, MIG, accelerator |
 | Module Switches | pytest | 19 | RAG/finetune/security toggles, dashboard/alert conditionals, explicit overrides |
+| Headlamp Templates | pytest | 23 | deployment, service, NodePort, plugin, RBAC, Keycloak OIDC integration |
 
 ## Grafana Dashboards (11)
 

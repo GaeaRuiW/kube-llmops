@@ -48,15 +48,31 @@ spec:
           port: 4000
 {{- end }}
 {{/*
-InferenceModel CRD templates for LoRA adapter routing.
-These are placeholder templates — the actual CRD requires the
-Inference Gateway (IGW) extension to be installed.
+InferenceModel + InferencePool CRDs for LoRA adapter routing.
+Prerequisites:
+  1. Gateway API CRDs: kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.1/standard-install.yaml
+  2. Inference Gateway Extension (IGW): https://gateway-api.sigs.k8s.io/geps/gep-1731/
+  3. Envoy Gateway with IGW support: https://gateway.envoyproxy.io/docs/tasks/ai-gateway/
 
-When IGW is available, each model+adapter combo gets an InferenceModel
-resource that tells the gateway how to route requests to the correct
-vLLM instance with the right LoRA adapter loaded.
+Each InferenceModel maps a model+adapter combo to a vLLM pool.
+The InferencePool defines the backend target (vLLM Deployment endpoint).
 */}}
 {{- if and .Values.envoyGateway.enabled .Values.envoyGateway.inferenceModels }}
+---
+# InferencePool: backend target for vLLM model serving pods
+apiVersion: inference.networking.x-k8s.io/v1alpha2
+kind: InferencePool
+metadata:
+  name: {{ .Release.Name }}-vllm-pool
+  labels:
+    app.kubernetes.io/name: inference-pool
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  targetPortNumber: 8000
+  selector:
+    app.kubernetes.io/name: vllm
+    app.kubernetes.io/instance: {{ .Release.Name }}
 {{- range .Values.envoyGateway.inferenceModels }}
 ---
 apiVersion: inference.networking.x-k8s.io/v1alpha2
@@ -67,6 +83,9 @@ metadata:
     app.kubernetes.io/part-of: kube-llmops
 spec:
   modelName: {{ .modelName }}
+  {{- if .criticality }}
+  criticality: {{ .criticality }}
+  {{- end }}
   {{- if .adapters }}
   targetModels:
     {{- range .adapters }}
@@ -75,6 +94,6 @@ spec:
     {{- end }}
   {{- end }}
   poolRef:
-    name: {{ .poolName | default "vllm-pool" }}
+    name: {{ $.Release.Name }}-{{ .poolName | default "vllm-pool" }}
 {{- end }}
 {{- end }}

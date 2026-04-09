@@ -1,8 +1,131 @@
 # kube-llmops-operator
-// TODO(user): Add simple overview of use/purpose
+
+kube-llmops-operator provides Kubernetes-native CRDs for declarative LLMOps management. Instead of Helm values, define LLMPlatform, ModelDeployment, and FineTuneRun resources directly.
 
 ## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+
+The kube-llmops-operator manages the full lifecycle of large-language-model operations on Kubernetes through three Custom Resource Definitions:
+
+- **LLMPlatform** declares a complete LLMOps infrastructure stack. A single LLMPlatform resource configures the LiteLLM AI gateway (with routing, rate-limiting, and budget control), observability (Prometheus, Grafana, Langfuse), logging (Fluent Bit + Loki), a MinIO model store, PostgreSQL, Keycloak SSO, KEDA autoscaling, and optional feature modules for RAG, fine-tuning, and security. The LLMPlatform controller translates the spec into Helm values and performs an install or upgrade of the underlying `kube-llmops-stack` Helm chart, tracking the release name, revision, and per-component health in the resource status.
+
+- **ModelDeployment** declares a single model-serving instance. You specify a HuggingFace model ID, and the controller auto-detects the appropriate inference engine (`vllm`, `tei`, or `llamacpp`) when `engine` is set to `auto`. It then creates the required PersistentVolumeClaim, Deployment, and Service, wires up GPU resources (NVIDIA, AMD, or Gaudi, including MIG devices), and registers the model with the LiteLLM gateway. The resource also supports canary deployments with traffic-weight splitting, spot/preemptible GPU scheduling, prefix caching, and per-model store overrides. Status reports the resolved engine, endpoint URL, replica readiness, and lifecycle phase.
+
+- **FineTuneRun** declares a fine-tuning job. You choose a base model, an output name, and a method (`lora`, `qlora`, or `full`), then point at a data source (MinIO, HuggingFace, or PVC in `alpaca`, `sharegpt`, or `custom` format). The controller builds and submits an Argo Workflow that executes the training run, tracks it through data-preparation, training, evaluation, and quality-gate phases, and optionally auto-deploys the resulting model as a new ModelDeployment. Training metrics (loss, duration) and MLflow tracking information are surfaced in the resource status.
+
+## Custom Resources
+
+### LLMPlatform
+
+```yaml
+apiVersion: llmops.kubellmops.io/v1alpha1
+kind: LLMPlatform
+metadata:
+  name: my-platform
+spec:
+  gateway:
+    enabled: true
+    routing: "least-busy"
+    rateLimiting:
+      enabled: true
+    budgetControl:
+      enabled: true
+  observability:
+    enabled: true
+    grafana:
+      adminPassword: "admin"
+    langfuse:
+      enabled: true
+  logging:
+    enabled: true
+  modules:
+    rag:
+      enabled: true
+    finetune:
+      enabled: true
+    security:
+      enabled: false
+  modelStore:
+    enabled: true
+    endpoint: "kube-llmops-minio:9000"
+    bucket: "models"
+  postgresql:
+    enabled: true
+  keda:
+    enabled: true
+  ingress:
+    enabled: true
+    className: "nginx"
+    host: "llmops.example.com"
+```
+
+### ModelDeployment
+
+```yaml
+apiVersion: llmops.kubellmops.io/v1alpha1
+kind: ModelDeployment
+metadata:
+  name: qwen-7b
+spec:
+  source: "Qwen/Qwen2.5-7B-Instruct"
+  engine: auto
+  replicas: 2
+  accelerator: nvidia
+  resources:
+    gpu: 1
+    memory: "24Gi"
+    cpu: "8"
+  engineArgs:
+    max-model-len: "8192"
+  prefixCaching: true
+  canary:
+    source: "Qwen/Qwen2.5-14B-Instruct"
+    weight: 20
+    resources:
+      gpu: 2
+      memory: "32Gi"
+      cpu: "8"
+```
+
+### FineTuneRun
+
+```yaml
+apiVersion: llmops.kubellmops.io/v1alpha1
+kind: FineTuneRun
+metadata:
+  name: my-finetune
+spec:
+  baseModel: "Qwen/Qwen2.5-7B-Instruct"
+  outputName: "qwen-7b-custom"
+  method: qlora
+  dataSource:
+    type: minio
+    path: "s3://datasets/my-data/"
+    format: alpaca
+  training:
+    epochs: 3
+    batchSize: 4
+    learningRate: "2e-5"
+    gradientAccumulationSteps: 4
+    warmupRatio: "0.03"
+    loraRank: 16
+    loraAlpha: 32
+    loraTarget: "q_proj,v_proj"
+  resources:
+    gpu: 1
+    memory: "24Gi"
+    cpu: "8"
+  evaluation:
+    enabled: true
+    dataset: "tatsu-lab/alpaca_eval"
+  qualityGate:
+    enabled: true
+    thresholds:
+      minEvalLoss: "1.5"
+      maxTrainLoss: "0.8"
+  deploy:
+    enabled: true
+    canaryWeight: 10
+```
 
 ## Getting Started
 
@@ -21,7 +144,7 @@ make docker-build docker-push IMG=<some-registry>/kube-llmops-operator:tag
 
 **NOTE:** This image ought to be published in the personal registry you specified.
 And it is required to have access to pull the image from the working environment.
-Make sure you have the proper permission to the registry if the above commands don’t work.
+Make sure you have the proper permission to the registry if the above commands don't work.
 
 **Install the CRDs into the cluster:**
 
@@ -111,7 +234,17 @@ previously added to 'dist/chart/values.yaml' or 'dist/chart/manager/manager.yaml
 is manually re-applied afterwards.
 
 ## Contributing
-// TODO(user): Add detailed information on how you would like others to contribute to this project
+
+Contributions are welcome! To get started:
+
+1. **Fork** the repository and clone your fork locally.
+2. **Create a feature branch** from `main` (e.g. `git checkout -b feat/my-change`).
+3. **Make your changes** and ensure the code compiles with `make build`.
+4. **Run the tests** with `make test` and verify they pass before submitting.
+5. **Commit** with a clear, descriptive commit message.
+6. **Open a Pull Request** against `main` with a summary of what changed and why.
+
+Please keep PRs focused on a single concern and include tests for new functionality.
 
 **NOTE:** Run `make help` for more information on all potential `make` targets
 
@@ -132,4 +265,3 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-

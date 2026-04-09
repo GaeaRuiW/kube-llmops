@@ -1,0 +1,183 @@
+{{/*
+Session Affinity: Envoy proxy with consistent hashing on a request header.
+Deploys between LiteLLM and vLLM to ensure requests with the same
+x-session-id (or custom header) always reach the same vLLM Pod.
+This maximises prefix cache hit rate for multi-replica models.
+
+Architecture:
+  LiteLLM → Envoy (ring_hash on header) → vLLM Pod(s)
+
+When enabled, the LiteLLM configmap api_base for each vLLM model
+should point at the Envoy service instead of the vLLM service directly.
+We don't change the configmap here — the user is responsible for
+routing through Envoy (e.g. via a ServiceMesh or manual api_base override).
+Instead, this creates a standalone Envoy proxy that can be used as a
+backend for any vLLM-engine model that benefits from session affinity.
+*/}}
+{{- if .Values.sessionAffinity.enabled }}
+{{- $header := .Values.sessionAffinity.header | default "x-session-id" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-envoy-session-affinity
+  labels:
+    app.kubernetes.io/name: envoy-session-affinity
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: session-affinity
+    app.kubernetes.io/part-of: kube-llmops
+data:
+  envoy.yaml: |
+    static_resources:
+      listeners:
+        - name: vllm_listener
+          address:
+            socket_address:
+              address: 0.0.0.0
+              port_value: 10000
+          filter_chains:
+            - filters:
+                - name: envoy.filters.network.http_connection_manager
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                    stat_prefix: vllm_ingress
+                    route_config:
+                      name: local_route
+                      virtual_hosts:
+                        - name: vllm_backend
+                          domains: ["*"]
+                          routes:
+                            - match:
+                                prefix: "/"
+                              route:
+                                cluster: vllm_cluster
+                                hash_policy:
+                                  - header:
+                                      header_name: {{ $header }}
+                    http_filters:
+                      - name: envoy.filters.http.router
+                        typed_config:
+                          "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+      clusters:
+        - name: vllm_cluster
+          connect_timeout: 30s
+          type: STRICT_DNS
+          lb_policy: RING_HASH
+          ring_hash_lb_config:
+            minimum_ring_size: 64
+            maximum_ring_size: 1024
+          load_assignment:
+            cluster_name: vllm_cluster
+            endpoints:
+              {{- if and .Values.global .Values.global.models }}
+              {{- range $model := .Values.global.models }}
+              {{- $engine := include "kube-llmops.resolveEngine" $model | trim }}
+              {{- if eq $engine "vllm" }}
+              - lb_endpoints:
+                  - endpoint:
+                      address:
+                        socket_address:
+                          address: vllm-{{ $model.name }}.{{ $.Release.Namespace }}.svc.cluster.local
+                          port_value: 8000
+              {{- end }}
+              {{- end }}
+              {{- end }}
+          health_checks:
+            - timeout: 5s
+              interval: 10s
+              unhealthy_threshold: 3
+              healthy_threshold: 1
+              http_health_check:
+                path: /health
+    admin:
+      address:
+        socket_address:
+          address: 0.0.0.0
+          port_value: 9901
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-envoy-session-affinity
+  labels:
+    app.kubernetes.io/name: envoy-session-affinity
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: session-affinity
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: envoy-session-affinity
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: envoy-session-affinity
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: session-affinity
+        app.kubernetes.io/part-of: kube-llmops
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/session-affinity.yaml") . | sha256sum }}
+    spec:
+      containers:
+        - name: envoy
+          image: "{{ .Values.sessionAffinity.image.repository }}:{{ .Values.sessionAffinity.image.tag }}"
+          imagePullPolicy: {{ .Values.sessionAffinity.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 10000
+              protocol: TCP
+            - name: admin
+              containerPort: 9901
+              protocol: TCP
+          command: ["envoy"]
+          args: ["-c", "/etc/envoy/envoy.yaml", "--service-cluster", "session-affinity"]
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 9901
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: 9901
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          volumeMounts:
+            - name: config
+              mountPath: /etc/envoy
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-envoy-session-affinity
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-envoy-session-affinity
+  labels:
+    app.kubernetes.io/name: envoy-session-affinity
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: session-affinity
+    app.kubernetes.io/part-of: kube-llmops
+spec:
+  type: ClusterIP
+  ports:
+    - port: 10000
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: envoy-session-affinity
+    app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}

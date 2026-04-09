@@ -28,6 +28,19 @@ routerSettings:
   cooldownTime: 60        # Seconds to cooldown unhealthy deployment
   # fallbacks:            # Model fallback chain, e.g.:
   #   - model-a: [model-b]
+  # Note: Scale-to-zero fallback is auto-configured per model via
+  # keda.models.<name>.scaleToZero.fallbackModel — no manual fallback needed.
+
+# Session affinity: Envoy sidecar with consistent hashing on a request header.
+# Routes requests with the same header value to the same vLLM Pod, improving
+# prefix cache hit rate for multi-replica models.
+sessionAffinity:
+  enabled: false
+  header: "x-session-id"       # Header used as hash key for consistent routing
+  image:
+    repository: envoyproxy/envoy
+    tag: v1.32-latest
+    pullPolicy: IfNotPresent
 
 # Routing strategy: latency-based-routing (default) or simple-shuffle
 routingStrategy: latency-based-routing

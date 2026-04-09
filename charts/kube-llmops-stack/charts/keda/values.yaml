@@ -14,6 +14,11 @@ defaults:
   # Prometheus endpoint (auto-detected from observability chart)
   prometheusAddress: ""     # Auto: http://<release>-prometheus:9090
 
+  # Scale-to-zero defaults (applied when per-model scaleToZero.enabled=true)
+  scaleToZero:
+    idleTimeout: 900          # 15 min idle before scaling to zero
+    activationThreshold: "1"  # 1 request to wake up from zero
+
 # Per-engine pending-requests trigger configuration
 # Models are auto-detected from global.models via resolveEngine helper
 engines:

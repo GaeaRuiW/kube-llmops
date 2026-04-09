@@ -264,7 +264,8 @@ class TestScaleToZeroFallback:
         docs = helm_template(set_values=TWO_MODELS)
         config = get_configmap_data(docs, "litellm-config")
         for entry in config["model_list"]:
-            assert "model_info" not in entry
+            metadata = entry.get("model_info", {}).get("metadata", {})
+            assert "fallbacks" not in metadata
 
     def test_fallback_rendered_when_set(self):
         vals = {
