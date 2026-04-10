@@ -13,7 +13,7 @@
 
 ---
 
-### Task 1: Write tests for module switches
+## Task 1: Write tests for module switches
 
 **Files:**
 - Create: `tests/helm/test_module_switches.py`
@@ -256,7 +256,7 @@ git commit -m "test: add module switch tests (TDD, all failing)"
 
 ---
 
-### Task 2: Update Chart.yaml with dual-path conditions
+## Task 2: Update Chart.yaml with dual-path conditions
 
 **Files:**
 - Modify: `charts/kube-llmops-stack/Chart.yaml`
@@ -292,7 +292,7 @@ git commit -m "feat: dual-path conditions in Chart.yaml for module switches"
 
 ---
 
-### Task 3: Remove `enabled` from subchart defaults and template guards
+## Task 3: Remove `enabled` from subchart defaults and template guards
 
 **Files:**
 - Modify: `charts/kube-llmops-stack/charts/dify/values.yaml` — remove line `enabled: false`
@@ -391,7 +391,7 @@ git commit -m "feat: remove enabled from subchart defaults for module fallback"
 
 ---
 
-### Task 4: Conditional dashboard ConfigMap
+## Task 4: Conditional dashboard ConfigMap
 
 **Files:**
 - Create: `charts/kube-llmops-stack/templates/grafana-dashboards.yaml`
@@ -501,7 +501,7 @@ git commit -m "feat: conditional dashboard ConfigMap based on module switches"
 
 ---
 
-### Task 5: Conditional Prometheus alert rules
+## Task 5: Conditional Prometheus alert rules
 
 **Files:**
 - Modify: `charts/kube-llmops-stack/charts/observability/templates/prometheus.yaml`
@@ -546,7 +546,7 @@ git commit -m "feat: conditional Prometheus alerts based on module switches"
 
 ---
 
-### Task 6: Update values-single-node.yaml and values-ci.yaml
+## Task 6: Update values-single-node.yaml and values-ci.yaml
 
 **Files:**
 - Modify: `charts/kube-llmops-stack/values-single-node.yaml`
@@ -617,7 +617,7 @@ git commit -m "feat: update value profiles with module switches"
 
 ---
 
-### Task 7: Run tests and fix failures
+## Task 7: Run tests and fix failures
 
 **Files:**
 - Possible fixes in any of the above files
@@ -653,7 +653,7 @@ git commit -m "fix: module switch test fixes"
 
 ---
 
-### Task 8: Verify with helm template renders
+## Task 8: Verify with helm template renders
 
 - [ ] **Step 1: Render with values-single-node.yaml and verify**
 
@@ -702,7 +702,7 @@ helm template test charts/kube-llmops-stack \
 
 ---
 
-### Task 9: Update docs and commit
+## Task 9: Update docs and commit
 
 **Files:**
 - Modify: `AGENTS.md`
