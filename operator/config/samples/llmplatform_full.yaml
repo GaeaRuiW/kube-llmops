@@ -48,6 +48,8 @@ spec:
         --enforce-eager: ""
         --enable-chunked-prefill: ""
         --max-num-batched-tokens: "4096"
+        --enable-auto-tool-choice: ""
+        --tool-call-parser: "gemma4"
     - name: bge-small-en
       source: BAAI/bge-small-en-v1.5
       replicas: 1
