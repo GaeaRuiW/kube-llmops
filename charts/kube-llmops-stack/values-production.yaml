@@ -304,14 +304,6 @@ harbor:
 # litellm.postgresql.externalHost: "rds-litellm.example.com"
 # langfuse.postgresql.externalHost: "rds-langfuse.example.com"
 
-# LiteLLM: 2 replicas for HA
-litellm:
-  replicas: 2
-
-# Langfuse: 2 replicas
-langfuse:
-  replicas: 2
-
 # Prometheus remote_write for long-term storage
 # observability:
 #   prometheus:
