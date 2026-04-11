@@ -165,6 +165,12 @@ bucket   = os.environ.get('S3_BUCKET', 'models')
 ak       = os.environ.get('S3_ACCESS_KEY', 'minioadmin')
 sk       = os.environ.get('S3_SECRET_KEY', 'minioadmin')
 
+# File filter for selective download (e.g. '*Q4_K_M*' for GGUF repos with multiple quants)
+_allow_raw = os.environ.get('ALLOW_PATTERNS', '')
+allow_patterns = [p.strip() for p in _allow_raw.split(',') if p.strip()] or None
+if allow_patterns:
+    log.info(f'File filter: {allow_patterns}')
+
 target.mkdir(parents=True, exist_ok=True)
 if not source:
     log.error('MODEL_SOURCE is required'); sys.exit(1)
@@ -234,7 +240,7 @@ def download_from_hf():
         _pt.start()
         for attempt in range(1, MAX_RETRIES + 1):
             try:
-                snapshot_download(repo_id=source, cache_dir=str(cache_dir), max_workers=MAX_WORKERS)
+                snapshot_download(repo_id=source, cache_dir=str(cache_dir), max_workers=MAX_WORKERS, allow_patterns=allow_patterns)
                 _progress_stop.set()
                 return
             except Exception as e:
@@ -257,7 +263,7 @@ def download_from_hf():
         _pt.start()
         for attempt in range(1, MAX_RETRIES + 1):
             try:
-                snap_path = snapshot_download(repo_id=source, cache_dir=str(cache_dir), max_workers=MAX_WORKERS)
+                snap_path = snapshot_download(repo_id=source, cache_dir=str(cache_dir), max_workers=MAX_WORKERS, allow_patterns=allow_patterns)
                 break
             except Exception as e:
                 if attempt == MAX_RETRIES:
@@ -361,6 +367,10 @@ TEI should omit hfHome (defaults to mountPath) to use HF cache layout that TEI e
     secretKeyRef:
       name: {{ .root.Release.Name }}-hf-token
       key: token
+{{- end }}
+{{- if .model.allowPatterns }}
+- name: ALLOW_PATTERNS
+  value: {{ .model.allowPatterns | quote }}
 {{- end }}
 - name: HF_HUB_DISABLE_XET
   value: "1"

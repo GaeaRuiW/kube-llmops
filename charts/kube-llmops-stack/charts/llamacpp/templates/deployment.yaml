@@ -24,6 +24,8 @@ metadata:
     kube-llmops/engine: llamacpp
 spec:
   replicas: {{ $replicas }}
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: llamacpp
@@ -47,22 +49,41 @@ spec:
           args:
             - |
 {{ include "kube-llmops.modelLoaderScript" . | indent 14 }}
-              # GGUF: find the .gguf file and symlink to expected path
+              # GGUF: find .gguf files and create proper symlinks
+              # For split GGUF, llama.cpp needs files named {prefix}-NNNNN-of-NNNNN.gguf
               python3 -c "
-              import os, glob
+              import os, re
               from pathlib import Path
               slug = '{{ replace "/" "--" $model.source }}'
               src_dir = Path('/models') / slug
-              gguf_files = list(src_dir.glob('**/*.gguf')) + list(src_dir.glob('**/*.GGUF'))
-              if gguf_files:
-                  target = Path('/models/{{ $model.name }}.gguf')
-                  if not target.exists():
-                      os.symlink(str(gguf_files[0]), str(target))
-                      print(f'Linked {gguf_files[0]} → {target}')
-                  else:
-                      print(f'GGUF already at {target}')
-              else:
+              model_name = '{{ $model.name }}'
+              gguf_files = sorted(src_dir.glob('**/*.gguf')) + sorted(src_dir.glob('**/*.GGUF'))
+              if not gguf_files:
                   print(f'WARNING: No .gguf file found in {src_dir}')
+              elif len(gguf_files) == 1:
+                  # Single GGUF: simple symlink
+                  target = Path(f'/models/{model_name}.gguf')
+                  if target.exists() or target.is_symlink():
+                      target.unlink()
+                  os.symlink(str(gguf_files[0]), str(target))
+                  print(f'Linked {gguf_files[0].name} → {target.name}')
+              else:
+                  # Split GGUF: create matching symlinks for ALL shards
+                  split_re = re.compile(r'(-\d{5}-of-\d{5})(\.gguf)$', re.IGNORECASE)
+                  for f in gguf_files:
+                      m = split_re.search(f.name)
+                      if m:
+                          link_name = f'{model_name}{m.group(1)}{m.group(2)}'
+                      else:
+                          link_name = f.name
+                      target = Path(f'/models/{link_name}')
+                      if target.exists() or target.is_symlink():
+                          target.unlink()
+                      os.symlink(str(f), str(target))
+                  first = next((f'/models/{model_name}{split_re.search(f.name).group(1)}{split_re.search(f.name).group(2)}' for f in gguf_files if split_re.search(f.name) and '-00001-of-' in f.name), None)
+                  print(f'Created {len(gguf_files)} split symlinks, first: {first}')
+                  # Write the first shard path for the main container
+                  Path('/models/.gguf_model_path').write_text(first or f'/models/{model_name}.gguf')
               "
           env:
 {{ include "kube-llmops.modelLoaderEnv" (dict "model" $model "root" $ "mountPath" "/models" "hfHome" "/models/huggingface") | indent 12 }}
@@ -84,24 +105,13 @@ spec:
             - name: http
               containerPort: 8080
               protocol: TCP
+          command: ["/bin/sh", "-c"]
           args:
-            - "--model"
-            - "/models/{{ $model.name }}.gguf"
-            - "--host"
-            - "0.0.0.0"
-            - "--port"
-            - "8080"
-            - "--metrics"
-            {{- if gt $gpu 0 }}
-            - "--n-gpu-layers"
-            - "999"
-            {{- end }}
-            {{- range $key, $val := $model.engineArgs }}
-            - {{ $key | quote }}
-            {{- if $val }}
-            - {{ $val | quote }}
-            {{- end }}
-            {{- end }}
+            - |
+              MODEL_PATH="/models/{{ $model.name }}.gguf"
+              [ -f /models/.gguf_model_path ] && MODEL_PATH=$(cat /models/.gguf_model_path)
+              echo "Loading model: $MODEL_PATH"
+              exec /app/llama-server --model "$MODEL_PATH" --host 0.0.0.0 --port 8080 --metrics{{ if gt $gpu 0 }} --n-gpu-layers 999{{ end }}{{ range $key, $val := $model.engineArgs }} {{ $key }}{{ if $val }} {{ $val }}{{ end }}{{ end }}
           readinessProbe:
             httpGet:
               path: /health
