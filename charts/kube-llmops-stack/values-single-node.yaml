@@ -29,21 +29,13 @@ global:
       enabled: false     # enable when LLM-Guard is needed (~6GB RAM)
   models:
     - name: gemma-4-26b-a4b
-      source: cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit
+      source: nohurry/gemma-4-26B-A4B-it-heretic-GUFF
+      engine: llamacpp                                    # GUFF typo in repo name, explicit engine needed
+      allowPatterns: "*q4_k_m*"                           # 16.87 GB — fits RTX 3090 (24GB) with KV room
       replicas: 1
       resources:
         gpu: 1
         memory: 24Gi
-      engineArgs:
-        --gpu-memory-utilization: "0.93"
-        --max-model-len: "8192"
-        --dtype: "half"                                   # recommended for AWQ quantization
-        --enforce-eager: ""                               # stability: keep for gemma4 dev build
-        --enable-chunked-prefill: ""
-        --max-num-batched-tokens: "4096"                  # bound prefill chunk → stable decode latency
-        --enable-auto-tool-choice: ""
-        --tool-call-parser: "gemma4"
-        --disable-access-log-for-endpoints: "/health,/metrics"
     - name: bge-small-en
       source: BAAI/bge-small-en-v1.5
       replicas: 1
@@ -83,6 +75,9 @@ vllm:
 
 llamacpp:
   enabled: true
+  image:
+    repository: ghcr.io/ggml-org/llama.cpp
+    tag: server-cuda-b8672
 
 tei:
   enabled: true
