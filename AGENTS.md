@@ -355,6 +355,26 @@ it overrides the subchart's `latency-based-routing` default with an invalid valu
 operator's TranslateValues only sets it when non-empty; direct helm installs should
 either omit the key or set it explicitly.
 
+### Grafana OIDC: allow_sign_up + admin email alignment
+Grafana 11+ changed the default of `users.allow_sign_up` from `true` to `false`.
+Even when `auth.generic_oauth.allow_sign_up=true`, the user-service-level check
+still blocks creation → user.sync fails with `"Failed to create user: user not found"`.
+The chart sets **both** env vars: `GF_USERS_ALLOW_SIGN_UP=true` and
+`GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP=true`.
+
+Additionally: the built-in `admin` user's email must match what Keycloak returns
+for `preferred_username=admin`. Default Keycloak admin email is
+`admin@kube-llmops.local`, so the chart sets
+`GF_SECURITY_ADMIN_EMAIL=admin@kube-llmops.local` (override via
+`observability.grafana.adminEmail`). Without this, Grafana's OIDC sync sees a
+login conflict (local admin `admin@localhost` ≠ OAuth admin `admin@kube-llmops.local`)
+and aborts with the same `"user not found"` error despite correct claims.
+
+Note: `GF_SECURITY_ADMIN_PASSWORD` only takes effect on **first boot** (Grafana
+stores the hash). If the DB already exists with old credentials, changing this
+env var does nothing — you'll need to delete the PVC or use `grafana-cli admin`
+to reset.
+
 ### Dify 1.x Architecture
 - Uses HttpOnly cookies with `SameSite=Lax` — must use single-domain path-based routing
 - Requires Plugin Daemon (`dify-plugin-daemon`) for model providers
