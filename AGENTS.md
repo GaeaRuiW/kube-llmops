@@ -403,13 +403,17 @@ either omit the key or set it explicitly.
 | Module Switches | pytest | 19 | RAG/finetune/security toggles, dashboard/alert conditionals, explicit overrides |
 | Headlamp Templates | pytest | 23 | deployment, service, NodePort, plugin, RBAC, Keycloak OIDC integration |
 
-## Grafana Dashboards (11)
+## Grafana Dashboards (14)
 
 | UID | Title |
 |-----|-------|
+| `gpu-cluster` | GPU · L1 Cluster Overview *(v1.0+)* |
+| `gpu-node` | GPU · L2 Node View *(v1.0+)* |
+| `gpu-gpu` | GPU · L3 Single GPU View *(v1.0+)* |
+| `gpu-pod` | GPU · L4 Pod / Workload View *(v1.0+)* |
 | `vllm-overview` | vLLM Model Serving |
 | `litellm-gateway` | LiteLLM AI Gateway |
-| `gpu-overview` | GPU & Infrastructure |
+| `gpu-overview` | GPU & Infrastructure (flat, legacy — superseded by L1-L4 above) |
 | `rag-quality` | RAG Quality (Ragas) |
 | `cost-usage` | Cost & Usage |
 | `slo-overview` | SLO Overview |
@@ -418,6 +422,11 @@ either omit the key or set it explicitly.
 | `milvus-overview` | Milvus Vector DB |
 | `system-overview` | System CPU/Memory/Disk/Network |
 | `finetune-overview` | Fine-tuning Pipeline |
+
+The four GPU dashboards (`gpu-cluster` → `gpu-node` → `gpu-gpu` → `gpu-pod`)
+form a drill-down hierarchy — click a row in the Node/GPU/Pod table to
+navigate to the next tier with variables pre-populated. See
+[docs/gpu-monitoring.md](docs/gpu-monitoring.md) for the architecture.
 
 ## File Layout
 

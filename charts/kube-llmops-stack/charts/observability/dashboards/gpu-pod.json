@@ -1,0 +1,232 @@
+{
+  "annotations": {"list": [{"builtIn": 1, "datasource": {"type": "grafana", "uid": "-- Grafana --"}, "enable": true, "iconColor": "rgba(0, 211, 255, 1)", "name": "Annotations & Alerts", "type": "dashboard"}]},
+  "description": "L4 pod / workload view. For ML engineers: which pods are using which GPUs, how well, and with what serving throughput. Click a GPU UUID to drill down to L3.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [
+    {"asDropdown": false, "icon": "arrow-left", "includeVars": true, "keepTime": true, "tags": [], "targetBlank": false, "title": "← L1 Cluster", "type": "link", "url": "/d/gpu-cluster/gpu-l1-cluster-overview?var-cluster=${cluster}&${__url_time_range}"},
+    {"asDropdown": true, "icon": "external link", "includeVars": true, "keepTime": true, "tags": ["kube-llmops", "gpu"], "targetBlank": false, "title": "GPU Dashboards", "type": "dashboards"}
+  ],
+  "panels": [
+    {
+      "id": 1, "type": "row", "title": "L4 · Pod Summary",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0}, "collapsed": false
+    },
+    {
+      "id": 2, "type": "stat", "title": "Selected Pods",
+      "gridPos": {"h": 4, "w": 5, "x": 0, "y": 1},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "count(count by (namespace, pod) (DCGM_FI_DEV_GPU_UTIL{cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}))", "refId": "A", "legendFormat": "Pods"}],
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": null}]}, "unit": "short"}},
+      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center", "textMode": "auto"}
+    },
+    {
+      "id": 3, "type": "stat", "title": "GPUs in use",
+      "gridPos": {"h": 4, "w": 5, "x": 5, "y": 1},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "count(DCGM_FI_DEV_GPU_UTIL{cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})", "refId": "A", "legendFormat": "GPUs"}],
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": null}]}, "unit": "short"}},
+      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center", "textMode": "auto"}
+    },
+    {
+      "id": 4, "type": "stat", "title": "Avg GPU Utilization",
+      "gridPos": {"h": 4, "w": 5, "x": 10, "y": 1},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "avg(DCGM_FI_DEV_GPU_UTIL{cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})", "refId": "A", "legendFormat": "Util"}],
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": null}, {"color": "green", "value": 30}, {"color": "yellow", "value": 70}, {"color": "red", "value": 90}]}, "unit": "percent", "min": 0, "max": 100}},
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "center", "textMode": "auto"}
+    },
+    {
+      "id": 5, "type": "stat", "title": "Total Power",
+      "gridPos": {"h": 4, "w": 4, "x": 15, "y": 1},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum(DCGM_FI_DEV_POWER_USAGE{cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})", "refId": "A", "legendFormat": "Power"}],
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": null}]}, "unit": "watt"}},
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "center", "textMode": "auto"}
+    },
+    {
+      "id": 6, "type": "stat", "title": "Total VRAM Used",
+      "gridPos": {"h": 4, "w": 5, "x": 19, "y": 1},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum(DCGM_FI_DEV_FB_USED{cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}) * 1024 * 1024", "refId": "A", "legendFormat": "VRAM"}],
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": null}]}, "unit": "bytes"}},
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "center", "textMode": "auto"}
+    },
+    {
+      "id": 10, "type": "row", "title": "Pod GPU Behavior",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 5}, "collapsed": false
+    },
+    {
+      "id": 11, "type": "timeseries", "title": "Pod GPU Utilization",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "avg by (namespace, pod) (DCGM_FI_DEV_GPU_UTIL{cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})", "refId": "A", "legendFormat": "{{namespace}}/{{pod}}"}],
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100}}
+    },
+    {
+      "id": 12, "type": "timeseries", "title": "Pod VRAM Used (stacked)",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 6},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum by (namespace, pod) (DCGM_FI_DEV_FB_USED{cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}) * 1024 * 1024", "refId": "A", "legendFormat": "{{namespace}}/{{pod}}"}],
+      "fieldConfig": {"defaults": {"unit": "bytes", "custom": {"stacking": {"mode": "normal"}, "fillOpacity": 40}}}
+    },
+    {
+      "id": 13, "type": "timeseries", "title": "Pod Power Draw",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 14},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum by (namespace, pod) (DCGM_FI_DEV_POWER_USAGE{cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})", "refId": "A", "legendFormat": "{{namespace}}/{{pod}}"}],
+      "fieldConfig": {"defaults": {"unit": "watt"}}
+    },
+    {
+      "id": 14, "type": "timeseries", "title": "Tensor Core Active (effective training signal)",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 14},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "avg by (namespace, pod) (DCGM_FI_PROF_PIPE_TENSOR_ACTIVE{cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}) * 100", "refId": "A", "legendFormat": "{{namespace}}/{{pod}}"}],
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100}}
+    },
+    {
+      "id": 20, "type": "row", "title": "Serving (vLLM)",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 22}, "collapsed": false
+    },
+    {
+      "id": 21, "type": "timeseries", "title": "vLLM Throughput (prompt + generation tokens/s)",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 23},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum by (pod) (rate(vllm:prompt_tokens_total{pod=~\"$pod\"}[5m]) + rate(vllm:generation_tokens_total{pod=~\"$pod\"}[5m]))", "refId": "A", "legendFormat": "{{pod}}"}],
+      "fieldConfig": {"defaults": {"unit": "cps"}}
+    },
+    {
+      "id": 22, "type": "timeseries", "title": "vLLM Request Queue Depth",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 23},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum by (pod) (vllm:num_requests_waiting{pod=~\"$pod\"})", "refId": "A", "legendFormat": "{{pod}}"}],
+      "fieldConfig": {"defaults": {"unit": "short"}}
+    },
+    {
+      "id": 30, "type": "row", "title": "Allocation & Hotspots",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 31}, "collapsed": false
+    },
+    {
+      "id": 31, "type": "table", "title": "Pod → GPU Allocation (click UUID to drill down → L3)",
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 32},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "avg by (namespace, pod, container, Hostname, UUID, gpu) (DCGM_FI_DEV_GPU_UTIL{cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})", "format": "table", "instant": true, "refId": "Util"},
+        {"expr": "avg by (namespace, pod, container, Hostname, UUID, gpu) (DCGM_FI_DEV_GPU_TEMP{cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})", "format": "table", "instant": true, "refId": "Temp"}
+      ],
+      "transformations": [
+        {"id": "joinByField", "options": {"byField": "UUID", "mode": "outer"}},
+        {"id": "organize", "options": {
+          "excludeByName": {
+            "Time 1": true, "Time 2": true,
+            "namespace 2": true, "pod 2": true, "container 2": true, "Hostname 2": true, "gpu 2": true
+          },
+          "renameByName": {
+            "namespace 1": "Namespace",
+            "pod 1": "Pod",
+            "container 1": "Container",
+            "Hostname 1": "Node",
+            "gpu 1": "GPU",
+            "UUID": "UUID",
+            "Value #Util": "Util %",
+            "Value #Temp": "Temp °C"
+          }
+        }}
+      ],
+      "fieldConfig": {
+        "defaults": {"custom": {"align": "auto", "displayMode": "auto"}},
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "UUID"}, "properties": [{"id": "links", "value": [{"title": "Drill down → L3 Single GPU View", "url": "/d/gpu-gpu/gpu-single-gpu-view?var-cluster=${cluster}&var-node=${__data.fields.Node}&var-gpu=${__data.fields.UUID}&${__url_time_range}"}]}]},
+          {"matcher": {"id": "byName", "options": "Util %"}, "properties": [{"id": "unit", "value": "percent"}, {"id": "custom.displayMode", "value": "gradient-gauge"}, {"id": "min", "value": 0}, {"id": "max", "value": 100}, {"id": "thresholds", "value": {"mode": "absolute", "steps": [{"color": "blue", "value": null}, {"color": "green", "value": 30}, {"color": "yellow", "value": 70}, {"color": "red", "value": 90}]}}]},
+          {"matcher": {"id": "byName", "options": "Temp °C"}, "properties": [{"id": "unit", "value": "celsius"}, {"id": "custom.displayMode", "value": "color-background"}, {"id": "thresholds", "value": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 70}, {"color": "orange", "value": 80}, {"color": "red", "value": 85}]}}]}
+        ]
+      }
+    },
+    {
+      "id": 32, "type": "bargauge", "title": "Top-10 Pods by Avg GPU Utilization (cluster-wide)",
+      "gridPos": {"h": 9, "w": 12, "x": 0, "y": 42},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "topk(10, avg by (namespace, pod) (DCGM_FI_DEV_GPU_UTIL{cluster=~\"$cluster\",namespace!=\"\"}))", "refId": "A", "legendFormat": "{{namespace}}/{{pod}}", "instant": true}],
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100, "color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": null}, {"color": "green", "value": 30}, {"color": "yellow", "value": 70}, {"color": "red", "value": 90}]}}},
+      "options": {"displayMode": "gradient", "orientation": "horizontal", "showUnfilled": true, "valueMode": "color"}
+    },
+    {
+      "id": 33, "type": "table", "title": "Pod XID Events (last 1h)",
+      "gridPos": {"h": 9, "w": 12, "x": 12, "y": 42},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "count by (namespace, pod) (increase(DCGM_FI_DEV_XID_ERRORS{cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[1h]) > 0)", "format": "table", "instant": true, "refId": "A"}],
+      "transformations": [
+        {"id": "organize", "options": {"excludeByName": {"Time": true}, "renameByName": {"namespace": "Namespace", "pod": "Pod", "Value": "XID Events (1h)"}}}
+      ],
+      "fieldConfig": {
+        "defaults": {"custom": {"align": "auto", "displayMode": "auto"}},
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "XID Events (1h)"}, "properties": [{"id": "custom.displayMode", "value": "color-background"}, {"id": "thresholds", "value": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}}]}
+        ]
+      }
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["kube-llmops", "gpu", "L4-pod"],
+  "templating": {
+    "list": [
+      {
+        "current": {"text": "All", "value": "$__all"},
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "definition": "label_values(DCGM_FI_DEV_GPU_TEMP, cluster)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "cluster",
+        "options": [],
+        "query": {"query": "label_values(DCGM_FI_DEV_GPU_TEMP, cluster)", "refId": "StandardVariableQuery"},
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {"text": "All", "value": "$__all"},
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "definition": "label_values(DCGM_FI_DEV_GPU_UTIL{cluster=~\"$cluster\",namespace!=\"\"}, namespace)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "namespace",
+        "options": [],
+        "query": {"query": "label_values(DCGM_FI_DEV_GPU_UTIL{cluster=~\"$cluster\",namespace!=\"\"}, namespace)", "refId": "StandardVariableQuery"},
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {"text": "All", "value": "$__all"},
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "definition": "label_values(DCGM_FI_DEV_GPU_UTIL{cluster=~\"$cluster\",namespace=~\"$namespace\"}, pod)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "pod",
+        "options": [],
+        "query": {"query": "label_values(DCGM_FI_DEV_GPU_UTIL{cluster=~\"$cluster\",namespace=~\"$namespace\"}, pod)", "refId": "StandardVariableQuery"},
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {"from": "now-1h", "to": "now"},
+  "timepicker": {},
+  "timezone": "",
+  "title": "GPU · L4 Pod / Workload View",
+  "uid": "gpu-pod",
+  "version": 1,
+  "weekStart": ""
+}
