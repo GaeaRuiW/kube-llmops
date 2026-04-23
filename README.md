@@ -5,13 +5,14 @@
 **Kubernetes-native LLMOps Platform** -- Deploy, manage, monitor, and optimize your entire LLM infrastructure with one command.
 
 > [!NOTE]
-> v0.5.0 released -- Advanced Inference: latency-based routing, prefix caching, multi-trigger KEDA, scale-to-zero, canary deployments, llm-d disaggregated serving, multi-accelerator (nvidia/amd/gaudi). See [CHANGELOG](CHANGELOG.md) for details.
+> v1.0.0 released -- the v1.0 trio is complete: **Operator** (LLMPlatform / ModelDeployment / FineTuneRun CRDs) + **kubectl-llmops CLI** (15+ commands, `kubectl llmops <cmd>`) + **Headlamp Dashboard** (Kubernetes UI + `kube-llmops-portal` plugin). See [CHANGELOG](CHANGELOG.md) for details.
 
 ## What is kube-llmops?
 
 `kube-llmops` is an opinionated, batteries-included Helm chart that deploys a complete LLM operations stack on Kubernetes:
 
 - **Model Serving** -- vLLM, llama.cpp, or TEI, auto-selected based on model format (engine auto-detection from source name)
+- **CLI (`kubectl-llmops`)** -- kubectl plugin with 15+ imperative commands: `deploy`, `list`, `status`, `scale`, `canary`, `logs`, `test`, `port-forward`, `finetune`, `rag`, `platform`, `migrate`, ...
 - **AI Gateway** -- LiteLLM for unified OpenAI-compatible API, key management, rate limiting, budget control
 - **Observability** -- Prometheus + Grafana (11 dashboards + 8 alert rules) + Langfuse v3 LLM tracing + node-exporter + kube-state-metrics
 - **Logging** -- Fluent Bit + Loki, queryable in Grafana Explore
@@ -188,7 +189,7 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &
 - [x] **v0.3.0** -- RAG infra (Dify + pgvector + TEI embedding/reranking + Ragas eval + LLM-Guard + Quality Gate)
 - [x] **v0.4.0** -- Fine-tuning pipeline (LLaMA-Factory + Argo Workflows + MLflow) + JupyterHub + Terraform
 - [x] **v0.5.0** -- Advanced Inference (latency routing, prefix caching, multi-trigger KEDA, scale-to-zero, canary, llm-d, multi-accelerator)
-- [ ] **v1.0.0** -- Operator + CLI + Dashboard
+- [x] **v1.0.0** (current) -- Operator + kubectl-llmops CLI (15+ commands) + Headlamp Dashboard
 
 ## License
 

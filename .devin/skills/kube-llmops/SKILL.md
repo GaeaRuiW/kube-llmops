@@ -1,7 +1,7 @@
 ---
 name: kube-llmops
 description: "Deploy, manage, debug, and query the kube-llmops LLMOps platform — installation, model management, monitoring, RAG, troubleshooting, operator"
-argument-hint: "[install|status|models|logs|eval|debug|chat|embed|dashboard|finetune|operator]"
+argument-hint: "[install|status|models|logs|eval|debug|chat|embed|dashboard|finetune|operator|cli]"
 allowed-tools:
   - read
   - grep
@@ -420,6 +420,51 @@ helm history kube-llmops --max 5
 # FixStuckRelease (rollback or uninstall). If manual intervention needed:
 helm rollback kube-llmops <last-good-revision>
 ```
+
+---
+
+### `cli` — Use kubectl-llmops CLI
+
+`kubectl-llmops` is the v1.0 companion CLI (kubectl plugin). Source:
+`operator/cmd/kubectl-llmops/` (implementations under `operator/internal/cli/cmd/`).
+Most subcommands drive the Operator by creating/patching CRs; `test` calls LiteLLM
+directly and `rag` calls the Dify API directly.
+
+```bash
+# Build CLI (one-time)
+cd operator && make build-cli
+sudo cp bin/kubectl-llmops /usr/local/bin/
+
+# Deploy a model from HuggingFace (auto-detects engine)
+kubectl llmops deploy Qwen/Qwen2.5-7B-Instruct
+
+# List, status, scale, delete
+kubectl llmops list
+kubectl llmops status qwen2-5-7b-instruct
+kubectl llmops scale qwen2-5-7b-instruct --replicas=2
+kubectl llmops delete qwen2-5-7b-instruct
+
+# Canary deployment
+kubectl llmops canary qwen2-5-7b-instruct --target Qwen/Qwen2.5-14B --weight 20
+kubectl llmops promote qwen2-5-7b-instruct
+
+# Dev UX
+kubectl llmops logs qwen2-5-7b-instruct -f
+kubectl llmops test qwen2-5-7b-instruct --prompt "Hello"
+kubectl llmops port-forward --service=gateway
+
+# Platform / finetune / RAG
+kubectl llmops platform status
+kubectl llmops finetune create --base-model Qwen/Qwen2.5-0.5B --method lora
+kubectl llmops rag upload my-kb ./doc.pdf
+kubectl llmops rag query my-kb "What is X?"
+
+# Migrate from Helm release to CRs
+kubectl llmops migrate kube-llmops
+```
+
+Global flags that apply to every command: `-n/--namespace <ns>`,
+`-o/--output <table|json|yaml|wide>`.
 
 ---
 

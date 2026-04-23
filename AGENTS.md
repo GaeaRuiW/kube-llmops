@@ -89,7 +89,32 @@ python -m pytest tests/helm/test_phase5_templates.py -v
 └──────────────────────────────────────────────────┘
 ```
 
-## Key Features (v0.5.0)
+## Key Features (v1.0.0)
+
+### kubectl-llmops CLI
+Kubectl plugin for imperative shortcuts — complement to the declarative Operator:
+- Binary: `kubectl-llmops` (invoke as `kubectl llmops <command>` when on PATH)
+- Source: `operator/cmd/kubectl-llmops/main.go` (impl: `operator/internal/cli/cmd/`)
+- Build: `cd operator && make build-cli` (produces `bin/kubectl-llmops`) or `make install-cli` (to `$GOPATH/bin`)
+- Global flags: `-n/--namespace`, `-o table|json|yaml|wide`, `--kubeconfig`, `--context`
+- Top-level commands (model lifecycle):
+  - `deploy <source>` — create ModelDeployment from HF source (engine auto-detected)
+  - `list` / `status <name>` / `scale <name> --replicas N` / `delete <name>`
+  - `canary <name> --target <new-source> --weight <percent>` / `promote` / `rollback`
+- Developer UX:
+  - `logs <name> [-f]` / `test <name> --prompt "..."` / `endpoint <name>`
+  - `port-forward --service=gateway|grafana|langfuse|dify|minio`
+  - `dashboard` (opens Grafana)
+- Subcommand groups:
+  - `finetune {create,list,status,logs,delete}` — drives FineTuneRun CR
+  - `platform {init,status,update}` — drives LLMPlatform CR (incl. module toggles)
+  - `rag {list-kb,create-kb,upload,delete-kb,query,eval}` — Dify API operations
+- `migrate <helm-release>` — one-way conversion: existing Helm release → LLMPlatform + ModelDeployment CRs
+- Integration:
+  - CR operations (deploy/scale/canary/finetune/platform) go through K8s API → operator reconciles
+  - RAG commands call Dify Console API directly (auto-discovers NodePort/ClusterIP)
+  - `test` calls LiteLLM gateway directly
+  - `logs` for finetune jobs queries Argo Workflow pod logs (read-only)
 
 ### Kubernetes Operator (LLMPlatform CR)
 Declarative platform management via CRDs — alternative to direct `helm install`:

@@ -7,6 +7,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-04-23
+
+> **Milestone:** Phase 6 complete — Operator + CLI + Dashboard all GA.
+
+### Added
+
+#### kubectl-llmops CLI
+- `operator/cmd/kubectl-llmops/` — Go binary, usable as `kubectl llmops <cmd>`
+- Build: `cd operator && make build-cli` or `make install-cli` (to `$GOPATH/bin`)
+- 15 top-level commands + 3 subcommand groups
+- Model lifecycle: `deploy`, `list`, `status`, `scale`, `delete`
+  - `kubectl llmops deploy Qwen/Qwen2.5-7B-Instruct` auto-detects engine and creates `ModelDeployment`
+  - Supports all common model knobs via flags (`--gpu`, `--memory`, `--replicas`, `--engine-arg`, `--prefix-caching`, `--accelerator`)
+- Canary: `canary`, `promote`, `rollback`
+  - `kubectl llmops canary <name> --target <new-source> --weight 20` creates a weighted canary
+- Developer UX: `logs`, `test`, `endpoint`, `port-forward`, `dashboard`
+  - `kubectl llmops test <name> --prompt "Hello" --stream` hits LiteLLM directly
+  - `port-forward --service=gateway|grafana|langfuse|dify|minio` auto-discovers service
+- `finetune {create,list,status,logs,delete}` — drives `FineTuneRun` CR, reads MLflow metrics + quality-gate result
+- `platform {init,status,update}` — drives `LLMPlatform` CR, `update --enable rag --disable security` flips module switches
+- `rag {list-kb,create-kb,upload,delete-kb,query,eval}` — direct Dify Console API calls (auto-discovers endpoint, reads credentials from `kube-llmops-dify-setup` ConfigMap)
+- `migrate <helm-release>` — one-way conversion: Helm release → LLMPlatform + ModelDeployment CRs
+- Global flags: `-n/--namespace`, `-o table|json|yaml|wide`, `--kubeconfig`, `--context`
+- Engine auto-detection reuses `internal/engine/resolver.go` (same logic as operator)
+
+### Changed
+- Chart versions bumped: umbrella `kube-llmops-stack` + 20 subcharts + operator chart → 1.0.0
+- Phase 6 roadmap items (Operator, CLI, Web Dashboard) all marked complete
+
+### Note
+This is the Phase 6 (Platform UX) milestone release. All imperative operations that
+previously required direct `helm upgrade --set ...` or `kubectl edit llmplatform` can
+now be done via `kubectl llmops`.
+
 ## [0.5.0] - 2026-04-12
 
 ### Added

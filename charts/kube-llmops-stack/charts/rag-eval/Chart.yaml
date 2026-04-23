@@ -1,4 +1,4 @@
 apiVersion: v2
 name: rag-eval
 description: RAG infrastructure smoke test and quality evaluation
-version: 0.5.0
+version: 1.0.0

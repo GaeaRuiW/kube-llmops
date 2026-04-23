@@ -885,6 +885,19 @@ kubectl delete namespace llmops
 
 ---
 
+## 使用 kubectl-llmops CLI（可选）
+
+v1.0 版本随附一个 kubectl 插件，用于命令式操作：
+
+```bash
+cd operator && make install-cli  # 安装到 $GOPATH/bin
+kubectl llmops deploy Qwen/Qwen2.5-7B-Instruct
+kubectl llmops list
+kubectl llmops test qwen2-5-7b-instruct --prompt "Hello"
+```
+
+完整命令参考详见 [operator/docs/user-guide/](../operator/docs/user-guide/)。
+
 ## 下一步
 
 - 📖 阅读[架构文档](../ARCHITECTURE.md)以了解完整技术栈

@@ -5,13 +5,14 @@
 **Kubernetes 原生 LLMOps 平台** -- 一条命令部署、管理、监控并优化你的整个 LLM 基础设施。
 
 > [!NOTE]
-> v0.5.0 已发布 -- 高级推理：延迟路由、前缀缓存、多触发器 KEDA、规模到零、金丝雀、llm-d 解耦式推理、多加速器支持；新增 Kubernetes Operator + Headlamp Kubernetes UI。详见 [CHANGELOG](CHANGELOG.zh-CN.md)。
+> v1.0.0 已发布 -- v1.0 规划的三件套全部完成：**Operator**（LLMPlatform / ModelDeployment / FineTuneRun CRD）+ **kubectl-llmops CLI**（15+ 命令，`kubectl llmops <cmd>`）+ **Headlamp 仪表板**（Kubernetes UI + `kube-llmops-portal` 插件）。详见 [CHANGELOG](CHANGELOG.zh-CN.md)。
 
 ## 什么是 kube-llmops？
 
 `kube-llmops` 是一个开箱即用的 Helm Chart，可在 Kubernetes 上一键部署完整的 LLM 运维栈：
 
 - **模型推理服务** -- vLLM、llama.cpp 或 TEI，根据模型名称自动选择推理引擎
+- **CLI 工具（`kubectl-llmops`）** -- kubectl 插件，提供 15+ 命令式操作：`deploy`、`list`、`status`、`scale`、`canary`、`logs`、`test`、`port-forward`、`finetune`、`rag`、`platform`、`migrate` 等
 - **AI 网关** -- LiteLLM 提供统一的 OpenAI 兼容 API、Key 管理、速率限制、预算控制
 - **可观测性** -- Prometheus + Grafana（11 个仪表盘 + 8 条告警规则）+ Langfuse v3 LLM 调用追踪 + node-exporter + kube-state-metrics
 - **日志** -- Fluent Bit + Loki，在 Grafana Explore 中查询
@@ -194,7 +195,7 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &
 - [x] **v0.3.0** -- RAG 基础设施（Dify + pgvector + TEI 嵌入/重排序 + Ragas 评估 + LLM-Guard + 质量门控）
 - [x] **v0.4.0** -- 微调流水线（LLaMA-Factory + Argo Workflows + MLflow）+ JupyterHub + Terraform
 - [x] **v0.5.0** -- 高级推理（延迟路由、前缀缓存、多触发器 KEDA、规模到零、金丝雀、llm-d、多加速器）+ Kubernetes Operator（LLMPlatform/ModelDeployment/FineTuneRun CRD）+ Headlamp Kubernetes UI + Harbor 模型仓库 + 独立 PostgreSQL 子 chart
-- [ ] **v1.0.0** -- CLI 工具 + 多集群 / 多租户增强 + 更多 CRD 能力
+- [x] **v1.0.0**（当前）-- Kubernetes Operator + kubectl-llmops CLI（15+ 命令）+ Headlamp 仪表板
 
 ## 许可证
 
