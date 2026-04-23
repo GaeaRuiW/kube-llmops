@@ -116,6 +116,12 @@ data:
       {{- end }}
       allowed_fails: {{ .Values.routerSettings.allowedFails | default 3 }}
       cooldown_time: {{ .Values.routerSettings.cooldownTime | default 60 }}
+      {{- if .Values.modelGroupAlias }}
+      model_group_alias:
+        {{- range $alias, $target := .Values.modelGroupAlias }}
+        {{ $alias | quote }}: {{ $target | quote }}
+        {{- end }}
+      {{- end }}
     {{- end }}
 
     general_settings:

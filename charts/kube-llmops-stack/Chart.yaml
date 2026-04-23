@@ -2,8 +2,8 @@ apiVersion: v2
 name: kube-llmops-stack
 description: Kubernetes-native LLMOps Platform - deploy, manage, monitor, and optimize LLM infrastructure
 type: application
-version: 0.5.0
-appVersion: "0.5.0"
+version: 1.0.0
+appVersion: "1.0.0"
 home: https://github.com/GaeaRuiW/kube-llmops
 sources:
   - https://github.com/GaeaRuiW/kube-llmops
@@ -20,121 +20,121 @@ maintainers:
   - name: GaeaRuiW
 dependencies:
   - name: vllm
-    version: 0.5.0
+    version: 1.0.0
     repository: "file://charts/vllm"
     condition: vllm.enabled
     tags:
       - model-serving
   - name: llamacpp
-    version: 0.5.0
+    version: 1.0.0
     repository: "file://charts/llamacpp"
     condition: llamacpp.enabled
     tags:
       - model-serving
   - name: tei
-    version: 0.5.0
+    version: 1.0.0
     repository: "file://charts/tei"
     condition: tei.enabled
     tags:
       - model-serving
   - name: litellm
-    version: 0.5.0
+    version: 1.0.0
     repository: "file://charts/litellm"
     condition: litellm.enabled
     tags:
       - gateway
   - name: observability
-    version: 0.5.0
+    version: 1.0.0
     repository: "file://charts/observability"
     condition: observability.enabled
     tags:
       - monitoring
   - name: langfuse
-    version: 0.5.0
+    version: 1.0.0
     repository: "file://charts/langfuse"
     condition: langfuse.enabled
     tags:
       - tracing
   - name: logging
-    version: 0.5.0
+    version: 1.0.0
     repository: "file://charts/logging"
     condition: logging.enabled
     tags:
       - logging
   - name: keda
-    version: 0.5.0
+    version: 1.0.0
     repository: "file://charts/keda"
     condition: keda.enabled
     tags:
       - autoscaling
   - name: fluid
-    version: 0.5.0
+    version: 1.0.0
     repository: "file://charts/fluid"
     condition: fluid.enabled
     tags:
       - caching
   - name: harbor
-    version: 0.5.0
+    version: 1.0.0
     repository: "file://charts/harbor"
     condition: harbor.enabled
     tags:
       - registry
   - name: security
-    version: 0.5.0
+    version: 1.0.0
     repository: "file://charts/security"
     condition: security.enabled,global.modules.security.enabled
     tags:
       - security
   - name: milvus
-    version: 0.5.0
+    version: 1.0.0
     repository: "file://charts/milvus"
     condition: milvus.enabled,global.modules.rag.enabled
     tags:
       - vectordb
   - name: dify
-    version: 0.5.0
+    version: 1.0.0
     repository: "file://charts/dify"
     condition: dify.enabled,global.modules.rag.enabled
     tags:
       - rag
   - name: keycloak
-    version: 0.5.0
+    version: 1.0.0
     repository: "file://charts/keycloak"
     condition: keycloak.enabled
     tags:
       - auth
   - name: rag-eval
-    version: 0.5.0
+    version: 1.0.0
     repository: "file://charts/rag-eval"
     condition: rag-eval.enabled,global.modules.rag.enabled
     tags:
       - rag
   - name: lightrag
-    version: 0.5.0
+    version: 1.0.0
     repository: "file://charts/lightrag"
     condition: lightrag.enabled,global.modules.rag.enabled
     tags:
       - rag
   - name: postgresql
-    version: 0.5.0
+    version: 1.0.0
     repository: "file://charts/postgresql"
     condition: postgresql.enabled
     tags:
       - database
   - name: finetune
-    version: 0.5.0
+    version: 1.0.0
     repository: "file://charts/finetune"
     condition: finetune.enabled,global.modules.finetune.enabled
     tags:
       - ml-platform
   - name: jupyterhub
-    version: 0.5.0
+    version: 1.0.0
     repository: "file://charts/jupyterhub"
     condition: jupyterhub.enabled,global.modules.finetune.enabled
     tags:
       - ml-platform
   - name: headlamp
-    version: 0.5.0
+    version: 1.0.0
     repository: "file://charts/headlamp"
     condition: headlamp.enabled
     tags:

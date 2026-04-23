@@ -866,6 +866,19 @@ kubectl delete namespace llmops
 
 ---
 
+## Using the kubectl-llmops CLI (optional)
+
+The v1.0 release ships with a kubectl plugin for imperative operations:
+
+```bash
+cd operator && make install-cli  # installs to $GOPATH/bin
+kubectl llmops deploy Qwen/Qwen2.5-7B-Instruct
+kubectl llmops list
+kubectl llmops test qwen2-5-7b-instruct --prompt "Hello"
+```
+
+See [operator/docs/user-guide/](../operator/docs/user-guide/) for the full command reference.
+
 ## Next Steps
 
 - 📖 Read the [Architecture](../ARCHITECTURE.md) to understand the full stack

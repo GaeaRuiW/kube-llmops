@@ -1,6 +1,6 @@
 [English](ARCHITECTURE.md) | **中文**
 
-# kube-llmops - 架构设计 (v0.5.0)
+# kube-llmops - 架构设计 (v1.0.0)
 
 > **Kubernetes 原生 LLMOps 平台**
 > 一条命令即可在 Kubernetes 上部署、管理、监控和优化你的整个 LLM 基础设施。
@@ -73,6 +73,7 @@
    │  Layer 0: GitOps / Operator（ArgoCD + Helm Umbrella Chart +  │
    │           kube-llmops-operator：LLMPlatform / ModelDeployment │
    │           / FineTuneRun CRD，v0.5.0）                         │
+   │  第 9 层：CLI（kubectl-llmops —— kubectl 插件，15+ 命令，v1.0.0）│
    └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -867,6 +868,90 @@ models:
 
 ---
 
+## 第 9 层：命令行工具（kubectl-llmops）
+
+> **v1.0.0**：`kubectl-llmops` 是 Operator 的命令式配套工具 —— 一个 kubectl 插件，
+> 提供 `kubectl llmops <cmd>` 形式的日常 LLMOps 操作体验。其大部分动作都是通过
+> 创建/修改 CR 驱动 Operator 完成的（不直接改动集群），因此 CLI 操作与
+> GitOps / Operator reconcile 可以无缝共存。
+
+### 概览
+
+- **二进制**：`kubectl-llmops`（也可以通过 `kubectl llmops <cmd>` 调用，因为
+  `kubectl` 会自动发现 `PATH` 上的 `kubectl-*` 可执行文件作为插件）
+- **入口**：`operator/cmd/kubectl-llmops/main.go`
+- **命令实现**：`operator/internal/cli/cmd/`
+- **全局参数**：`-n/--namespace`、`-o/--output`（`table` | `json` | `yaml` | `wide`）
+- **构建**：
+  ```bash
+  cd operator && make build-cli     # 产出 bin/kubectl-llmops
+  # 或
+  cd operator && make install-cli   # 安装到 $GOPATH/bin
+  ```
+
+### 命令分组（15+ 顶级命令）
+
+| 分类 | 命令 | 作用 |
+|---|---|---|
+| **部署 / 生命周期** | `deploy`、`list`、`status`、`scale`、`delete` | 从 HuggingFace 一键生成 `ModelDeployment` CR；列出 / 查看 / 扩缩 / 删除在线模型 |
+| **发布** | `canary`、`promote`、`rollback` | 加权金丝雀流量切分；提升金丝雀为主版本；回滚到上一个稳定版本 |
+| **开发体验** | `logs`、`test`、`endpoint`、`port-forward` | 拉取日志；`test` 直接调 LiteLLM 发一条 prompt；查看 endpoint URL；端口转发 `gateway` / `grafana` / `dify` |
+| **平台 / 模块** | `platform`、`dashboard`、`migrate` | `platform status` / `update --enable rag --disable security`；打开 Headlamp 仪表盘；`migrate <helm-release>` 将已有 Helm release 转换为 CR |
+| **微调** | `finetune create / list / logs / ...` | 基于 `FineTuneRun` CR（Argo Workflow） |
+| **RAG** | `rag upload / query / ...` | 直接调用 Dify API 完成知识库操作 |
+
+### 典型流程
+
+```bash
+# 从 HuggingFace 一键部署（source 名自动检测引擎）
+kubectl llmops deploy Qwen/Qwen2.5-7B-Instruct
+
+# 用 20% 流量金丝雀新版本，然后提升为主版本
+kubectl llmops canary qwen2-5-7b-instruct --target Qwen/Qwen2.5-14B --weight 20
+kubectl llmops promote qwen2-5-7b-instruct
+
+# 直接向 LiteLLM 发一次测试对话（无需 SDK）
+kubectl llmops test qwen2-5-7b-instruct --prompt "Hello"
+
+# 端口转发某个平台服务
+kubectl llmops port-forward --service=gateway
+
+# 通过修改 LLMPlatform CR 切换功能模块
+kubectl llmops platform update --enable rag --disable security
+
+# 微调流水线
+kubectl llmops finetune create --base-model Qwen/Qwen2.5-0.5B --method lora
+
+# 上传文档到 Dify 知识库
+kubectl llmops rag upload my-kb ./doc.pdf
+
+# 把已有 Helm release 转换为 CR 管理
+kubectl llmops migrate kube-llmops
+```
+
+### 与 Operator 的关系
+
+```
+kubectl llmops deploy ...         kubectl llmops rag upload ...
+         │                                 │
+         v                                 v
+  创建/修改 CR                        直接调 Dify HTTP API
+  （ModelDeployment 等）
+         │
+         v
+  kube-llmops-operator  ──►  Helm SDK / K8s API  ──►  实际工作负载
+```
+
+- 大部分命令是 **CR 优先** 的：通过创建或 patch `LLMPlatform` / `ModelDeployment` /
+  `FineTuneRun` 等 CR，然后让 Operator 协调。这让 CLI 的操作具备可审计、可 GitOps 回放的特性。
+- `kubectl llmops test` 直接调用 **LiteLLM**（OpenAI 兼容 endpoint），不经过 CR —
+  就是一个便捷工具。
+- `kubectl llmops rag` 直接调用 **Dify API** 进行知识库上传与查询。
+- `kubectl llmops migrate` 会将已有的 Helm release 反向生成一份等价的 `LLMPlatform`
+  CR，方便从"直接 helm install"切换到"Operator 管理"的团队使用。
+
+---
+
 ## 横切关注点：安全与多租户
 
 | 组件 | 技术 | CNCF 状态 |
@@ -1112,7 +1197,7 @@ kube-llmops/
 - [x] **Web 管理界面**（v0.5.0：Headlamp + `kube-llmops-portal` 插件替代了 v0.4 自定义 dashboard）
 - [x] **Harbor 模型仓库子 Chart**（v0.5.0）
 - [x] **PostgreSQL 独立子 Chart**（v0.5.0，从 LiteLLM 分离）
-- [ ] CLI 工具（`kube-llmops` / `kubectl llmops`）
+- [x] **CLI 工具**（v1.0.0：`kubectl-llmops` —— kubectl 插件，15+ 顶级命令，包括 `deploy`、`canary`、`test`、`port-forward`、`finetune`、`rag`、`platform`、`migrate` 等；源代码：`operator/cmd/kubectl-llmops/`）
 - [ ] 多模态模型服务
 - [ ] 模型优化工具箱（量化、蒸馏）
 

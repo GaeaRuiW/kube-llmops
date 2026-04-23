@@ -7,6 +7,39 @@
 本文件格式基于 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)，
 并且本项目遵循 [语义化版本](https://semver.org/spec/v2.0.0.html) 规范。
 
+## [1.0.0] - 2026-04-23
+
+> **里程碑：** Phase 6 完成 — Operator + CLI + Dashboard 三件套 GA。
+
+### 新增
+
+#### kubectl-llmops CLI
+- `operator/cmd/kubectl-llmops/` — Go 二进制，可作为 kubectl 插件使用（`kubectl llmops <cmd>`）
+- 构建：`cd operator && make build-cli` 或 `make install-cli`（安装到 `$GOPATH/bin`）
+- 15 个顶层命令 + 3 个子命令组
+- 模型生命周期：`deploy`、`list`、`status`、`scale`、`delete`
+  - `kubectl llmops deploy Qwen/Qwen2.5-7B-Instruct` 自动检测引擎并创建 `ModelDeployment`
+  - 支持所有常用模型选项（`--gpu`、`--memory`、`--replicas`、`--engine-arg`、`--prefix-caching`、`--accelerator`）
+- 金丝雀部署：`canary`、`promote`、`rollback`
+  - `kubectl llmops canary <name> --target <new-source> --weight 20` 创建加权金丝雀
+- 开发者体验：`logs`、`test`、`endpoint`、`port-forward`、`dashboard`
+  - `kubectl llmops test <name> --prompt "Hello" --stream` 直接请求 LiteLLM
+  - `port-forward --service=gateway|grafana|langfuse|dify|minio` 自动发现服务
+- `finetune {create,list,status,logs,delete}` — 驱动 `FineTuneRun` CR，读取 MLflow 指标 + 质量门结果
+- `platform {init,status,update}` — 驱动 `LLMPlatform` CR，`update --enable rag --disable security` 切换模块开关
+- `rag {list-kb,create-kb,upload,delete-kb,query,eval}` — 直接调用 Dify Console API（自动发现端点、从 `kube-llmops-dify-setup` ConfigMap 读取凭证）
+- `migrate <helm-release>` — 单向转换：Helm release → LLMPlatform + ModelDeployment CR
+- 全局标志：`-n/--namespace`、`-o table|json|yaml|wide`、`--kubeconfig`、`--context`
+- 引擎自动检测复用 `internal/engine/resolver.go`（与 operator 相同逻辑）
+
+### 变更
+- Chart 版本升级：umbrella `kube-llmops-stack` + 20 个子 chart + operator chart → 1.0.0
+- Phase 6 路线图项目（Operator、CLI、Web Dashboard）全部标记完成
+
+### 说明
+这是 Phase 6（Platform UX）里程碑版本。之前需要 `helm upgrade --set ...` 或
+`kubectl edit llmplatform` 的命令式操作，现在都可以通过 `kubectl llmops` 完成。
+
 ## [0.5.0] - 2026-04-12
 
 ### 新增

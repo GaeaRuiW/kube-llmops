@@ -127,6 +127,90 @@ spec:
     canaryWeight: 10
 ```
 
+## kubectl-llmops CLI
+
+Starting with v1.0.0 the operator ships with a companion command-line tool,
+`kubectl-llmops`, that provides an imperative `kubectl llmops <cmd>` experience for
+day-to-day LLMOps tasks. It is distributed from this repository (source:
+`operator/cmd/kubectl-llmops/`, command implementations under
+`operator/internal/cli/cmd/`).
+
+### Build and install
+
+```sh
+# Build the binary only (produces ./bin/kubectl-llmops)
+cd operator && make build-cli
+
+# Or build + install to $GOPATH/bin (so `kubectl llmops` is discovered as a plugin)
+cd operator && make install-cli
+# Alternatively copy the binary onto PATH yourself:
+sudo cp operator/bin/kubectl-llmops /usr/local/bin/
+```
+
+Because the binary is named `kubectl-llmops`, `kubectl` automatically exposes it as
+a plugin. You can invoke it either way:
+
+```sh
+kubectl llmops <cmd>     # as a kubectl plugin (preferred)
+kubectl-llmops <cmd>     # directly
+```
+
+### Command groups (15+ top-level commands)
+
+| Category | Commands |
+|---|---|
+| Deploy / lifecycle | `deploy`, `list`, `status`, `scale`, `delete` |
+| Rollout | `canary`, `promote`, `rollback` |
+| Dev UX | `logs`, `test`, `endpoint`, `port-forward` |
+| Platform | `platform`, `dashboard`, `migrate` |
+| Subcommand groups | `finetune`, `rag` |
+
+Global flags: `-n/--namespace <ns>` and `-o/--output <table|json|yaml|wide>`.
+
+### Example flows
+
+```sh
+# Deploy a model from HuggingFace (engine auto-detected from source name)
+kubectl llmops deploy Qwen/Qwen2.5-7B-Instruct
+
+# Canary a new version at 20% traffic, then promote
+kubectl llmops canary qwen2-5-7b-instruct --target Qwen/Qwen2.5-14B --weight 20
+kubectl llmops promote qwen2-5-7b-instruct
+
+# Quick chat test straight to LiteLLM
+kubectl llmops test qwen2-5-7b-instruct --prompt "Hello"
+
+# Forward a platform service (gateway | grafana | dify)
+kubectl llmops port-forward --service=gateway
+
+# Toggle feature modules on the LLMPlatform CR
+kubectl llmops platform update --enable rag --disable security
+
+# Fine-tune / RAG workflows
+kubectl llmops finetune create --base-model Qwen/Qwen2.5-0.5B --method lora
+kubectl llmops rag upload my-kb ./doc.pdf
+
+# Convert an existing Helm release into CRs
+kubectl llmops migrate kube-llmops
+```
+
+### Relationship with the operator
+
+- Most commands are **CR-first**: `deploy`, `scale`, `canary`, `promote`, `rollback`,
+  `platform update`, `finetune create`, and `migrate` all work by creating or
+  patching `LLMPlatform` / `ModelDeployment` / `FineTuneRun` resources through the
+  Kubernetes API. The operator then reconciles those CRs into actual workloads via
+  the embedded Helm SDK. This makes CLI actions auditable, replayable, and GitOps
+  friendly.
+- `kubectl llmops test` talks directly to the **LiteLLM** OpenAI-compatible endpoint
+  — a convenience wrapper so you don't have to install an SDK just to validate a
+  deployment.
+- `kubectl llmops rag upload` / `rag query` talk directly to the **Dify** API for
+  knowledge-base operations.
+- `kubectl llmops migrate <helm-release>` reverse-engineers an existing
+  `helm install kube-llmops ...` release into an equivalent `LLMPlatform` CR, so
+  teams can move from direct Helm management to operator-managed without downtime.
+
 ## Getting Started
 
 ### Prerequisites

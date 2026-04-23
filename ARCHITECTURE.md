@@ -1,4 +1,4 @@
-# kube-llmops - Architecture (v0.5.0)
+# kube-llmops - Architecture (v1.0.0)
 
 **English** | [中文](ARCHITECTURE.zh-CN.md)
 
@@ -73,6 +73,8 @@
    │  Layer 0: GitOps / Operator (ArgoCD + Helm Umbrella Chart +  │
    │           kube-llmops-operator: LLMPlatform / ModelDeployment │
    │           / FineTuneRun CRDs, v0.5.0)                         │
+   │  Layer 9: CLI (kubectl-llmops — kubectl plugin, 15+ commands, │
+   │           v1.0.0)                                             │
    └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -869,6 +871,92 @@ Unchanged from v1:
 
 ---
 
+## Layer 9: Command-Line Interface (kubectl-llmops)
+
+> **v1.0.0:** `kubectl-llmops` is the imperative companion to the Operator — a kubectl
+> plugin providing a `kubectl llmops <cmd>` experience for day-to-day LLMOps tasks.
+> Everything it does is driven by creating/modifying CRs (no direct cluster mutation),
+> so CLI actions and GitOps / Operator reconcile coexist cleanly.
+
+### Overview
+
+- **Binary**: `kubectl-llmops` (also invocable as `kubectl llmops <cmd>` because
+  `kubectl` automatically discovers `kubectl-*` binaries on `PATH`)
+- **Entry point**: `operator/cmd/kubectl-llmops/main.go`
+- **Command implementations**: `operator/internal/cli/cmd/`
+- **Global flags**: `-n/--namespace`, `-o/--output` (`table` | `json` | `yaml` | `wide`)
+- **Build**:
+  ```bash
+  cd operator && make build-cli     # produces bin/kubectl-llmops
+  # or
+  cd operator && make install-cli   # installs to $GOPATH/bin
+  ```
+
+### Command Groups (15+ top-level commands)
+
+| Category | Commands | What it does |
+|---|---|---|
+| **Deploy / lifecycle** | `deploy`, `list`, `status`, `scale`, `delete` | One-shot HuggingFace → `ModelDeployment` CR; list/status/scale/delete running models |
+| **Rollout** | `canary`, `promote`, `rollback` | Weighted canary traffic split; promote the canary; rollback to the previous revision |
+| **Dev UX** | `logs`, `test`, `endpoint`, `port-forward` | Tail logs; `test` calls LiteLLM directly with a prompt; get endpoint URL; port-forward `gateway` / `grafana` / `dify` |
+| **Platform / modules** | `platform`, `dashboard`, `migrate` | `platform status`/`update --enable rag --disable security`; open Headlamp dashboard; `migrate <helm-release>` converts an existing Helm release into CRs |
+| **Fine-tuning** | `finetune create / list / logs / ...` | Driven by `FineTuneRun` CR (Argo Workflow) |
+| **RAG** | `rag upload / query / ...` | Calls the Dify API directly for knowledge-base ops |
+
+### Representative Flows
+
+```bash
+# One-line deploy from HuggingFace (engine auto-detected from source)
+kubectl llmops deploy Qwen/Qwen2.5-7B-Instruct
+
+# Canary a new version at 20% traffic, then promote
+kubectl llmops canary qwen2-5-7b-instruct --target Qwen/Qwen2.5-14B --weight 20
+kubectl llmops promote qwen2-5-7b-instruct
+
+# Fire a test chat completion (direct to LiteLLM, no client SDK needed)
+kubectl llmops test qwen2-5-7b-instruct --prompt "Hello"
+
+# Port-forward a platform service
+kubectl llmops port-forward --service=gateway
+
+# Toggle feature modules on the LLMPlatform CR
+kubectl llmops platform update --enable rag --disable security
+
+# Fine-tuning pipeline
+kubectl llmops finetune create --base-model Qwen/Qwen2.5-0.5B --method lora
+
+# Upload a document into a Dify knowledge base
+kubectl llmops rag upload my-kb ./doc.pdf
+
+# Convert an existing Helm release to CR-based management
+kubectl llmops migrate kube-llmops
+```
+
+### Relationship to the Operator
+
+```
+kubectl llmops deploy ...         kubectl llmops rag upload ...
+         │                                 │
+         v                                 v
+  create/modify CRs              Dify HTTP API (direct)
+  (ModelDeployment, etc.)
+         │
+         v
+  kube-llmops-operator  ──►  Helm SDK / K8s API  ──►  workloads
+```
+
+- Most commands are **CR-first**: they create or patch `LLMPlatform` /
+  `ModelDeployment` / `FineTuneRun` resources and let the Operator reconcile them.
+  This means CLI actions are auditable and replayable via GitOps.
+- `kubectl llmops test` talks directly to **LiteLLM** (OpenAI-compatible endpoint) —
+  no CR involved, it's just a convenience wrapper.
+- `kubectl llmops rag` talks directly to the **Dify API** for knowledge-base uploads
+  and queries.
+- `kubectl llmops migrate` reverse-engineers an existing Helm release into an
+  equivalent `LLMPlatform` CR for teams moving from direct Helm to Operator-managed.
+
+---
+
 ## Cross-cutting: Security & Multi-tenancy
 
 | Component | Technology | CNCF Status |
@@ -1113,7 +1201,7 @@ kube-llmops/
 - [x] **Web Dashboard** (v0.5.0: Headlamp + `kube-llmops-portal` plugin replaces the legacy custom dashboard)
 - [x] **Harbor model registry subchart** (v0.5.0)
 - [x] **Standalone PostgreSQL subchart** (v0.5.0: split from LiteLLM)
-- [ ] CLI tool (`kube-llmops` / `kubectl llmops`)
+- [x] **CLI tool** (v1.0.0: `kubectl-llmops` — kubectl plugin, 15+ top-level commands including `deploy`, `canary`, `test`, `port-forward`, `finetune`, `rag`, `platform`, `migrate`; source: `operator/cmd/kubectl-llmops/`)
 - [ ] Multi-modal model serving
 - [ ] Model optimization toolkit (quantization, distillation)
 
