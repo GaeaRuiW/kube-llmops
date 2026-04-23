@@ -8,7 +8,7 @@ The kube-llmops-operator manages the full lifecycle of large-language-model oper
 
 - **LLMPlatform** declares a complete LLMOps infrastructure stack. A single LLMPlatform resource configures the LiteLLM AI gateway (with routing, rate-limiting, and budget control), observability (Prometheus, Grafana, Langfuse), logging (Fluent Bit + Loki), a MinIO model store, PostgreSQL, Keycloak SSO, KEDA autoscaling, and optional feature modules for RAG, fine-tuning, and security. The LLMPlatform controller translates the spec into Helm values and performs an install or upgrade of the underlying `kube-llmops-stack` Helm chart, tracking the release name, revision, and per-component health in the resource status.
 
-- **ModelDeployment** declares a single model-serving instance. You specify a HuggingFace model ID, and the controller auto-detects the appropriate inference engine (`vllm`, `tei`, or `llamacpp`) when `engine` is set to `auto`. It then creates the required PersistentVolumeClaim, Deployment, and Service, wires up GPU resources (NVIDIA, AMD, or Gaudi, including MIG devices), and registers the model with the LiteLLM gateway. The resource also supports canary deployments with traffic-weight splitting, spot/preemptible GPU scheduling, prefix caching, and per-model store overrides. Status reports the resolved engine, endpoint URL, replica readiness, and lifecycle phase.
+- **ModelDeployment** declares a single model-serving instance. You specify a HuggingFace model ID, and the controller auto-detects the appropriate inference engine (`vllm`, `tei`, or `llamacpp`) when `engine` is set to `auto`. It then creates the required PersistentVolumeClaim, Deployment, and Service, wires up GPU resources (NVIDIA, AMD, or Gaudi, including MIG devices), and registers the model with the LiteLLM gateway. For `llamacpp` the operator handles multi-shard ("split") GGUF files — the model-loader downloads every `{prefix}-NNNNN-of-NNNNN.gguf` shard, and the pod creates symlinks at startup so llama.cpp can load them by pointing at the first shard. The llama.cpp Deployment uses the `Recreate` strategy to prevent GPU device deadlock during rolling updates. The resource also supports canary deployments with traffic-weight splitting, spot/preemptible GPU scheduling, prefix caching, and per-model store overrides. Status reports the resolved engine, endpoint URL, replica readiness, and lifecycle phase.
 
 - **FineTuneRun** declares a fine-tuning job. You choose a base model, an output name, and a method (`lora`, `qlora`, or `full`), then point at a data source (MinIO, HuggingFace, or PVC in `alpaca`, `sharegpt`, or `custom` format). The controller builds and submits an Argo Workflow that executes the training run, tracks it through data-preparation, training, evaluation, and quality-gate phases, and optionally auto-deploys the resulting model as a new ModelDeployment. Training metrics (loss, duration) and MLflow tracking information are surfaced in the resource status.
 
@@ -136,7 +136,26 @@ spec:
 - Access to a Kubernetes v1.11.3+ cluster.
 
 ### To Deploy on the cluster
-**Build and push your image to the location specified by `IMG`:**
+
+The recommended v0.5.0+ workflow uses the provided build script and Helm chart:
+
+```sh
+# 1. Build the operator image (embeds the umbrella chart via helm dep update)
+bash operator/build.sh
+
+# 2. Tag + push to your registry
+docker tag kube-llmops/operator:latest <your-registry>/kube-llmops/operator:latest
+docker push <your-registry>/kube-llmops/operator:latest
+
+# 3. Install the operator chart (CRDs + controller + RBAC)
+helm install kube-llmops-operator operator/charts/kube-llmops-operator \
+  --set image.repository=<your-registry>/kube-llmops/operator
+
+# 4. Apply a sample CR
+kubectl apply -f operator/config/samples/llmplatform_full.yaml
+```
+
+**Alternative: Build and push your image with the Kubebuilder-generated targets:**
 
 ```sh
 make docker-build docker-push IMG=<some-registry>/kube-llmops-operator:tag

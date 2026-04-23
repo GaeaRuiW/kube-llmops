@@ -1,6 +1,6 @@
 [English](ARCHITECTURE.md) | **中文**
 
-# kube-llmops - 架构设计 (v2)
+# kube-llmops - 架构设计 (v0.5.0)
 
 > **Kubernetes 原生 LLMOps 平台**
 > 一条命令即可在 Kubernetes 上部署、管理、监控和优化你的整个 LLM 基础设施。
@@ -66,10 +66,13 @@
    │  Data & Vector Layer: Milvus / MinIO / Harbor                │
    │  Dev & Finetune: JupyterHub / LLaMA-Factory / MLflow        │
    │  Security: Keycloak / NetworkPolicy / LLM-Guard             │
+   │  K8s UI: Headlamp + kube-llmops-portal 插件 (v0.5.0)         │
    └──────────────────────────────────────────────────────────────┘
 
    ┌──────────────────────────────────────────────────────────────┐
-   │  Layer 0: GitOps (ArgoCD + Helm Umbrella Chart)             │
+   │  Layer 0: GitOps / Operator（ArgoCD + Helm Umbrella Chart +  │
+   │           kube-llmops-operator：LLMPlatform / ModelDeployment │
+   │           / FineTuneRun CRD，v0.5.0）                         │
    └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -110,6 +113,13 @@
 ## 新增：Model Resolver（引擎自动选择）
 
 > **核心理念：用户只需指定模型，平台自动选择最优推理引擎。**
+>
+> **说明（v0.3.1+）**：引擎自动检测已实现为 Helm 模板函数
+> （`resolveEngine`、`resolveModelType`），位于
+> `charts/kube-llmops-stack/templates/_helpers.tpl`。当前实现使用 source 名称的模式匹配，
+> 而非下文描述的 HuggingFace API 完整检测方案。下文描述的 init-container 方案仅作为
+> Helm 渲染无法确定引擎时的运行时回退。
+> 当前自动检测规则详见 [AGENTS.md](AGENTS.md)。
 
 ### 问题
 
@@ -448,15 +458,23 @@ spec:
 - **金丝雀发布**：通过 InferenceModel CRD 在模型版本间进行 A/B 分流
 - **流量控制**：工作负载间的优先级 + 公平性
 
-### 第二层上线策略（未来规划）
+### 第二层上线策略
 
-> 注意：第二层网关是未来路线图项目。当前架构使用 LiteLLM 作为唯一网关。
+> **当前（v0.5.0）**：LiteLLM → vLLM 直连（无第二层）。llm-d 模板作为实验性选项随
+> Chart 一同提供；Envoy AI Gateway + IGW CRD 模板也随 Chart 发布，但默认未启用。
+>
+> **未来阶段 1**：LiteLLM → Envoy AI Gateway（基础）→ vLLM
+>
+> **未来阶段 2**：LiteLLM → Envoy + IGW（完整推理调度）→ vLLM
+>
+> **未来阶段 3**：LiteLLM → IGW + llm-d（Prefill/Decode 分离式推理，生产级）
 
 ```
-当前:              LiteLLM -> vLLM 直连（无第二层）
+当前（v0.5.0）:    LiteLLM -> vLLM 直连（无第二层）
+                    llm-d 模板可用（实验性，需显式启用）
 未来阶段 1:        LiteLLM -> Envoy AI Gateway（基础）-> vLLM
 未来阶段 2:        LiteLLM -> Envoy + IGW（完整推理调度）-> vLLM
-未来阶段 3:        LiteLLM -> IGW + llm-d（Prefill/Decode 分离式推理）
+未来阶段 3:        LiteLLM -> IGW + llm-d（Prefill/Decode 分离式推理，生产级）
 ```
 
 ---
@@ -805,6 +823,50 @@ models:
 
 ---
 
+## 第 7 层：Kubernetes UI（Headlamp）
+
+> **v0.5.0**：Headlamp 替代了 v0.4 中的自定义 dashboard。
+
+- 基于 CNCF Kubernetes 原生 Web UI（封装上游 Headlamp Chart）
+- 自定义 `kube-llmops-portal` 插件提供：
+  - **Service Links**（服务链接）：以卡片网格形式展示所有平台服务的 NodePort 地址
+    （LiteLLM、Grafana、Langfuse、Dify、Keycloak、MinIO、Prometheus、MLflow 等）
+  - **Monitoring**（监控）：通过 iframe 内嵌 Grafana 仪表盘（需要
+    `allow_embedding=true` + 匿名 Viewer 访问，已默认配置）
+- NodePort `30302`（当 `global.nodePort.enabled=true` 时暴露）
+- Keycloak OIDC SSO 集成（完整链路：Headlamp → Keycloak OIDC → K8s API Server；
+  Keycloak 必须启用 HTTPS，否则 K8s API Server 会拒绝作为 OIDC issuer）
+- 插件源代码：`plugins/kube-llmops-portal/`（构建为 `kube-llmops/headlamp-plugin:latest`）
+- 子 Chart：`charts/kube-llmops-stack/charts/headlamp/`
+
+---
+
+## 第 8 层：平台 Operator（LLMPlatform CR）
+
+> **v0.5.0**：通过 Kubernetes CRD 实现声明式平台管理 —— GitOps / 多租户场景下
+> 替代直接 `helm install` 的方案。
+
+- `kube-llmops-operator`（Go 语言，基于 `controller-runtime`）
+- **CRD**：
+  - `LLMPlatform` —— 完整平台规格（gateway、observability、models、modules、nodePort）；
+    单个 CR 会被协调（reconcile）为一个完整的 umbrella chart Helm release
+  - `ModelDeployment` —— 单模型高级部署（vLLM / TEI / llama.cpp）
+  - `FineTuneRun` —— 微调流水线执行（实例化 Argo WorkflowTemplate）
+- 构建时将 umbrella chart 打包到 `_build_charts/` 暂存目录，通过 Helm SDK
+  （`internal/helmbridge/`）调用
+- 内置卡住的 Release 恢复机制：检测 `pending-install` / `pending-upgrade` 卡住状态
+  并在重新协调前自动回滚
+- 基于 Generation 的协调循环抑制（当
+  `status.observedGeneration == metadata.generation` 时跳过）
+- ServiceAccount 使用 `cluster-admin`（因为 umbrella chart 的子 chart 模板包含通配符
+  RBAC，例如 Headlamp）
+- 镜像：`localhost:5000/kube-llmops/operator:latest`（推送到你自己的 Registry）
+- 示例 CR：`operator/config/samples/llmplatform_full.yaml`
+- 用户指南：`operator/docs/user-guide/operator-guide-en.md`（含 zh 版本）
+- 源代码：`operator/`
+
+---
+
 ## 横切关注点：安全与多租户
 
 | 组件 | 技术 | CNCF 状态 |
@@ -1023,25 +1085,34 @@ kube-llmops/
 - [x] 备份/恢复自动化（scripts/backup.sh + restore.sh）
 
 ### 第四阶段：ML 平台 —— "ML 工程师的最爱"
-- [ ] 带 GPU 配置的 JupyterHub
-- [ ] LLaMA-Factory 微调 Job 模板
-- [ ] MLflow 实验追踪
-- [ ] 模型评估管线
-- [ ] ArgoCD ApplicationSet 多集群支持
-- [ ] Terraform 模块（EKS、GKE、ACK）
+- [x] 带 GPU 配置的 JupyterHub
+- [x] LLaMA-Factory 微调 Job 模板
+- [x] MLflow 实验追踪
+- [x] 模型评估管线
+- [x] ArgoCD ApplicationSet 多集群支持
+- [x] Terraform 模块（EKS、GKE、AKS）
 
-### 第五阶段：高级推理 —— "顶尖性能"
-- [ ] **llm-d** 集成（Prefill/Decode 分离式推理）
-- [ ] MoE 模型的**专家并行**（DeepSeek-R1）
-- [ ] KV cache 分级卸载（GPU -> CPU -> SSD -> 远端）
-- [ ] 工作负载感知自动扩缩（SLO 感知）
-- [ ] KServe 集成（可选）
-- [ ] AMD ROCm / Intel Gaudi 支持
+### 第五阶段：高级推理（v0.5.0）—— "顶尖性能"
+- [x] 延迟路由（默认策略）
+- [x] 每模型前缀缓存
+- [x] 多触发器 KEDA 自动扩缩（队列 + TTFT P95 + TPOT P95）
+- [x] SLO 告警与仪表盘面板
+- [x] 规模到零（scale-to-zero）+ LiteLLM 冷启动回退
+- [x] 竞价 GPU 容忍度 + 优雅驱逐
+- [x] MIG GPU 共享
+- [x] 金丝雀部署 + 权重流量切分
+- [x] llm-d 分离式推理（实验性）
+- [x] 多加速器支持（nvidia、amd、gaudi）
+- [x] 会话亲和性（Envoy sidecar）
+- [x] Envoy AI Gateway + IGW CRD 模板
+- [x] 文档（6 份新指南）
 
-### 第六阶段：生态建设（未来）
-- [ ] Kubernetes Operator 与 CRD
+### 第六阶段：生态建设
+- [x] **Kubernetes Operator 与 CRD**（v0.5.0：`LLMPlatform`、`ModelDeployment`、`FineTuneRun`）
+- [x] **Web 管理界面**（v0.5.0：Headlamp + `kube-llmops-portal` 插件替代了 v0.4 自定义 dashboard）
+- [x] **Harbor 模型仓库子 Chart**（v0.5.0）
+- [x] **PostgreSQL 独立子 Chart**（v0.5.0，从 LiteLLM 分离）
 - [ ] CLI 工具（`kube-llmops` / `kubectl llmops`）
-- [ ] Web 管理界面
 - [ ] 多模态模型服务
 - [ ] 模型优化工具箱（量化、蒸馏）
 

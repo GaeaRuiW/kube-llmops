@@ -32,7 +32,7 @@
 | 3 | **Embedding 服务** | ✅ 多 provider | ✅ 内置 | ✅ 多 provider | N/A | ✅ TEI bge-small-en-v1.5 via LiteLLM | Done |
 | 4 | **向量检索** (相似度/混合/Rerank) | ✅ 混合检索 | ✅ 混合+Rerank | ✅ 灵活 | N/A | ✅ pgvector + TEI reranker (bge-reranker-base) | Done |
 | 5 | **RAG 质量评估** | ❌ 无 | ❌ 无 | ⚠️ LangSmith | ✅ 6大指标 | ✅ Ragas 4指标 + Grafana + Pushgateway + 105 样本 | Done |
-| 6 | **多租户/知识库隔离** | ⚠️ 企业版 | ✅ 多知识库 | ❌ 需自建 | N/A | ⚠️ Keycloak SSO 就绪，per-KB 隔离依赖 Dify | **P2** |
+| 6 | **多租户/知识库隔离** | ⚠️ 企业版 | ✅ 多知识库 | ❌ 需自建 | N/A | ✅ Keycloak SSO + per-KB 隔离（通过 Dify） | ✅ Done |
 | 7 | **全链路追踪** (embed→retrieve→generate) | ⚠️ 接 Langfuse | ❌ 无 | ✅ LangSmith | N/A | ✅ Langfuse v3 via LiteLLM callbacks | Done |
 | 8 | **内容安全/Guardrails** | ❌ 无 | ❌ 无 | ✅ Guardrails | N/A | ✅ LLM-Guard PromptInjection scanner | Done |
 

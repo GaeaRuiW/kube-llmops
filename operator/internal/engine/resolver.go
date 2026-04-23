@@ -9,7 +9,8 @@ func ResolveEngine(source, explicit string) string {
 		return explicit
 	}
 	s := strings.ToLower(source)
-	if strings.Contains(s, "gguf") {
+	// Typo-tolerant: match both "gguf" and "guff" (some HF repos misspell the format)
+	if strings.Contains(s, "gguf") || strings.Contains(s, "guff") {
 		return "llamacpp"
 	}
 	if isEmbeddingOrReranker(s) {

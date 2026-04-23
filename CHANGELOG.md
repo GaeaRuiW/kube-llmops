@@ -7,20 +7,79 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.5.0] - 2026-04-05
+## [0.5.0] - 2026-04-12
 
 ### Added
+
+#### Kubernetes Operator (LLMPlatform CR)
+- `operator/` directory: Go-based Kubernetes Operator using controller-runtime
+- Three CRDs: `LLMPlatform` (full platform), `ModelDeployment` (per-model), `FineTuneRun` (fine-tuning jobs)
+- Operator Helm chart at `operator/charts/kube-llmops-operator/` (embeds umbrella chart at build time)
+- Declarative platform management as alternative to direct `helm install`
+- Reconciler translates LLMPlatform spec → Helm values and drives install/upgrade via Helm SDK
+- `Models []ModelSpec` field in LLMPlatform spec for declaring models in CR
+- Built-in stuck-release recovery: `FixStuckRelease()` handles pending-install/pending-upgrade
+- Generation-based reconcile loop prevention (skip if `status.observedGeneration == metadata.generation`)
+- `cluster-admin` RBAC for operator SA (required for Helm chart's wildcard bindings, e.g. Headlamp)
+- Sample CR: `operator/config/samples/llmplatform_full.yaml`
+- Build script: `operator/build.sh` (staging dir `_build_charts/` avoids deleting operator's own chart)
+- User guide: `operator/docs/user-guide/operator-guide-en.md` + `operator-guide-zh.md`
+- Architecture doc: `operator/docs/architecture/operator.md`
+
+#### Headlamp Kubernetes UI (replaces legacy custom dashboard)
+- `headlamp` subchart wrapping the upstream Headlamp chart
+- `kube-llmops-portal` plugin with two pages:
+  - **Service Links**: card grid of NodePort URLs for all platform services
+  - **Monitoring**: embedded Grafana dashboards via iframe
+- NodePort 30302 when NodePort enabled
+- Keycloak OIDC SSO auto-configured (issuer URL computed from `nodePort.host`)
+- Grafana configured with `allow_embedding=true` + anonymous Viewer access for iframe support
+- Plugin image: `kube-llmops/headlamp-plugin:latest` (build via `docker build plugins/kube-llmops-portal/`)
+- 23 Helm template tests (`tests/helm/test_headlamp_templates.py`)
+
+#### Advanced Inference (Phase 5)
 - Latency-based routing (default strategy, replacing simple-shuffle)
 - Prefix caching flag per model (`prefixCaching: true`)
+- Session affinity via Envoy sidecar (`litellm.sessionAffinity.enabled`)
 - Multi-trigger KEDA autoscaling (queue depth + TTFT P95 + TPOT P95)
 - SLO alert rules (TTFTSLOBreach, TTFTSLOCritical, TPOTSLOBreach)
 - Scale-to-zero with LiteLLM fallback for cold start
 - Spot/preemptible GPU tolerations (AWS, GCP, Azure, Karpenter)
-- Graceful drain (terminationGracePeriodSeconds: 90 + preStop hook)
+- Graceful drain (`terminationGracePeriodSeconds: 90` + preStop hook)
 - MIG GPU device support (nvidia.com/mig-*)
 - Canary model deployment with weight-based traffic splitting
 - llm-d disaggregated serving (experimental, prefill/decode split)
 - Multi-accelerator support (nvidia, amd, gaudi)
+- Envoy AI Gateway with InferencePool + InferenceModel CRDs (IGW extension)
+
+#### Module Switches
+- `global.modules.{rag,finetune,security}.enabled` top-level toggles
+- Chart.yaml dual-path conditions: `<subchart>.enabled,global.modules.<module>.enabled` — explicit override wins
+- Dashboards and Prometheus alert groups auto-included/excluded per module
+- 19 Helm template tests (`tests/helm/test_module_switches.py`)
+
+#### Keycloak HTTPS + K8s OIDC (Headlamp SSO)
+- `keycloak.tls.enabled` field with self-signed (default) or user-provided cert
+- `keycloak.tls.selfSigned` + `keycloak.tls.existingSecret` options
+- HTTPS NodePort :30809 (in addition to HTTP :30808)
+- OIDC RBAC bindings for Headlamp → Keycloak → K8s API Server chain
+- Full k3s + self-signed CA setup documented in `AGENTS.md`
+
+#### Infrastructure
+- `harbor` subchart: private container registry + model artifact store
+- `postgresql` standalone subchart: shared PostgreSQL (pgvector/pgvector:pg17) — previously nested under LiteLLM
+- `postgresql` auto-creates databases: litellm, langfuse, dify, dify_plugin, mlflow
+- `pgvector` extension auto-enabled in each DB
+
+#### Split GGUF Support (llama.cpp)
+- llama.cpp deployment handles multi-shard GGUF files (e.g. Q8_0 9-part shards)
+- Model-loader `allowPatterns` field for selective HF downloads (e.g. `"*q4_k_m*"`)
+- Pod startup hook creates symlinks with canonical `{prefix}-NNNNN-of-NNNNN.gguf` naming
+- `--model` arg uses shell wrapper to dynamically read first shard path
+- `Recreate` deployment strategy prevents GPU deadlock during rolling updates
+- Tested on NVIDIA GB10 (Blackwell ARM64, 128GB) with Gemma-4-31B Q8_0 (9 splits, ~31GB)
+
+#### Documentation
 - 6 new documentation pages (routing, large models, speculative, kserve, llm-d, canary)
 - SLO dashboard panels (TTFT/TPOT vs threshold, HPA replica count)
 - Cost dashboard panels (GPU idle rate, scale-to-zero events)
@@ -28,9 +87,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Prefix cache hit rate panel in vLLM dashboard
 
 ### Changed
-- Default routing strategy: simple-shuffle -> latency-based-routing
+- Default routing strategy: simple-shuffle → latency-based-routing
+- Default LLM in `values-single-node.yaml`: `nohurry/gemma-4-26B-A4B-it-heretic-GUFF` (llama.cpp, q4_k_m, ~16.87GB)
+- vLLM default image: `vllm/vllm-openai:gemma4-cu130` (custom build — upstream doesn't support Gemma 4 architecture)
+- llama.cpp default image: `ghcr.io/ggml-org/llama.cpp:server-cuda-b8672` (multi-arch, supports CUDA 13)
+- Engine auto-detection: added typo-tolerant `*GUFF*` pattern (some HF repos misspell GGUF)
 - GPU resource names use helper function (supports nvidia/amd/gaudi)
 - DCGM exporter conditional on nvidia accelerator
+- Custom dashboard removed — use Headlamp + kube-llmops-portal plugin instead
+- Prometheus alert rules: 5 → 8 (added 3 SLO alerts)
+- Grafana dashboards: 10 → 11 (added finetune-overview)
+
+### Fixed
+- vLLM: removed `--disable-access-log-for-endpoints` flag (deprecated in vLLM 0.9+)
+- LiteLLM: `routingStrategy` empty string no longer overrides subchart default
+- Model names: DNS-1035 validation documented (no dots — `qwen25-7b` ✅, `qwen2.5-7b` ❌)
+- Model loader: GPU resource `gpu: 0` explicitly set for CPU-only models (chart defaulted to 1)
+- Operator build script: staging dir `_build_charts/` no longer deletes operator's own chart
 
 ## [0.4.0] - 2026-04-04
 

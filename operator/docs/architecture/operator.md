@@ -100,19 +100,21 @@ kind: ModelDeployment
 metadata:
   name: gemma-4-26b
 spec:
-  source: cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit   # Required. HuggingFace model ID
-  engine: auto            # auto | vllm | tei | llamacpp (default: auto)
+  source: nohurry/gemma-4-26B-A4B-it-heretic-GUFF   # Required. HuggingFace model ID
+  engine: llamacpp        # auto | vllm | tei | llamacpp (default: auto)
+                          # Optional here: auto-detect is typo-tolerant and matches "GUFF" as llamacpp
   replicas: 1             # Desired pod count (default: 1, min: 0)
   resources:
     gpu: 1                # GPU count (default: 1, min: 0)
-    memory: 24Gi          # Memory limit (default: 16Gi)
+    memory: 20Gi          # Memory limit (default: 16Gi; q4_k_m ~16.87GB)
     cpu: "4"              # CPU limit (default: 4)
   accelerator: nvidia     # nvidia | amd | gaudi (default: nvidia)
   migDevice: ""           # NVIDIA MIG resource name override
   engineArgs:             # Extra CLI flags passed to inference engine
-    --gpu-memory-utilization: "0.93"
-    --max-model-len: "8192"
-  prefixCaching: false    # Enable vLLM prefix caching
+    --jinja: ""           # llama.cpp: enable Jinja chat templates
+    --ctx-size: "163840"  # llama.cpp: 160K context (model supports 256K; limited by 24GB VRAM)
+  allowPatterns: "*q4_k_m*"   # Selective shard download (split GGUF)
+  prefixCaching: false    # Enable vLLM prefix caching (no-op for llamacpp)
   spot:                   # Spot/preemptible scheduling
     enabled: false
     provider: aws         # aws | gcp | azure | karpenter
@@ -205,7 +207,7 @@ kind: FineTuneRun
 metadata:
   name: gemma-lora-v1
 spec:
-  baseModel: cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit
+  baseModel: google/gemma-2-9b     # Fine-tuning needs non-quantized weights
   outputName: gemma-4-lora-v1
   method: lora                  # lora | qlora | full (default: lora)
   dataSource:
@@ -393,6 +395,10 @@ strict priority chain with no ambiguity.
 
 **Priority:** `explicit engine` > `GGUF pattern → llamacpp` > `embedding/reranker → tei` > `vllm (default)`
 
+The `GGUF` check uses `strings.ToLower` and matches two substrings: `"gguf"` (the
+standard spelling) and `"guff"` (a common typo found in community HF repos, e.g.
+`nohurry/gemma-4-26B-A4B-it-heretic-GUFF`). Both resolve to `llamacpp`.
+
 ### Pattern Matching for Embedding and Reranker Models
 
 The `isEmbeddingOrReranker()` function first checks for `"rerank"` in the lowercased
@@ -430,6 +436,7 @@ func isEmbedding(s string) bool {
 | `intfloat/e5-large-v2`             | (empty)         | `tei`    | Matches `/e5-`             |
 | `nomic-ai/nomic-embed-text`        | (empty)         | `tei`    | Matches "nomic-embed"      |
 | `anything`                          | `llamacpp`      | `llamacpp` | Explicit always wins     |
+| `nohurry/gemma-4-...-heretic-GUFF` | (empty)         | `llamacpp` | Matches `guff` typo pattern (v0.5.0+) |
 
 A companion function `ResolveModelType()` classifies models as `"llm"`, `"embedding"`,
 or `"reranker"` using the same pattern set, used by the gateway integration to select
@@ -500,9 +507,14 @@ state. Each phase corresponds to observable Kubernetes resource states.
 `ReadWriteOnce` access mode. Mounted at `/models` in both init and main containers.
 
 **Deployment:** Uses `Recreate` strategy (GPU workloads cannot share devices during
-rolling update). Termination grace period is 90 seconds. Service links are disabled for
+rolling update — a new pod would deadlock trying to allocate a GPU already held by
+the old pod). Termination grace period is 90 seconds. Service links are disabled for
 DNS performance. For vLLM, an additional `dshm` volume (8Gi `emptyDir` on `Memory`
-medium) is mounted at `/dev/shm` for shared memory IPC.
+medium) is mounted at `/dev/shm` for shared memory IPC. For llama.cpp with multi-shard
+("split") GGUF models (files named `{prefix}-NNNNN-of-NNNNN.gguf`), a pod startup hook
+creates symlinks so llama.cpp can load the full model by pointing `--model` at the first
+shard; the model-loader init container downloads all matching shards from HuggingFace or
+MinIO.
 
 **Service:** `ClusterIP` type. Port is engine-dependent: `8000` for vLLM, `8080` for TEI
 and llama.cpp. The endpoint URL follows the pattern:
@@ -518,9 +530,9 @@ connectivity and HuggingFace transfer concurrency:
 ```yaml
 env:
   - name: MODEL_SOURCE
-    value: "cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit"
+    value: "nohurry/gemma-4-26B-A4B-it-heretic-GUFF"
   - name: MODEL_SLUG
-    value: "cyankiwi--gemma-4-26B-A4B-it-AWQ-4bit"
+    value: "nohurry--gemma-4-26B-A4B-it-heretic-GUFF"
   - name: MINIO_ENDPOINT
     value: "kube-llmops-minio:9000"
   - name: MINIO_BUCKET

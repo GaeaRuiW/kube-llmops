@@ -30,12 +30,15 @@ global:
   models:
     - name: gemma-4-26b-a4b
       source: nohurry/gemma-4-26B-A4B-it-heretic-GUFF
-      engine: llamacpp                                    # GUFF typo in repo name, explicit engine needed
+      engine: llamacpp                                    # explicit (optional — auto-detect also handles "GUFF" typo)
       allowPatterns: "*q4_k_m*"                           # 16.87 GB — fits RTX 3090 (24GB) with KV room
       replicas: 1
       resources:
         gpu: 1
         memory: 24Gi
+      engineArgs:
+        --jinja: ""                                       # Enable Jinja2 chat templates for tool calling
+        --ctx-size: "163840"                              # 160K context (model supports 256K, limited by 24GB VRAM)
     - name: bge-small-en
       source: BAAI/bge-small-en-v1.5
       replicas: 1
@@ -86,6 +89,18 @@ tei:
 litellm:
   enabled: true
   masterKey: sk-kube-llmops-dev
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "4"
+      memory: 4Gi
+  livenessProbe:
+    initialDelaySeconds: 60
+    periodSeconds: 60
+    timeoutSeconds: 30
+    failureThreshold: 10
   langfuseEnabled: true
   langfusePublicKey: "pk-lf-kube-llmops"
   langfuseSecretKey: "sk-lf-kube-llmops"
@@ -93,11 +108,11 @@ litellm:
     enabled: true
   guardrails:
     presidio:
-      enabled: true                # PII masking via Presidio (requires security.presidio.enabled)
+      enabled: false
       mode: "pre_call"
-      defaultOn: false             # users opt-in per request via guardrails: ["presidio-pii"]
+      defaultOn: false
     promptInjection:
-      enabled: true                # built-in similarity-based prompt injection detection
+      enabled: false
   postgresql:
     enabled: true
     image:
@@ -124,7 +139,7 @@ observability:
   prometheus:
     enabled: true
     storage:
-      size: 5Gi
+      size: 20Gi
   grafana:
     enabled: true
     adminPassword: admin123!
@@ -192,7 +207,7 @@ logging:
   enabled: true
   loki:
     storage:
-      size: 2Gi
+      size: 5Gi
 
 # ========== Disabled ==========
 keda:

@@ -1,12 +1,32 @@
 # Python Client Examples
 
-Usage examples for kube-llmops with the OpenAI Python SDK.
+Usage examples for kube-llmops (v0.5.0) with the OpenAI Python SDK.
+The default LLM is `gemma-4-26b-a4b` (llama.cpp GGUF).
 
 ## Install
 
 ```bash
 pip install openai langfuse
 ```
+
+## Base URL Options
+
+Pick one of the following for the `base_url` argument of the OpenAI client:
+
+```python
+# 1) NodePort (recommended for quick starts — no Ingress / /etc/hosts needed)
+#    Deploy with: --set global.nodePort.enabled=true --set global.nodePort.host=$NODE_IP
+base_url = "http://<NODE_IP>:30400/v1"
+
+# 2) Ingress (requires *.llmops.local in /etc/hosts)
+base_url = "http://litellm.llmops.local/v1"
+
+# 3) port-forward (no Ingress, no NodePort)
+#    Run: kubectl port-forward svc/kube-llmops-litellm 4000:4000 &
+base_url = "http://localhost:4000/v1"
+```
+
+All snippets below use option (2); swap in the URL that matches your setup.
 
 ## Chat Completion
 
@@ -26,7 +46,7 @@ client = OpenAI(
 
 # Basic chat
 response = client.chat.completions.create(
-    model="qwen2-5-0-5b",
+    model="gemma-4-26b-a4b",
     messages=[{"role": "user", "content": "What is Kubernetes?"}],
     temperature=0.7,
     max_tokens=256,
@@ -35,7 +55,7 @@ print(response.choices[0].message.content)
 
 # Streaming
 stream = client.chat.completions.create(
-    model="qwen2-5-0-5b",
+    model="gemma-4-26b-a4b",
     messages=[{"role": "user", "content": "Explain PagedAttention briefly."}],
     stream=True,
 )
@@ -101,12 +121,12 @@ client = OpenAI(
 trace = langfuse.trace(name="python-example")
 generation = trace.generation(
     name="chat",
-    model="qwen2-5-0-5b",
+    model="gemma-4-26b-a4b",
     input=[{"role": "user", "content": "What is vLLM?"}],
 )
 
 response = client.chat.completions.create(
-    model="qwen2-5-0-5b",
+    model="gemma-4-26b-a4b",
     messages=[{"role": "user", "content": "What is vLLM?"}],
 )
 
