@@ -80,6 +80,13 @@ spec:
           env:
             - name: GF_SECURITY_ADMIN_PASSWORD
               value: {{ .Values.grafana.adminPassword | default "admin" | quote }}
+            # Keep the built-in admin's email aligned with Keycloak's default admin
+            # (admin@kube-llmops.local). Mismatched email breaks OIDC user sync
+            # when preferred_username=admin on both sides — Grafana's sync aborts
+            # with "Failed to create user: user not found" because it cannot
+            # reconcile the existing local admin with the incoming OAuth identity.
+            - name: GF_SECURITY_ADMIN_EMAIL
+              value: {{ .Values.grafana.adminEmail | default "admin@kube-llmops.local" | quote }}
             - name: GF_INSTALL_PLUGINS
               value: ""
             {{- if .Values.grafana.oidc.enabled }}
@@ -109,8 +116,17 @@ spec:
               value: "{{ $keycloakUrl }}/protocol/openid-connect/userinfo"
             - name: GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP
               value: "true"
+            # Grafana 11+ changed users.allow_sign_up default: true -> false.
+            # Without this, user.sync fails with "user not found" even when OAuth
+            # succeeds, because the user service-level check blocks creation.
+            - name: GF_USERS_ALLOW_SIGN_UP
+              value: "true"
             - name: GF_AUTH_GENERIC_OAUTH_LOGIN_ATTRIBUTE_PATH
               value: "preferred_username"
+            - name: GF_AUTH_GENERIC_OAUTH_EMAIL_ATTRIBUTE_PATH
+              value: "email"
+            - name: GF_AUTH_GENERIC_OAUTH_NAME_ATTRIBUTE_PATH
+              value: "name"
             - name: GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH
               value: {{ .Values.grafana.oidc.roleAttributePath | default "contains(realm_access.roles[*], 'admin') && 'Admin' || 'Viewer'" | quote }}
             - name: GF_AUTH_OAUTH_ALLOW_INSECURE_EMAIL_LOOKUP
