@@ -46,6 +46,15 @@ data:
       batch:
         timeout: 5s
         send_batch_size: 1024
+      # Attach cluster label to every metric so dashboards can filter on $cluster.
+      # Prometheus's external_labels ONLY apply to remote_write/federation output,
+      # NOT to local time-series. Injecting `cluster` at the pipeline level ensures
+      # it shows up as a regular label on every series written to Prometheus.
+      resource:
+        attributes:
+          - key: cluster
+            value: {{ .Values.prometheus.clusterName | default "kube-llmops" | quote }}
+            action: upsert
     exporters:
       prometheusremotewrite:
         endpoint: http://{{ $.Release.Name }}-prometheus:9090/api/v1/write
@@ -65,7 +74,7 @@ data:
       pipelines:
         metrics:
           receivers: [otlp, prometheus]
-          processors: [batch]
+          processors: [batch, resource]
           exporters: [prometheusremotewrite]
         traces:
           receivers: [otlp]
