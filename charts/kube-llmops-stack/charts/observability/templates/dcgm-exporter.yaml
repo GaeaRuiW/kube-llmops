@@ -39,9 +39,14 @@ spec:
           # --kubernetes: map GPU metrics to Kubernetes pod/namespace/container labels
           # via kubelet's pod-resources socket. Enables per-Pod GPU telemetry without
           # label-joining in PromQL.
+          #
+          # NOTE: Do NOT add --kubernetes-gpu-id-type=uuid — "uuid" is not a valid value
+          # (only "uid" or "device-name"), and passing it breaks the podMapper
+          # transformation, dropping ALL metrics with the error:
+          #   "unsupported KubernetesGPUIDType for MetricID 'uuid'"
+          # Default (uid) is what we want.
           args:
             - --kubernetes=true
-            - --kubernetes-gpu-id-type=uuid
           env:
             - name: NODE_NAME
               valueFrom:

@@ -55,6 +55,52 @@ def test_dcgm_exporter_has_kubernetes_flag():
     assert "--kubernetes=true" in args, f"missing --kubernetes=true; got {args}"
 
 
+def test_dcgm_exporter_no_invalid_gpu_id_type():
+    """Regression: --kubernetes-gpu-id-type=uuid is NOT a valid value (only uid/device-name).
+    Passing it breaks the podMapper transformation and drops ALL metrics with:
+      'unsupported KubernetesGPUIDType for MetricID uuid'
+    We rely on the default (uid)."""
+    docs = helm_template()
+    ds = find_resource(docs, "DaemonSet", "dcgm-exporter")
+    args = ds["spec"]["template"]["spec"]["containers"][0].get("args", [])
+    for a in args:
+        assert "kubernetes-gpu-id-type=uuid" not in a, f"invalid flag in args: {args}"
+
+
+def test_otel_collector_injects_cluster_label():
+    """Prometheus external_labels only apply to remote_write/federation, NOT local
+    queries. The OTel collector's `resource` processor injects cluster as a real
+    label on every metric, so dashboards can filter on $cluster."""
+    docs = helm_template()
+    cm = next(
+        (d for d in docs if d.get("kind") == "ConfigMap" and "otel" in d["metadata"]["name"] and "config.yaml" in d.get("data", {})),
+        None,
+    )
+    assert cm is not None, "otel ConfigMap with config.yaml not found"
+    cfg = yaml.safe_load(cm["data"]["config.yaml"])
+    processors = cfg.get("processors", {})
+    assert "resource" in processors, f"resource processor missing; got {list(processors.keys())}"
+    attrs = processors["resource"].get("attributes", [])
+    cluster_attr = next((a for a in attrs if a.get("key") == "cluster"), None)
+    assert cluster_attr is not None, f"cluster attribute missing; got {attrs}"
+    assert cluster_attr.get("action") == "upsert"
+    # Pipeline must actually use the processor
+    metrics_pipe = cfg["service"]["pipelines"]["metrics"]
+    assert "resource" in metrics_pipe["processors"], f"metrics pipeline must include resource processor: {metrics_pipe}"
+
+
+def test_otel_collector_cluster_label_override():
+    """clusterName should be honored by the resource processor."""
+    docs = helm_template(set_values={"observability.prometheus.clusterName": "prod-us-west-2"})
+    cm = next(
+        (d for d in docs if d.get("kind") == "ConfigMap" and "otel" in d["metadata"]["name"] and "config.yaml" in d.get("data", {})),
+        None,
+    )
+    cfg = yaml.safe_load(cm["data"]["config.yaml"])
+    cluster_attr = next(a for a in cfg["processors"]["resource"]["attributes"] if a["key"] == "cluster")
+    assert cluster_attr["value"] == "prod-us-west-2"
+
+
 def test_dcgm_exporter_has_hostpid():
     docs = helm_template()
     ds = find_resource(docs, "DaemonSet", "dcgm-exporter")
