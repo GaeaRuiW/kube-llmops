@@ -16,6 +16,10 @@ otelCollector:
 
 prometheus:
   enabled: true
+  # clusterName: attached as `cluster` external_label on all scraped metrics.
+  # Single-cluster today; enables federation / Thanos / Mimir multi-cluster later
+  # without breaking dashboards that already filter on $cluster.
+  clusterName: kube-llmops
   image:
     repository: prom/prometheus
     tag: v3.11.0
@@ -41,6 +45,12 @@ dcgmExporter:
     repository: nvcr.io/nvidia/k8s/dcgm-exporter
     tag: 4.5.2-4.8.1-ubuntu22.04
     pullPolicy: IfNotPresent
+  # kubernetes: attach pod/namespace/container labels to GPU metrics via
+  # kubelet's pod-resources socket (requires privileged + hostPID).
+  # Needed for L4 per-Pod GPU dashboard. Disable only on hardened clusters
+  # that forbid privileged containers.
+  kubernetes:
+    enabled: true
   resources:
     requests:
       cpu: 100m

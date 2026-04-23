@@ -473,13 +473,17 @@ Global flags that apply to every command: `-n/--namespace <ns>`,
 If invoked with no argument (`/kube-llmops dashboard`), list all dashboards.
 If invoked with a dashboard name or uid (`/kube-llmops dashboard rag-quality`), show that dashboard's panel details and current data.
 
-**Available dashboards (11):**
+**Available dashboards (14):**
 
 | UID | Title | Focus |
 |-----|-------|-------|
+| `gpu-cluster` | GPU · L1 Cluster Overview | Fleet totals, node summary table (drill-down) |
+| `gpu-node` | GPU · L2 Node View | Node-level heatmap, GPU inventory (drill-down to L3) |
+| `gpu-gpu` | GPU · L3 Single GPU View | Temp / clock / power / VRAM trace, running pods (drill-down to L4) |
+| `gpu-pod` | GPU · L4 Pod / Workload View | Per-Pod GPU utilization, Tensor-Core active, vLLM throughput |
 | `vllm-overview` | vLLM Model Serving Overview | Request latency, throughput, KV cache, GPU |
 | `litellm-gateway` | LiteLLM AI Gateway | Routing, cost, tokens, rate limiting |
-| `gpu-overview` | GPU & Infrastructure Overview | DCGM metrics, utilization, memory |
+| `gpu-overview` | GPU & Infrastructure (legacy flat) | DCGM metrics, superseded by L1–L4 |
 | `rag-quality` | RAG Quality - Ragas Metrics | Faithfulness, relevancy, precision, recall |
 | `cost-usage` | Cost & Usage | Per-model cost tracking |
 | `slo-overview` | SLO Overview | Availability, latency, quality SLOs |
@@ -488,6 +492,10 @@ If invoked with a dashboard name or uid (`/kube-llmops dashboard rag-quality`), 
 | `milvus-overview` | Milvus Vector Database | Milvus collection, search, insert metrics |
 | `system-overview` | System Overview | Node CPU, memory, disk, network, pod resource table |
 | `finetune-overview` | Fine-tuning Pipeline | Fine-tuning workflow status, metrics, MLflow |
+
+The 4-tier GPU hierarchy (`gpu-cluster` → `gpu-node` → `gpu-gpu` → `gpu-pod`) supports
+drill-down: click a row in each upper tier to navigate down with variables pre-populated.
+See `docs/gpu-monitoring.md` for details.
 
 Headlamp also embeds these dashboards via iframe at `http://<NODE_IP>:30302/plugins/kube-llmops-portal/monitoring`.
 

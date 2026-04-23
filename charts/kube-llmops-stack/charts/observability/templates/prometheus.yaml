@@ -13,6 +13,8 @@ data:
     global:
       scrape_interval: 15s
       evaluation_interval: 15s
+      external_labels:
+        cluster: {{ .Values.prometheus.clusterName | default "kube-llmops" | quote }}
     remote_write: []
     alerting:
       alertmanagers:

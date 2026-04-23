@@ -1,0 +1,243 @@
+{
+  "annotations": {"list": [{"builtIn": 1, "datasource": {"type": "grafana", "uid": "-- Grafana --"}, "enable": true, "iconColor": "rgba(0, 211, 255, 1)", "name": "Annotations & Alerts", "type": "dashboard"}]},
+  "description": "L3 single-GPU deep dive. Select a node and one or more GPUs (by UUID) to compare performance, power, thermals and memory. Click a Pod to drill down to L4.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [
+    {"asDropdown": false, "icon": "arrow-left", "includeVars": true, "keepTime": true, "tags": [], "targetBlank": false, "title": "← L2 Node", "type": "link", "url": "/d/gpu-node/gpu-node-view?var-cluster=${cluster}&var-node=${node}&${__url_time_range}"},
+    {"asDropdown": true, "icon": "external link", "includeVars": true, "keepTime": true, "tags": ["kube-llmops", "gpu"], "targetBlank": false, "title": "GPU Dashboards", "type": "dashboards"}
+  ],
+  "panels": [
+    {
+      "id": 1, "type": "row", "title": "L3 · GPU Attributes",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0}, "collapsed": false
+    },
+    {
+      "id": 2, "type": "stat", "title": "Model",
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 1},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "count by (modelName) (DCGM_FI_DEV_GPU_TEMP{cluster=~\"$cluster\",Hostname=~\"$node\",UUID=~\"$gpu\"})", "refId": "A", "legendFormat": "{{modelName}}", "instant": true}],
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": null}]}, "unit": "none"}},
+      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center", "textMode": "name"}
+    },
+    {
+      "id": 3, "type": "stat", "title": "Current Temp",
+      "gridPos": {"h": 4, "w": 4, "x": 6, "y": 1},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "avg(DCGM_FI_DEV_GPU_TEMP{cluster=~\"$cluster\",Hostname=~\"$node\",UUID=~\"$gpu\"})", "refId": "A", "legendFormat": "Temp"}],
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 70}, {"color": "orange", "value": 80}, {"color": "red", "value": 85}]}, "unit": "celsius"}},
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "center", "textMode": "auto"}
+    },
+    {
+      "id": 4, "type": "stat", "title": "Current Power",
+      "gridPos": {"h": 4, "w": 4, "x": 10, "y": 1},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "avg(DCGM_FI_DEV_POWER_USAGE{cluster=~\"$cluster\",Hostname=~\"$node\",UUID=~\"$gpu\"})", "refId": "A", "legendFormat": "Power"}],
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": null}]}, "unit": "watt"}},
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "center", "textMode": "auto"}
+    },
+    {
+      "id": 5, "type": "stat", "title": "GPU Utilization",
+      "gridPos": {"h": 4, "w": 4, "x": 14, "y": 1},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "avg(DCGM_FI_DEV_GPU_UTIL{cluster=~\"$cluster\",Hostname=~\"$node\",UUID=~\"$gpu\"})", "refId": "A", "legendFormat": "Util"}],
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": null}, {"color": "green", "value": 30}, {"color": "yellow", "value": 70}, {"color": "red", "value": 90}]}, "unit": "percent", "min": 0, "max": 100}},
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "center", "textMode": "auto"}
+    },
+    {
+      "id": 6, "type": "stat", "title": "VRAM Used",
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 1},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum(DCGM_FI_DEV_FB_USED{cluster=~\"$cluster\",Hostname=~\"$node\",UUID=~\"$gpu\"}) * 1024 * 1024", "refId": "A", "legendFormat": "Used"}],
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": null}]}, "unit": "bytes"}},
+      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "center", "textMode": "auto"}
+    },
+    {
+      "id": 10, "type": "row", "title": "Performance",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 5}, "collapsed": false
+    },
+    {
+      "id": 11, "type": "timeseries", "title": "Compute Activity (Util / SM Active / Tensor Active)",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "DCGM_FI_DEV_GPU_UTIL{cluster=~\"$cluster\",Hostname=~\"$node\",UUID=~\"$gpu\"}", "refId": "A", "legendFormat": "GPU Util · {{UUID}}"},
+        {"expr": "DCGM_FI_PROF_SM_ACTIVE{cluster=~\"$cluster\",Hostname=~\"$node\",UUID=~\"$gpu\"} * 100", "refId": "B", "legendFormat": "SM Active · {{UUID}}"},
+        {"expr": "DCGM_FI_PROF_PIPE_TENSOR_ACTIVE{cluster=~\"$cluster\",Hostname=~\"$node\",UUID=~\"$gpu\"} * 100", "refId": "C", "legendFormat": "Tensor Active · {{UUID}}"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100}}
+    },
+    {
+      "id": 12, "type": "timeseries", "title": "Clocks (SM / Memory)",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 6},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "DCGM_FI_DEV_SM_CLOCK{cluster=~\"$cluster\",Hostname=~\"$node\",UUID=~\"$gpu\"}", "refId": "A", "legendFormat": "SM · {{UUID}}"},
+        {"expr": "DCGM_FI_DEV_MEM_CLOCK{cluster=~\"$cluster\",Hostname=~\"$node\",UUID=~\"$gpu\"}", "refId": "B", "legendFormat": "MEM · {{UUID}}"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "rotmhz"}}
+    },
+    {
+      "id": 13, "type": "timeseries", "title": "Temperature (with thresholds)",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 14},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "DCGM_FI_DEV_GPU_TEMP{cluster=~\"$cluster\",Hostname=~\"$node\",UUID=~\"$gpu\"}", "refId": "A", "legendFormat": "GPU Temp · {{UUID}}"},
+        {"expr": "DCGM_FI_DEV_MEMORY_TEMP{cluster=~\"$cluster\",Hostname=~\"$node\",UUID=~\"$gpu\"}", "refId": "B", "legendFormat": "MEM Temp · {{UUID}}"}
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 70}, {"color": "orange", "value": 80}, {"color": "red", "value": 85}]},
+          "custom": {"thresholdsStyle": {"mode": "line"}}
+        }
+      }
+    },
+    {
+      "id": 14, "type": "timeseries", "title": "Power (with power cap)",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 14},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "DCGM_FI_DEV_POWER_USAGE{cluster=~\"$cluster\",Hostname=~\"$node\",UUID=~\"$gpu\"}", "refId": "A", "legendFormat": "Power · {{UUID}}"},
+        {"expr": "DCGM_FI_DEV_POWER_MGMT_LIMIT{cluster=~\"$cluster\",Hostname=~\"$node\",UUID=~\"$gpu\"}", "refId": "B", "legendFormat": "Cap · {{UUID}}"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "watt"}}
+    },
+    {
+      "id": 15, "type": "timeseries", "title": "VRAM (used / free stacked)",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 22},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "DCGM_FI_DEV_FB_USED{cluster=~\"$cluster\",Hostname=~\"$node\",UUID=~\"$gpu\"} * 1024 * 1024", "refId": "A", "legendFormat": "Used · {{UUID}}"},
+        {"expr": "DCGM_FI_DEV_FB_FREE{cluster=~\"$cluster\",Hostname=~\"$node\",UUID=~\"$gpu\"} * 1024 * 1024", "refId": "B", "legendFormat": "Free · {{UUID}}"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "bytes", "custom": {"stacking": {"mode": "normal"}, "fillOpacity": 40}}}
+    },
+    {
+      "id": 16, "type": "timeseries", "title": "Memory Copy Utilization",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 22},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "DCGM_FI_DEV_MEM_COPY_UTIL{cluster=~\"$cluster\",Hostname=~\"$node\",UUID=~\"$gpu\"}", "refId": "A", "legendFormat": "MemCopy · {{UUID}}"}],
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100}}
+    },
+    {
+      "id": 17, "type": "timeseries", "title": "PCIe / NVLink Bandwidth",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 30},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "DCGM_FI_PROF_PCIE_TX_BYTES{cluster=~\"$cluster\",Hostname=~\"$node\",UUID=~\"$gpu\"}", "refId": "A", "legendFormat": "PCIe TX · {{UUID}}"},
+        {"expr": "DCGM_FI_PROF_PCIE_RX_BYTES{cluster=~\"$cluster\",Hostname=~\"$node\",UUID=~\"$gpu\"}", "refId": "B", "legendFormat": "PCIe RX · {{UUID}}"},
+        {"expr": "DCGM_FI_PROF_NVLINK_TX_BYTES{cluster=~\"$cluster\",Hostname=~\"$node\",UUID=~\"$gpu\"}", "refId": "C", "legendFormat": "NVLink TX · {{UUID}}"},
+        {"expr": "DCGM_FI_PROF_NVLINK_RX_BYTES{cluster=~\"$cluster\",Hostname=~\"$node\",UUID=~\"$gpu\"}", "refId": "D", "legendFormat": "NVLink RX · {{UUID}}"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "Bps"}}
+    },
+    {
+      "id": 18, "type": "timeseries", "title": "XID Errors (rate over 5m)",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 30},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "increase(DCGM_FI_DEV_XID_ERRORS{cluster=~\"$cluster\",Hostname=~\"$node\",UUID=~\"$gpu\"}[5m])", "refId": "A", "legendFormat": "XID · {{UUID}}"}],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]},
+          "custom": {"thresholdsStyle": {"mode": "line+area"}}
+        }
+      }
+    },
+    {
+      "id": 20, "type": "row", "title": "Workloads on this GPU",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 38}, "collapsed": false
+    },
+    {
+      "id": 21, "type": "table", "title": "Running Pods on GPU (click Pod to drill down → L4)",
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 39},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "avg by (namespace, pod, container, Hostname, UUID, gpu) (DCGM_FI_DEV_GPU_UTIL{cluster=~\"$cluster\",Hostname=~\"$node\",UUID=~\"$gpu\",namespace!=\"\"})", "format": "table", "instant": true, "refId": "A"}],
+      "transformations": [
+        {"id": "organize", "options": {
+          "excludeByName": {"Time": true},
+          "renameByName": {
+            "namespace": "Namespace",
+            "pod": "Pod",
+            "container": "Container",
+            "Hostname": "Node",
+            "gpu": "GPU",
+            "UUID": "UUID",
+            "Value": "Util %"
+          }
+        }}
+      ],
+      "fieldConfig": {
+        "defaults": {"custom": {"align": "auto", "displayMode": "auto"}},
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "Pod"}, "properties": [{"id": "links", "value": [{"title": "Drill down → L4 Pod View", "url": "/d/gpu-pod/gpu-pod-view?var-cluster=${cluster}&var-namespace=${__data.fields.Namespace}&var-pod=${__data.fields.Pod}&${__url_time_range}"}]}]},
+          {"matcher": {"id": "byName", "options": "Util %"}, "properties": [{"id": "unit", "value": "percent"}, {"id": "custom.displayMode", "value": "gradient-gauge"}, {"id": "min", "value": 0}, {"id": "max", "value": 100}, {"id": "thresholds", "value": {"mode": "absolute", "steps": [{"color": "blue", "value": null}, {"color": "green", "value": 30}, {"color": "yellow", "value": 70}, {"color": "red", "value": 90}]}}]}
+        ]
+      }
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["kube-llmops", "gpu", "L3-gpu"],
+  "templating": {
+    "list": [
+      {
+        "current": {"text": "All", "value": "$__all"},
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "definition": "label_values(DCGM_FI_DEV_GPU_TEMP, cluster)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "cluster",
+        "options": [],
+        "query": {"query": "label_values(DCGM_FI_DEV_GPU_TEMP, cluster)", "refId": "StandardVariableQuery"},
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {},
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "definition": "label_values(DCGM_FI_DEV_GPU_TEMP{cluster=~\"$cluster\"}, Hostname)",
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "node",
+        "options": [],
+        "query": {"query": "label_values(DCGM_FI_DEV_GPU_TEMP{cluster=~\"$cluster\"}, Hostname)", "refId": "StandardVariableQuery"},
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {"text": "All", "value": "$__all"},
+        "datasource": {"type": "prometheus", "uid": "prometheus"},
+        "definition": "label_values(DCGM_FI_DEV_GPU_TEMP{cluster=~\"$cluster\",Hostname=~\"$node\"}, UUID)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "gpu",
+        "options": [],
+        "query": {"query": "label_values(DCGM_FI_DEV_GPU_TEMP{cluster=~\"$cluster\",Hostname=~\"$node\"}, UUID)", "refId": "StandardVariableQuery"},
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {"from": "now-1h", "to": "now"},
+  "timepicker": {},
+  "timezone": "",
+  "title": "GPU · L3 Single GPU View",
+  "uid": "gpu-gpu",
+  "version": 1,
+  "weekStart": ""
+}
