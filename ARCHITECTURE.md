@@ -1,4 +1,4 @@
-# kube-llmops - Architecture (v2)
+# kube-llmops - Architecture (v0.5.0)
 
 **English** | [中文](ARCHITECTURE.zh-CN.md)
 
@@ -66,10 +66,13 @@
    │  Data & Vector Layer: Milvus / MinIO / Harbor                │
    │  Dev & Finetune: JupyterHub / LLaMA-Factory / MLflow        │
    │  Security: Keycloak / NetworkPolicy / LLM-Guard             │
+   │  K8s UI: Headlamp + kube-llmops-portal plugin (v0.5.0)     │
    └──────────────────────────────────────────────────────────────┘
 
    ┌──────────────────────────────────────────────────────────────┐
-   │  Layer 0: GitOps (ArgoCD + Helm Umbrella Chart)             │
+   │  Layer 0: GitOps / Operator (ArgoCD + Helm Umbrella Chart +  │
+   │           kube-llmops-operator: LLMPlatform / ModelDeployment │
+   │           / FineTuneRun CRDs, v0.5.0)                         │
    └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -111,10 +114,13 @@ Every technology choice with its CNCF status:
 
 > **Core idea: User specifies the model, platform automatically picks the optimal engine.**
 >
-> Implemented in v0.3.1 via Helm template functions (`resolveEngine`, `resolveModelType`)
-> in `_helpers.tpl`. The actual implementation uses source-name pattern matching
-> rather than the full HuggingFace API-based detection described below.
-> See [AGENTS.md](../AGENTS.md) for the current auto-detection rules.
+> **Note (v0.3.1+):** Engine auto-detection is implemented as Helm template functions
+> (`resolveEngine`, `resolveModelType`) in `charts/kube-llmops-stack/templates/_helpers.tpl`.
+> The actual implementation uses source-name pattern matching rather than the full
+> HuggingFace API-based detection described below. The init-container approach
+> documented further down is retained only as a runtime fallback for cases where the
+> chart rendering cannot determine the engine.
+> See [AGENTS.md](AGENTS.md) for the current auto-detection rules.
 
 ### Problem
 
@@ -455,8 +461,15 @@ spec:
 
 ### Tier 2 Rollout Strategy
 
-> As of v0.5.0, llm-d disaggregated serving templates are available (experimental).
-> The full Envoy AI Gateway integration is a future roadmap item.
+> **Current (v0.5.0):** LiteLLM → vLLM direct (no Tier 2). llm-d templates available
+> as experimental opt-in. Envoy AI Gateway + IGW CRD templates ship with the chart
+> but are not enabled by default.
+>
+> **Future Phase 1:** LiteLLM → Envoy AI Gateway (basic) → vLLM
+>
+> **Future Phase 2:** LiteLLM → Envoy + IGW (full inference scheduling) → vLLM
+>
+> **Future Phase 3:** LiteLLM → IGW + llm-d (prefill/decode disaggregation, production)
 
 ```
 v0.5.0 (current):  LiteLLM -> vLLM directly (no Tier 2)
@@ -812,6 +825,50 @@ Unchanged from v1:
 
 ---
 
+## Layer 7: Kubernetes UI (Headlamp)
+
+> **v0.5.0:** Headlamp replaces the legacy custom dashboard from v0.4.
+
+- CNCF Kubernetes-native web UI (wraps the upstream Headlamp chart)
+- Custom `kube-llmops-portal` plugin providing:
+  - **Service Links**: card grid with NodePort URLs for all platform services
+    (LiteLLM, Grafana, Langfuse, Dify, Keycloak, MinIO, Prometheus, MLflow, …)
+  - **Monitoring**: embedded Grafana dashboards via iframe (requires
+    `allow_embedding=true` + anonymous Viewer access, already configured)
+- NodePort `30302` (when `global.nodePort.enabled=true`)
+- Keycloak OIDC SSO integration (full chain: Headlamp → Keycloak OIDC → K8s API Server,
+  Keycloak must be HTTPS for the K8s API Server to accept it as an OIDC issuer)
+- Plugin source: `plugins/kube-llmops-portal/` (built as `kube-llmops/headlamp-plugin:latest`)
+- Subchart: `charts/kube-llmops-stack/charts/headlamp/`
+
+---
+
+## Layer 8: Platform Operator (LLMPlatform CR)
+
+> **v0.5.0:** Declarative platform management via Kubernetes CRDs — alternative to
+> direct `helm install` for GitOps / multi-tenant scenarios.
+
+- `kube-llmops-operator` (Go, `controller-runtime` based)
+- **CRDs**:
+  - `LLMPlatform` — full platform spec (gateway, observability, models, modules,
+    nodePort); one CR reconciles into a full Helm release of the umbrella chart
+  - `ModelDeployment` — per-model advanced deployment (vLLM / TEI / llama.cpp)
+  - `FineTuneRun` — fine-tuning pipeline runs (Argo WorkflowTemplate instantiation)
+- Embeds the umbrella chart at build time (`_build_charts/` staging dir) and invokes
+  it via the Helm SDK (`internal/helmbridge/`)
+- Built-in stuck-release recovery: detects `pending-install` / `pending-upgrade`
+  stuck states and automatically rolls back before re-reconciling
+- Generation-based reconcile loop prevention (skip when
+  `status.observedGeneration == metadata.generation`)
+- SA uses `cluster-admin` (required because the umbrella chart's subchart templates
+  include wildcard RBAC, e.g. Headlamp)
+- Image: `localhost:5000/kube-llmops/operator:latest` (push to your registry)
+- Sample CR: `operator/config/samples/llmplatform_full.yaml`
+- User guide: `operator/docs/user-guide/operator-guide-en.md` (+ zh)
+- Source: `operator/`
+
+---
+
 ## Cross-cutting: Security & Multi-tenancy
 
 | Component | Technology | CNCF Status |
@@ -1051,10 +1108,12 @@ kube-llmops/
 - [x] Multi-accelerator (nvidia, amd, gaudi)
 - [x] Documentation (6 new guides)
 
-### Phase 6: Ecosystem (Future)
-- [ ] Kubernetes Operator with CRDs
+### Phase 6: Ecosystem
+- [x] **Kubernetes Operator with CRDs** (v0.5.0: `LLMPlatform`, `ModelDeployment`, `FineTuneRun`)
+- [x] **Web Dashboard** (v0.5.0: Headlamp + `kube-llmops-portal` plugin replaces the legacy custom dashboard)
+- [x] **Harbor model registry subchart** (v0.5.0)
+- [x] **Standalone PostgreSQL subchart** (v0.5.0: split from LiteLLM)
 - [ ] CLI tool (`kube-llmops` / `kubectl llmops`)
-- [ ] Web Dashboard
 - [ ] Multi-modal model serving
 - [ ] Model optimization toolkit (quantization, distillation)
 

@@ -61,6 +61,23 @@ terraform apply \
 terraform apply -var="kube_llmops_values_file=./my-values.yaml"
 ```
 
+### Operator-Based Deployment (v0.5.0+)
+
+Instead of letting Terraform run `helm install` for `kube-llmops-stack` directly, you
+can install the Kubernetes Operator and manage the platform through `LLMPlatform` CRs:
+
+```bash
+bash operator/build.sh
+docker tag kube-llmops/operator:latest <your-registry>/kube-llmops/operator:latest
+docker push <your-registry>/kube-llmops/operator:latest
+
+helm install kube-llmops-operator operator/charts/kube-llmops-operator \
+  --set image.repository=<your-registry>/kube-llmops/operator
+kubectl apply -f operator/config/samples/llmplatform_full.yaml
+```
+
+See [../../operator/README.md](../../operator/README.md) for details.
+
 ## Teardown
 
 ```bash

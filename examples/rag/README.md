@@ -10,7 +10,7 @@ A complete Retrieval-Augmented Generation (RAG) pipeline demonstrating the full 
 |---|---|
 | **pgvector** | Stores document embeddings for fast similarity search |
 | **sentence-transformers** | Generates embeddings locally (all-MiniLM-L6-v2, 384-dim) |
-| **LiteLLM** | Proxies LLM requests to the configured model (default: qwen2-5-0-5b) |
+| **LiteLLM** | Proxies LLM requests to the configured model (default: `gemma-4-26b-a4b`, llama.cpp GGUF) |
 | **Langfuse** | Traces every ingest and query operation for observability |
 | **FastAPI** | Serves the `/ingest`, `/query`, and `/health` endpoints |
 

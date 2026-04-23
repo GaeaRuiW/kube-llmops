@@ -17,6 +17,8 @@ func TestResolveEngine(t *testing.T) {
 		{"gguf in name", "TheBloke/Llama-2-7B-GGUF", "", "llamacpp"},
 		{"gguf suffix", "model-gguf", "", "llamacpp"},
 		{"GGUF uppercase", "TheBloke/Model-GGUF-Q4", "", "llamacpp"},
+		{"GUFF typo uppercase", "nohurry/gemma-4-26B-A4B-it-heretic-GUFF", "", "llamacpp"},
+		{"guff typo lowercase", "owner/model-guff-q4", "", "llamacpp"},
 		{"rerank model", "BAAI/bge-reranker-base", "", "tei"},
 		{"rerank in name", "cross-encoder/ms-marco-rerank", "", "tei"},
 		{"bge embedding", "BAAI/bge-small-en-v1.5", "", "tei"},

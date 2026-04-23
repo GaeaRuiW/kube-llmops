@@ -1,5 +1,7 @@
 # Presidio PII Detection & Anonymization
 
+> **Note:** Presidio integration is part of the security module. Enable via `global.modules.security.enabled: true`.
+
 ## Overview
 
 kube-llmops integrates [Microsoft Presidio](https://microsoft.github.io/presidio/) for detecting and anonymizing Personally Identifiable Information (PII) in LLM requests and responses. PII masking runs as a LiteLLM guardrail — no application code changes needed.

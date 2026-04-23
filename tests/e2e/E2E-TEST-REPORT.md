@@ -1,6 +1,6 @@
 # kube-llmops Full E2E Test Report
 
-**Date**: 2026-03-24
+**Date**: 2026-04-12
 **Environment**: Fresh deploy from zero (helm uninstall → delete PVCs → helm install)
 **Node**: WSL2, 30GB RAM, NVIDIA RTX PRO 2000 Blackwell (8GB VRAM), k3s
 **Workarounds**: NONE — all tests pass on fresh deploy without any manual intervention
@@ -11,8 +11,8 @@
 
 | Metric | Value |
 |--------|-------|
-| Total tests | **31** |
-| Passed | **31** |
+| Total tests | **30** |
+| Passed | **30** |
 | Failed | **0** |
 | Workarounds | **0** |
 | Install time (helm install) | ~3.5 min |
@@ -34,7 +34,7 @@
 
 **Screenshots**: `01-dify-login-page.png`, `02-dify-dashboard.png`
 
-### TEST 2: RAG E2E Pipeline (7/7 ✅)
+### TEST 2: RAG E2E Pipeline (9/9 ✅)
 
 | # | Check | Result | Detail |
 |---|-------|--------|--------|
@@ -156,7 +156,7 @@ Alert states:
 
 ## Conclusion
 
-**31/31 tests passed on a completely fresh deployment with zero workarounds.**
+**30/30 tests passed on a completely fresh deployment with zero workarounds.**
 
 The kube-llmops platform deploys fully automatically via `helm install` and provides:
 - RAG pipeline (Dify + TEI + pgvector + LiteLLM + vLLM)

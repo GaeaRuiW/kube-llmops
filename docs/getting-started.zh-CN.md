@@ -19,6 +19,8 @@
 - [KEDA 自动扩缩](#keda-自动扩缩)
 - [MinIO 对象存储](#minio-对象存储)
 - [Keycloak 单点登录](#keycloak-单点登录)
+- [Headlamp Kubernetes 管理界面](#headlamp-kubernetes-管理界面)
+- [功能模块开关](#功能模块开关)
 - [Prometheus 告警规则](#prometheus-告警规则)
 - [故障排查](#故障排查)
 - [卸载](#卸载)
@@ -548,74 +550,58 @@ kubectl port-forward svc/kube-llmops-minio 9001:9001 &
 
 ## Keycloak 单点登录
 
-kube-llmops 支持通过 Keycloak 或任意 OIDC 提供方为 Grafana 实现基于 OIDC 的 SSO。
+Keycloak 作为 Helm 子 chart 随 umbrella chart 一起自动部署，首次安装时会自动创建 realm
+(`kube-llmops`)、OIDC 客户端（Grafana / Langfuse / MinIO / LiteLLM / Headlamp）、角色
+以及默认用户。**无需任何手动部署**。
 
-### 部署 Keycloak
+### 启用 Keycloak
 
-Keycloak 未包含在 Helm chart 中（它是集群级服务），需单独部署：
+Keycloak 在 `values-single-node.yaml` 中默认已启用。如需在自定义 values 中启用：
 
-```bash
-# Quick dev deployment
-kubectl apply -f - <<EOF
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: keycloak
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: keycloak
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: keycloak
-    spec:
-      containers:
-        - name: keycloak
-          image: quay.io/keycloak/keycloak:26.0
-          args: ["start-dev"]
-          env:
-            - name: KC_BOOTSTRAP_ADMIN_USERNAME
-              value: admin
-            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
-              value: admin123!
-            - name: KC_HEALTH_ENABLED
-              value: "true"
-          ports:
-            - containerPort: 8080
-          readinessProbe:
-            httpGet:
-              path: /health/ready
-              port: 9000
-            initialDelaySeconds: 30
-          resources:
-            requests: { cpu: 250m, memory: 512Mi }
-            limits: { cpu: "1", memory: 768Mi }
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: kube-llmops-keycloak
-spec:
-  ports: [{ port: 8080, targetPort: 8080 }]
-  selector:
-    app.kubernetes.io/name: keycloak
-EOF
+```yaml
+keycloak:
+  enabled: true
 ```
 
-### 配置 Keycloak Realm
+首次部署完成后会自动创建：
+
+- Realm：`kube-llmops`
+- OIDC client：`headlamp`、`grafana`、`langfuse`、`minio`、`litellm`
+- 默认用户：`admin` / `admin123!`（生产环境请务必修改）
+
+### 访问 Keycloak 管理控制台
 
 ```bash
+# NodePort 方式（当 global.nodePort.enabled=true 时）
+# 浏览器打开 http://<NODE_IP>:30808
+# 登录：admin / admin123!
+
+# 或 port-forward
 kubectl port-forward svc/kube-llmops-keycloak 8080:8080 &
-# Open http://localhost:8080 → Login: admin / admin123!
-# 1. Create realm: kube-llmops
-# 2. Create client: grafana (Client authentication: On, redirect URI: http://localhost:3000/*)
-# 3. Note the client secret from Credentials tab
-# 4. Create users as needed
+# 浏览器打开 http://localhost:8080
 ```
 
-### 启用 Grafana SSO
+### HTTPS + K8s OIDC（Headlamp SSO）
+
+要打通完整 SSO 链路（Headlamp → Keycloak → K8s API Server），Keycloak 必须启用 HTTPS
+——K8s API Server 要求 OIDC issuer 必须是 HTTPS。
+
+```yaml
+keycloak:
+  tls:
+    enabled: true          # 启用 HTTPS（NodePort :30809）
+    selfSigned: true       # 自动生成自签名证书
+    existingSecret: ""     # 或提供你自己的 TLS Secret
+```
+
+**完整的 k3s OIDC 对接步骤**（生成 k3s CA 签发的证书、配置 kube-apiserver-arg、应用
+OIDC RBAC 等）请参见仓库根目录的 [AGENTS.md](../AGENTS.md) 中的 "Keycloak HTTPS +
+K8s OIDC (Headlamp SSO)" 小节。
+
+### Grafana SSO
+
+当 Keycloak 启用时，Grafana SSO 会自动配置，OIDC client 由 Keycloak setup Job 自动创建。
+如需自定义：
 
 ```yaml
 observability:
@@ -623,17 +609,119 @@ observability:
     oidc:
       enabled: true
       clientId: grafana
-      clientSecret: <your-client-secret>
+      clientSecret: <your-client-secret>    # 未设置时自动生成
       issuerUrl: http://kube-llmops-keycloak:8080/realms/kube-llmops
       grafanaRootUrl: http://localhost:3000
 ```
 
 升级后，Grafana 登录页面将显示"Sign in with Keycloak"按钮。
 
+### Dify SSO（可选）
+
+```yaml
+dify:
+  oidc:
+    enabled: true
+    clientId: dify
+    issuerUrl: http://kube-llmops-keycloak:8080/realms/kube-llmops
+```
+
 | 服务 | URL | 凭据 |
 |---|---|---|
-| **Keycloak Admin** | `http://localhost:8080` | `admin` / `admin123!` |
-| **Grafana**（SSO） | `http://localhost:3000` | 通过 Keycloak SSO 登录 |
+| **Keycloak Admin** | `http://<NODE_IP>:30808` 或 port-forward `:8080` | `admin` / `admin123!` |
+| **Keycloak HTTPS** | `https://<NODE_IP>:30809`（启用 TLS 后） | `admin` / `admin123!` |
+| **Grafana**（SSO） | `http://<NODE_IP>:30300` | 通过 Keycloak SSO 登录 |
+
+---
+
+## Headlamp Kubernetes 管理界面
+
+自 **v0.5.0** 起，kube-llmops 采用 CNCF 社区的 [Headlamp](https://headlamp.dev/)
+Kubernetes Web UI 取代原有的自定义 dashboard，并附带一个一方插件
+`kube-llmops-portal`。
+
+### 访问 Headlamp
+
+```bash
+# NodePort 方式（当 global.nodePort.enabled=true 时默认开启）
+# 浏览器打开 http://<NODE_IP>:30302
+
+# 或 port-forward
+kubectl port-forward svc/kube-llmops-headlamp 4466:80 &
+# 浏览器打开 http://localhost:4466
+```
+
+### 主要特性
+
+- **完整的 Kubernetes 集群管理界面** —— Pod、Deployment、日志、exec、事件、CRD 等
+- **Keycloak OIDC 集成默认启用** —— 当 Keycloak 已部署时，OIDC issuer 会根据
+  `keycloak.tls.enabled` / `global.nodePort.host` 自动配置
+- **`kube-llmops-portal` 插件页面**：
+  - **Service Links**：以卡片网格形式一键跳转 LiteLLM、Grafana、Langfuse、Dify、
+    MinIO、Prometheus、MLflow、Keycloak 等 NodePort 服务
+  - **Monitoring**：内嵌的 Grafana iframe 面板（vLLM、LiteLLM、GPU、RAG 质量、SLO、
+    Cost），依托 `allow_embedding=true` + 匿名 Viewer 访问实现
+
+### 构建插件镜像（首次部署前）
+
+执行 `helm install` 之前需要在本地构建一次插件镜像，Headlamp Pod 会以
+sidecar/initContainer 形式加载：
+
+```bash
+docker build -t kube-llmops/headlamp-plugin:latest plugins/kube-llmops-portal/
+```
+
+完整的 SSO 链路（Headlamp → Keycloak → K8s API Server）配置请参见仓库根目录
+`AGENTS.md` 中的 **Keycloak HTTPS + K8s OIDC (Headlamp SSO)** 小节，那里提供了
+基于 k3s CA 签发自签名证书的完整脚本和 K8s API Server 的 OIDC 配置步骤。
+
+---
+
+## 功能模块开关
+
+kube-llmops 将相关的子 chart、Grafana dashboard、Prometheus 告警规则分为三个**功能模块**，
+每个模块可通过 `global.modules` 下的一个开关一键启用或关闭：
+
+```yaml
+global:
+  modules:
+    rag:
+      enabled: true       # RAG 技术栈
+    finetune:
+      enabled: false      # 微调流水线
+    security:
+      enabled: false      # 安全 / 护栏 / 多租户
+```
+
+### 每个模块的范围
+
+| 模块 | 子 chart | Dashboard 与告警 |
+|---|---|---|
+| `rag` | `dify`、`milvus`、`lightrag`、`rag-eval` | `rag-quality`、`milvus-overview` + RAG 相关告警组 |
+| `finetune` | `finetune`（LLaMA-Factory + Argo Workflows + MLflow）、`jupyterhub` | `finetune-overview` + 微调相关告警组 |
+| `security` | `security`（LLM-Guard + NetworkPolicy + Presidio）、`tenant-overview` dashboard | 租户 / 安全相关告警组 |
+
+### 开关工作机制
+
+- `Chart.yaml` 采用**双路径 condition** —— 例如 `dify.enabled,global.modules.rag.enabled`。
+  如果显式设置了子 chart 自身的 flag，它的优先级更高，因此仍可以只开启某个单独组件。
+- Dashboard 和 Prometheus 告警规则 ConfigMap 也以相同的 `global.modules.*` 开关为条件，
+  无需手动编辑即可自动出现 / 隐藏。
+- 默认：**所有模块关闭**。`values-single-node.yaml` 仅默认开启 `rag: true`。
+
+### 示例
+
+```bash
+# 最小部署：只启用 LLM 网关 + 可观测性（所有模块关闭——默认行为）
+helm install kube-llmops charts/kube-llmops-stack -f values-minimal.yaml
+
+# 开启 RAG + Security，继续关闭微调
+helm upgrade kube-llmops charts/kube-llmops-stack \
+  -f values-single-node.yaml \
+  --set global.modules.rag.enabled=true \
+  --set global.modules.security.enabled=true \
+  --set global.modules.finetune.enabled=false
+```
 
 ---
 

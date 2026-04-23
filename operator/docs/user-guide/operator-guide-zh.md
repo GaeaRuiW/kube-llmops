@@ -218,18 +218,22 @@ ModelDeployment (模型推理)          FineTuneRun (模型微调)
 
 | 检测规则 | 匹配条件 | 推断引擎 |
 |----------|----------|----------|
-| GGUF 量化模型 | 模型名称中包含 `gguf`（不区分大小写） | `llamacpp` |
+| GGUF 量化模型 | 模型名称中包含 `gguf`（不区分大小写，匹配 `*GGUF*` / `*gguf*`） | `llamacpp` |
 | 嵌入模型 | 包含 `bge-`、`e5-`、`gte-`、`minilm`、`jina-embed`、`nomic-embed`、`all-mpnet`、`embedding` 等关键词 | `tei` |
 | 重排序模型 | 包含 `rerank` | `tei` |
 | 通用 LLM | 不匹配上述任何规则 | `vllm` |
 
 优先级顺序：**显式指定** > **自动检测** > **默认 vllm**
 
+> **注意**：GGUF 检测使用 `strings.ToLower` + `strings.Contains`，同时匹配两个子串：
+> `"gguf"`（标准拼写）和 `"guff"`（部分 HF 社区仓库的常见 typo，如
+> `nohurry/gemma-4-26B-A4B-it-heretic-GUFF`）。两者都解析为 `llamacpp`。
+
 示例：
 
 ```yaml
 # 自动检测为 vllm（通用 LLM，不含特殊关键词）
-source: cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit
+source: Qwen/Qwen2.5-7B-Instruct
 
 # 自动检测为 tei（包含 "bge-"）
 source: BAAI/bge-small-en-v1.5
@@ -239,6 +243,10 @@ source: BAAI/bge-reranker-base
 
 # 自动检测为 llamacpp（包含 "GGUF"）
 source: TheBloke/Llama-2-7B-GGUF
+
+# 同样自动检测为 llamacpp（v0.5.0+ 容错 "GUFF" typo）
+source: nohurry/gemma-4-26B-A4B-it-heretic-GUFF
+# engine: llamacpp  # 显式设置是可选的
 ```
 
 ### 2.3 协调循环
@@ -341,9 +349,9 @@ vLLM 是默认的推理引擎，适用于绝大多数因果语言模型（Causal
 apiVersion: llmops.kubellmops.io/v1alpha1
 kind: ModelDeployment
 metadata:
-  name: gemma-4-26b
+  name: qwen-7b
 spec:
-  source: cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit
+  source: Qwen/Qwen2.5-7B-Instruct
   replicas: 1
   resources:
     gpu: 1
@@ -375,9 +383,9 @@ Operator 会自动创建以下 Kubernetes 资源：
 
 | 资源 | 名称 | 说明 |
 |------|------|------|
-| PersistentVolumeClaim | `gemma-4-26b-cache` | 50Gi 模型缓存卷 |
-| Deployment | `gemma-4-26b` | 推理服务 Pod（含 model-loader init 容器） |
-| Service | `gemma-4-26b` | ClusterIP 服务，端口 8000 |
+| PersistentVolumeClaim | `qwen-7b-cache` | 50Gi 模型缓存卷 |
+| Deployment | `qwen-7b` | 推理服务 Pod（含 model-loader init 容器） |
+| Service | `qwen-7b` | ClusterIP 服务，端口 8000 |
 
 ### 3.2 部署 TEI 嵌入模型
 
@@ -465,7 +473,41 @@ kubectl apply -f config/samples/modeldeployment_llamacpp.yaml
 
 > **提示**：即使模型名称已包含 `GGUF`，显式设置 `engine: llamacpp` 也是推荐的做法——明确优于隐晦。
 
-llama.cpp 引擎的 PVC 默认分配 30Gi，服务端口为 8080。
+llama.cpp 引擎的 PVC 默认分配 30Gi，服务端口为 8080。v0.5.0 使用 `ghcr.io/ggml-org/llama.cpp:server-cuda-b8672` 镜像。
+Deployment 采用 `Recreate` 策略（而非 `RollingUpdate`）——因为 GPU 设备无法被新旧两个 Pod 同时占用，
+滚动更新会导致新 Pod 永远无法分配到 GPU 而陷入死锁。
+
+#### 分片（split）GGUF 模型支持
+
+大型 GGUF 模型通常以 `{prefix}-NNNNN-of-NNNNN.gguf`（如 `model-00001-of-00009.gguf`）命名的多个分片发布。
+Operator 会透明处理这种情况：
+
+1. `model-loader` init 容器会从 HuggingFace **下载所有匹配的分片**（并同步到 MinIO 供后续 Pod 复用）。
+2. Pod 启动钩子为每个分片创建符号链接，保证 llama.cpp 可以按约定命名加载所有分片。
+3. llama.cpp 启动时 `--model` 参数指向**第一个**分片，server 会自动发现并加载其余分片。
+
+使用 `allowPatterns` 可以只下载某一种量化（避免下载仓库中几十 GB 的其他量化版本）：
+
+```yaml
+apiVersion: llmops.kubellmops.io/v1alpha1
+kind: ModelDeployment
+metadata:
+  name: gemma-4-26b
+spec:
+  source: nohurry/gemma-4-26B-A4B-it-heretic-GUFF
+  engine: llamacpp           # 显式设置（可选）：自动检测对 "GUFF" typo 也生效
+  replicas: 1
+  resources:
+    gpu: 1
+    memory: 20Gi
+    cpu: "4"
+  allowPatterns: "*q4_k_m*"  # 仅下载 q4_k_m 分片（总计约 16.87GB）
+  engineArgs:
+    --jinja: ""              # 启用 Jinja 聊天模板
+    --ctx-size: "163840"     # 160K 上下文（模型本身支持 256K，受 24GB 显存限制）
+```
+
+这就是 v0.5.0 默认的 LLM 配置，可在 RTX 3090（24GB 显存）单卡上运行。
 
 ### 3.5 副本扩缩容
 
@@ -633,9 +675,9 @@ spec:
 
 ```yaml
 spec:
-  source: cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit
+  source: Qwen/Qwen2.5-7B-Instruct
   canary:
-    source: cyankiwi/gemma-4-26B-v2-AWQ-4bit     # 金丝雀模型
+    source: Qwen/Qwen2.5-14B-Instruct     # 金丝雀模型（更大版本）
     weight: 20                                     # 20% 流量导向金丝雀
     resources:
       gpu: 1
@@ -851,7 +893,7 @@ kind: FineTuneRun
 metadata:
   name: gemma-lora-v1
 spec:
-  baseModel: cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit
+  baseModel: google/gemma-2-9b     # 微调使用未量化的基础权重
   outputName: gemma-4-lora-v1
   method: lora
   dataSource:
@@ -892,8 +934,8 @@ kubectl get ftr
 ```
 
 ```
-NAME            BASE MODEL                                METHOD   PHASE      AGE
-gemma-lora-v1   cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit     lora     Training   5m
+NAME            BASE MODEL             METHOD   PHASE      AGE
+gemma-lora-v1   google/gemma-2-9b     lora     Training   5m
 ```
 
 查看详细信息（含训练指标）：
@@ -903,8 +945,8 @@ kubectl get ftr -o wide
 ```
 
 ```
-NAME            BASE MODEL                                METHOD   PHASE       LOSS    DURATION   AGE
-gemma-lora-v1   cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit     lora     Succeeded   0.42    2h15m      3h
+NAME            BASE MODEL             METHOD   PHASE       LOSS    DURATION   AGE
+gemma-lora-v1   google/gemma-2-9b     lora     Succeeded   0.42    2h15m      3h
 ```
 
 Operator 会创建一个六步 Argo Workflow DAG：

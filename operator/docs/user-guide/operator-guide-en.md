@@ -111,17 +111,17 @@ kind: ModelDeployment
 metadata:
   name: gemma-4-26b
 spec:
-  source: cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit
+  source: nohurry/gemma-4-26B-A4B-it-heretic-GUFF
+  engine: llamacpp        # explicit (optional): auto-detect is typo-tolerant for "GUFF"
   replicas: 1
   resources:
     gpu: 1
-    memory: 24Gi
+    memory: 20Gi
     cpu: "4"
+  allowPatterns: "*q4_k_m*"   # selective download of q4_k_m shards (~16.87GB) from split GGUF
   engineArgs:
-    --gpu-memory-utilization: "0.93"
-    --max-model-len: "8192"
-    --dtype: "half"
-    --enforce-eager: ""
+    --jinja: ""
+    --ctx-size: "163840"      # 160K context (model supports 256K; limited by 24GB VRAM)
 ```
 
 ### Step 4 --- Check Status
@@ -135,15 +135,15 @@ kubectl get md
 Expected output:
 
 ```
-NAME          ENGINE   REPLICAS   PHASE       AGE
-gemma-4-26b   vllm     1          Deploying   30s
+NAME          ENGINE     REPLICAS   PHASE       AGE
+gemma-4-26b   llamacpp   1          Deploying   30s
 ```
 
 After the model downloads and the pod becomes healthy:
 
 ```
-NAME          ENGINE   REPLICAS   PHASE   AGE
-gemma-4-26b   vllm     1          Ready   5m
+NAME          ENGINE     REPLICAS   PHASE   AGE
+gemma-4-26b   llamacpp   1          Ready   5m
 ```
 
 Get detailed status:
@@ -155,8 +155,8 @@ kubectl get md gemma-4-26b -o wide
 Expected output (with the priority=1 `Endpoint` column):
 
 ```
-NAME          ENGINE   REPLICAS   PHASE   ENDPOINT                                              AGE
-gemma-4-26b   vllm     1          Ready   http://gemma-4-26b.default.svc.cluster.local:8000     5m
+NAME          ENGINE     REPLICAS   PHASE   ENDPOINT                                              AGE
+gemma-4-26b   llamacpp   1          Ready   http://gemma-4-26b.default.svc.cluster.local:8080     5m
 ```
 
 ### Step 5 --- Send a Request
@@ -165,7 +165,7 @@ Test the model through the in-cluster endpoint:
 
 ```bash
 kubectl run curl-test --rm -it --image=curlimages/curl -- \
-  curl -s http://gemma-4-26b.default.svc.cluster.local:8000/v1/chat/completions \
+  curl -s http://gemma-4-26b.default.svc.cluster.local:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "gemma-4-26b",
@@ -220,7 +220,8 @@ Examples:
 | `Qwen/Qwen2.5-7B-Instruct` | `vllm` | Default fallback |
 | `BAAI/bge-small-en-v1.5` | `tei` | Matches `/bge-` pattern |
 | `BAAI/bge-reranker-base` | `tei` | Matches `rerank` pattern |
-| `TheBloke/Llama-2-7B-GGUF` | `llamacpp` | Matches `gguf` pattern |
+| `TheBloke/Llama-2-7B-GGUF` | `llamacpp` | Matches `gguf` pattern (case-insensitive) |
+| `nohurry/gemma-4-26B-A4B-it-heretic-GUFF` | `llamacpp` | Matches `guff` typo pattern (v0.5.0+ typo-tolerant) |
 
 The resolved engine is written to `status.engine` so you can always verify the decision:
 
@@ -322,9 +323,9 @@ vLLM is the default engine for LLM text generation models. It provides high-thro
 apiVersion: llmops.kubellmops.io/v1alpha1
 kind: ModelDeployment
 metadata:
-  name: gemma-4-26b
+  name: qwen-7b
 spec:
-  source: cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit
+  source: Qwen/Qwen2.5-7B-Instruct
   replicas: 1
   resources:
     gpu: 1
@@ -420,13 +421,55 @@ spec:
   resources:
     gpu: 1
     memory: 16Gi
+  engineArgs:
+    --jinja: ""
+    --ctx-size: "8192"
 ```
 
 **Key points:**
 - If the source contains `gguf`, the engine auto-detects as `llamacpp`. You can also set it explicitly.
-- Uses the `ghcr.io/ggml-org/llama.cpp:server` image.
+- Uses the `ghcr.io/ggml-org/llama.cpp:server-cuda-b8672` image (v0.5.0 default).
 - The model is served on port **8080**.
 - The PVC size for llama.cpp defaults to 30Gi.
+- The llama.cpp Deployment uses the `Recreate` strategy, not `RollingUpdate` — a new pod
+  would block forever trying to allocate a GPU already held by the old pod. The terminated
+  old pod releases the GPU before the new one schedules.
+
+#### Split (multi-shard) GGUF support
+
+Large GGUF models are often published as multiple shards following the
+`{prefix}-NNNNN-of-NNNNN.gguf` naming convention (e.g. `model-00001-of-00009.gguf`).
+The operator handles this transparently:
+
+1. The `model-loader` init container downloads **every** matching shard from HuggingFace
+   (streaming into MinIO for future pods to reuse).
+2. At pod startup a hook creates symlinks so every shard lives at the expected path.
+3. llama.cpp is launched with `--model` pointing at the **first** shard; the server
+   automatically discovers and loads the remaining shards.
+
+Use `allowPatterns` to limit which quantization is downloaded (saves tens of GB when a
+repo contains many quants):
+
+```yaml
+apiVersion: llmops.kubellmops.io/v1alpha1
+kind: ModelDeployment
+metadata:
+  name: gemma-4-26b
+spec:
+  source: nohurry/gemma-4-26B-A4B-it-heretic-GUFF
+  engine: llamacpp            # explicit (optional): auto-detect handles "GUFF" typo
+  replicas: 1
+  resources:
+    gpu: 1
+    memory: 20Gi
+    cpu: "4"
+  allowPatterns: "*q4_k_m*"   # download only the q4_k_m split shards (~16.87GB total)
+  engineArgs:
+    --jinja: ""
+    --ctx-size: "163840"      # 160K context (model supports 256K; limited by 24GB VRAM)
+```
+
+This is the v0.5.0 default LLM configuration, designed to fit an RTX 3090 (24GB VRAM).
 
 ### 3.5 Scaling Replicas
 
@@ -845,7 +888,7 @@ kind: FineTuneRun
 metadata:
   name: gemma-lora-v1
 spec:
-  baseModel: cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit
+  baseModel: google/gemma-2-9b     # fine-tuning uses non-quantized weights
   outputName: gemma-4-lora-v1
   method: lora
   dataSource:
@@ -886,8 +929,8 @@ kubectl get ftr
 ```
 
 ```
-NAME            BASE MODEL                                METHOD   PHASE      AGE
-gemma-lora-v1   cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit     lora     Training   5m
+NAME            BASE MODEL             METHOD   PHASE      AGE
+gemma-lora-v1   google/gemma-2-9b     lora     Training   5m
 ```
 
 Get detailed info with priority columns:
@@ -897,8 +940,8 @@ kubectl get ftr -o wide
 ```
 
 ```
-NAME            BASE MODEL                                METHOD   PHASE       LOSS    DURATION   AGE
-gemma-lora-v1   cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit     lora     Succeeded   0.42    2h15m      3h
+NAME            BASE MODEL             METHOD   PHASE       LOSS    DURATION   AGE
+gemma-lora-v1   google/gemma-2-9b     lora     Succeeded   0.42    2h15m      3h
 ```
 
 ### 5.3 Fine-Tuning Methods
@@ -1079,10 +1122,10 @@ kubectl get md
 
 ```
 NAME                ENGINE    REPLICAS   PHASE       AGE
-gemma-4-26b         vllm      1          Ready       2h
+gemma-4-26b         llamacpp  1          Ready       2h
+qwen-7b             vllm      1          Ready       1h
 bge-small-en        tei       1          Ready       1h
 bge-reranker-base   tei       1          Ready       1h
-llama-gguf          llamacpp  1          Deploying   5m
 ```
 
 **LLMPlatform columns:**
@@ -1103,8 +1146,8 @@ kubectl get ftr
 ```
 
 ```
-NAME            BASE MODEL                                METHOD   PHASE       AGE
-gemma-lora-v1   cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit     lora     Succeeded   5h
+NAME            BASE MODEL             METHOD   PHASE       AGE
+gemma-lora-v1   google/gemma-2-9b     lora     Succeeded   5h
 ```
 
 ### 6.2 Status Conditions

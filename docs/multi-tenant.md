@@ -1,5 +1,7 @@
 # Multi-Tenant Configuration Guide
 
+> **Note:** This module requires `global.modules.security.enabled: true`. The security module includes LLM-Guard, NetworkPolicy, and the tenant-overview dashboard.
+
 ## Overview
 
 kube-llmops supports namespace-based multi-tenancy for isolating teams sharing a GPU cluster. Each team gets its own namespace with GPU quotas, resource limits, and network isolation.

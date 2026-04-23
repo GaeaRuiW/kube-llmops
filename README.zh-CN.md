@@ -5,7 +5,7 @@
 **Kubernetes 原生 LLMOps 平台** -- 一条命令部署、管理、监控并优化你的整个 LLM 基础设施。
 
 > [!NOTE]
-> v0.4.0 已发布 -- 微调流水线（LLaMA-Factory + Argo Workflows + MLflow）+ JupyterHub + Terraform 模块。详见 [CHANGELOG](CHANGELOG.zh-CN.md)。
+> v0.5.0 已发布 -- 高级推理：延迟路由、前缀缓存、多触发器 KEDA、规模到零、金丝雀、llm-d 解耦式推理、多加速器支持；新增 Kubernetes Operator + Headlamp Kubernetes UI。详见 [CHANGELOG](CHANGELOG.zh-CN.md)。
 
 ## 什么是 kube-llmops？
 
@@ -13,9 +13,11 @@
 
 - **模型推理服务** -- vLLM、llama.cpp 或 TEI，根据模型名称自动选择推理引擎
 - **AI 网关** -- LiteLLM 提供统一的 OpenAI 兼容 API、Key 管理、速率限制、预算控制
-- **可观测性** -- Prometheus + Grafana（11 个仪表盘 + 5 条告警规则）+ Langfuse v3 LLM 调用追踪 + node-exporter + kube-state-metrics
+- **可观测性** -- Prometheus + Grafana（11 个仪表盘 + 8 条告警规则）+ Langfuse v3 LLM 调用追踪 + node-exporter + kube-state-metrics
 - **日志** -- Fluent Bit + Loki，在 Grafana Explore 中查询
-- **自动扩缩** -- KEDA 根据队列深度和延迟自动扩缩 vLLM Pod
+- **自动扩缩** -- KEDA 根据队列深度、TTFT P95、TPOT P95 自动扩缩 vLLM/llama.cpp Pod，支持规模到零
+- **Kubernetes UI** -- Headlamp K8s 仪表盘 + `kube-llmops-portal` 插件（服务链接 + Grafana 监控内嵌）
+- **声明式管理** -- Kubernetes Operator 管理 LLMPlatform / ModelDeployment / FineTuneRun CRD
 - **安全** -- Keycloak SSO 登录 Grafana/Langfuse，LLM-Guard Prompt 注入防护，NetworkPolicy 网络隔离
 - **RAG 基础设施** -- Dify 平台 + pgvector + TEI 嵌入/重排序 + Ragas 评估 + 质量门控
 - **模型微调** -- LLaMA-Factory LoRA/QLoRA/Full 微调 + Argo Workflows 流水线 + MLflow 实验追踪
@@ -123,6 +125,7 @@ echo "$NODE_IP litellm.llmops.local grafana.llmops.local langfuse.llmops.local k
 | **Keycloak**（SSO 管理） | `http://keycloak.llmops.local` | `admin` / `admin123!` |
 | **MinIO**（对象存储） | `http://minio.llmops.local` | `minioadmin` / `minioadmin` |
 | **Prometheus**（指标） | `http://prometheus.llmops.local` | 无需认证 |
+| **Headlamp**（Kubernetes UI） | `http://$NODE_IP:30302`（NodePort） | Keycloak OIDC 登录 |
 
 **方式 B：Port-forward（备选）**
 
@@ -153,9 +156,12 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &
 | 推理引擎自动选择（GPTQ→vLLM、GGUF→llama.cpp） | 支持 | 不适用 | 不支持 | 不支持 |
 | AI 网关（Key 管理、成本追踪、速率限制） | 支持 | 不支持 | 不支持 | 不支持 |
 | LLM 调用追踪（Prompt、Token、每次请求费用） | 支持 | 不支持 | 不支持 | 不支持 |
-| 预置 Grafana 仪表盘（11 个）+ 告警规则（5 条） | 支持 | 不支持 | 不支持 | 不支持 |
+| 预置 Grafana 仪表盘（11 个）+ 告警规则（8 条） | 支持 | 不支持 | 不支持 | 不支持 |
 | GPU 监控（DCGM） | 支持 | 需自行搭建 | 不支持 | 不支持 |
-| KEDA 自动扩缩（队列深度） | 支持 | 不支持 | 不支持 | 部分支持 |
+| KEDA 多触发器自动扩缩（队列 + TTFT P95 + TPOT P95）+ 规模到零 | 支持 | 不支持 | 不支持 | 部分支持 |
+| 高级推理（前缀缓存、会话亲和、金丝雀、llm-d、多加速器） | 支持 | 部分支持 | 不支持 | 部分支持 |
+| Kubernetes Operator（LLMPlatform / ModelDeployment / FineTuneRun CRD） | 支持 | 不支持 | 部分支持 | 支持 |
+| Headlamp Kubernetes UI + 自定义插件 | 支持 | 不支持 | 不支持 | 不支持 |
 | SSO 集成（Keycloak OIDC） | 支持 | 不支持 | 不支持 | 不支持 |
 | S3 模型存储（MinIO） | 支持 | 不支持 | 不支持 | 不支持 |
 | 容器日志聚合（Fluent Bit + Loki） | 支持 | 不支持 | 不支持 | 不支持 |
@@ -187,8 +193,8 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &
 - [x] **v0.2.0** -- Langfuse v3 + Keycloak SSO + 基础设施自动化 + NodePort
 - [x] **v0.3.0** -- RAG 基础设施（Dify + pgvector + TEI 嵌入/重排序 + Ragas 评估 + LLM-Guard + 质量门控）
 - [x] **v0.4.0** -- 微调流水线（LLaMA-Factory + Argo Workflows + MLflow）+ JupyterHub + Terraform
-- [ ] **v0.5.0** -- 解耦式推理服务（llm-d）
-- [ ] **v1.0.0** -- Operator + CLI + 可视化面板
+- [x] **v0.5.0** -- 高级推理（延迟路由、前缀缓存、多触发器 KEDA、规模到零、金丝雀、llm-d、多加速器）+ Kubernetes Operator（LLMPlatform/ModelDeployment/FineTuneRun CRD）+ Headlamp Kubernetes UI + Harbor 模型仓库 + 独立 PostgreSQL 子 chart
+- [ ] **v1.0.0** -- CLI 工具 + 多集群 / 多租户增强 + 更多 CRD 能力
 
 ## 许可证
 

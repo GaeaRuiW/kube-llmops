@@ -1,10 +1,35 @@
 # curl Examples
 
-API usage examples for kube-llmops. All examples assume Ingress is enabled with `*.llmops.local`.
+API usage examples for kube-llmops (v0.5.0). The default LLM is `gemma-4-26b-a4b`
+(llama.cpp GGUF, source `nohurry/gemma-4-26B-A4B-it-heretic-GUFF`, q4_k_m ~16.87 GB).
 
 > Replace `sk-kube-llmops-dev` with your actual master key in production.
 
-## Prerequisites
+## Quick Start — NodePort (no Ingress required)
+
+When the stack is deployed with `--set global.nodePort.enabled=true`, LiteLLM is
+exposed on port `30400` of every node. This is the fastest way to hit the gateway
+from outside the cluster.
+
+```bash
+NODE_IP=$(kubectl get node -o jsonpath='{.items[0].status.addresses[0].address}')
+
+curl -s http://$NODE_IP:30400/v1/chat/completions \
+  -H "Authorization: Bearer sk-kube-llmops-dev" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gemma-4-26b-a4b",
+    "messages": [{"role": "user", "content": "Hello from NodePort!"}]
+  }'
+```
+
+Other NodePort services: Grafana `:30300`, Langfuse `:30301`, Dify `:30500`,
+Keycloak `:30808` (HTTP) / `:30809` (HTTPS), Prometheus `:30909`,
+MinIO `:30900`/`:30901`, Headlamp `:30302`, MLflow `:30505`.
+
+## Prerequisites (Ingress mode)
+
+The examples below assume Ingress is enabled with `*.llmops.local`.
 
 ```bash
 # Add hosts entry (if using local deployment)
@@ -20,7 +45,7 @@ curl -s http://litellm.llmops.local/v1/chat/completions \
   -H "Authorization: Bearer sk-kube-llmops-dev" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "qwen2-5-0-5b",
+    "model": "gemma-4-26b-a4b",
     "messages": [{"role": "user", "content": "What is Kubernetes?"}],
     "temperature": 0.7,
     "max_tokens": 256
@@ -33,7 +58,7 @@ curl -sN http://litellm.llmops.local/v1/chat/completions \
   -H "Authorization: Bearer sk-kube-llmops-dev" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "qwen2-5-0-5b",
+    "model": "gemma-4-26b-a4b",
     "messages": [{"role": "user", "content": "Explain PagedAttention in 3 sentences."}],
     "stream": true
   }'
@@ -108,5 +133,5 @@ kubectl port-forward svc/kube-llmops-litellm 4000:4000 &
 curl -s http://localhost:4000/v1/chat/completions \
   -H "Authorization: Bearer sk-kube-llmops-dev" \
   -H "Content-Type: application/json" \
-  -d '{"model":"qwen2-5-0-5b","messages":[{"role":"user","content":"Hello!"}]}'
+  -d '{"model":"gemma-4-26b-a4b","messages":[{"role":"user","content":"Hello!"}]}'
 ```

@@ -48,6 +48,46 @@ helm upgrade kube-llmops charts/kube-llmops-stack \
 argo submit -n default --from workflowtemplate/kube-llmops-finetune
 ```
 
+### 4b. Alternative: Trigger via the Kubernetes Operator (v0.5.0)
+
+Starting with v0.5.0, kube-llmops ships a Kubernetes Operator that exposes
+fine-tuning as a first-class CRD (`FineTuneRun`). This is the declarative
+alternative to the `argo submit` CLI above — the Operator reconciles the CR
+into the same Argo `Workflow` under the hood, so all existing artifacts
+(LLaMA-Factory job, MLflow run, quality gate, canary deploy) are produced
+the same way.
+
+Prerequisite: the operator chart is installed (see top-level `AGENTS.md` or
+`operator/docs/user-guide/`):
+
+```bash
+helm install kube-llmops-operator operator/charts/kube-llmops-operator
+```
+
+Submit a run by applying a `FineTuneRun` CR:
+
+```yaml
+apiVersion: llmops.kubellmops.io/v1alpha1
+kind: FineTuneRun
+metadata:
+  name: my-finetune-run
+spec:
+  baseModel: Qwen/Qwen2.5-0.5B-Instruct
+  method: lora
+  dataset:
+    type: huggingface
+    ref: tatsu-lab/alpaca
+```
+
+```bash
+kubectl apply -f my-finetune-run.yaml
+kubectl get finetunerun my-finetune-run -w
+```
+
+The Operator writes the underlying Argo `Workflow` name and phase into
+`status.workflowName` / `status.phase`, so you can still use `argo logs`
+and the MLflow UI to monitor progress.
+
 ### 5. Monitor progress
 
 ```bash

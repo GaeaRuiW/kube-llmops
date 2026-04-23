@@ -19,6 +19,8 @@ This guide walks you through installing kube-llmops, verifying the deployment, a
 - [Autoscaling with KEDA](#autoscaling-with-keda)
 - [MinIO Object Storage](#minio-object-storage)
 - [Single Sign-On (Keycloak)](#single-sign-on-keycloak)
+- [Headlamp Kubernetes UI](#headlamp-kubernetes-ui)
+- [Module Switches](#module-switches)
 - [Prometheus Alert Rules](#prometheus-alert-rules)
 - [Troubleshooting](#troubleshooting)
 - [Uninstall](#uninstall)
@@ -608,6 +610,99 @@ observability:
 | **Keycloak Admin** | `http://<NODE_IP>:30808` or port-forward `:8080` | `admin` / `admin` |
 | **Keycloak HTTPS** | `https://<NODE_IP>:30809` (when TLS enabled) | `admin` / `admin` |
 | **Grafana** (SSO) | `http://<NODE_IP>:30300` | via Keycloak SSO |
+
+---
+
+## Headlamp Kubernetes UI
+
+Starting with **v0.5.0**, kube-llmops replaces the legacy custom dashboard with
+[Headlamp](https://headlamp.dev/), the CNCF Kubernetes web UI, bundled with a
+first-party `kube-llmops-portal` plugin.
+
+### Access Headlamp
+
+```bash
+# NodePort (default when global.nodePort.enabled=true)
+# Open http://<NODE_IP>:30302
+
+# Or port-forward
+kubectl port-forward svc/kube-llmops-headlamp 4466:80 &
+# Open http://localhost:4466
+```
+
+### Features
+
+- **Full Kubernetes cluster management UI** — pods, deployments, logs, exec, events, CRDs
+- **Keycloak OIDC integration enabled by default** when Keycloak is deployed; the
+  OIDC issuer is auto-wired from `keycloak.tls.enabled` / `global.nodePort.host`
+- **`kube-llmops-portal` plugin pages:**
+  - **Service Links** — card grid with one-click NodePort URLs for LiteLLM, Grafana,
+    Langfuse, Dify, MinIO, Prometheus, MLflow, Keycloak
+  - **Monitoring** — embedded Grafana iframes (vLLM, LiteLLM, GPU, RAG quality, SLO, cost)
+    powered by `allow_embedding=true` + anonymous Viewer access
+
+### Build the Plugin Image (first time only)
+
+The plugin image must be built locally before `helm install` so that the Headlamp pod
+can load it as a sidecar/initContainer:
+
+```bash
+docker build -t kube-llmops/headlamp-plugin:latest plugins/kube-llmops-portal/
+```
+
+For a full SSO chain (Headlamp → Keycloak → K8s API Server), see the
+[Keycloak HTTPS + K8s OIDC](#https--k8s-oidc-headlamp-sso) section above and the
+`AGENTS.md` walk-through.
+
+---
+
+## Module Switches
+
+kube-llmops groups related subcharts, dashboards, and Prometheus alert rules into
+three feature **modules** that can be toggled with a single flag in
+`global.modules`:
+
+```yaml
+global:
+  modules:
+    rag:
+      enabled: true       # RAG stack
+    finetune:
+      enabled: false      # Fine-tuning pipeline
+    security:
+      enabled: false      # Security / guardrails / multi-tenant
+```
+
+### What Each Module Controls
+
+| Module | Subcharts | Dashboards & Alerts |
+|---|---|---|
+| `rag` | `dify`, `milvus`, `lightrag`, `rag-eval` | `rag-quality`, `milvus-overview` + RAG alert groups |
+| `finetune` | `finetune` (LLaMA-Factory + Argo Workflows + MLflow), `jupyterhub` | `finetune-overview` + finetune alert groups |
+| `security` | `security` (LLM-Guard + NetworkPolicy + Presidio), `tenant-overview` dashboard | tenant / security alert groups |
+
+### How Toggles Are Wired
+
+- `Chart.yaml` uses **dual-path conditions** — e.g. `dify.enabled,global.modules.rag.enabled`.
+  The explicit subchart flag wins if it's set, so you can still enable a single component
+  without flipping the whole module.
+- Dashboard and Prometheus alert-rule ConfigMaps are gated by the same `global.modules.*`
+  flags — they auto-appear/disappear without manual editing.
+- Default: **all modules off**. `values-single-node.yaml` enables `rag: true` only.
+
+### Examples
+
+```bash
+# Minimal LLM gateway + observability only (all modules off — the default)
+helm install kube-llmops charts/kube-llmops-stack -f values-minimal.yaml
+
+# Enable RAG + Security, keep fine-tuning off
+helm upgrade kube-llmops charts/kube-llmops-stack \
+  -f values-single-node.yaml \
+  --set global.modules.rag.enabled=true \
+  --set global.modules.security.enabled=true \
+  --set global.modules.finetune.enabled=false
+```
 
 ---
 

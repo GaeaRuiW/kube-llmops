@@ -87,6 +87,29 @@ terraform apply
 az aks get-credentials --resource-group kube-llmops-rg --name kube-llmops
 ```
 
+### Operator-Based Deployment (v0.5.0+)
+
+As an alternative to direct `helm install`, you can deploy via the Kubernetes Operator,
+which manages the platform through `LLMPlatform`, `ModelDeployment`, and `FineTuneRun`
+Custom Resources:
+
+```bash
+# After the cluster is provisioned (any cloud module):
+bash operator/build.sh
+docker tag kube-llmops/operator:latest <your-registry>/kube-llmops/operator:latest
+docker push <your-registry>/kube-llmops/operator:latest
+
+helm install kube-llmops-operator operator/charts/kube-llmops-operator \
+  --set image.repository=<your-registry>/kube-llmops/operator
+
+kubectl apply -f operator/config/samples/llmplatform_full.yaml
+```
+
+The operator then declaratively manages the full `kube-llmops-stack` (gateway,
+observability, model store, etc.). See
+[operator/docs/user-guide/operator-guide-en.md](../operator/docs/user-guide/operator-guide-en.md)
+for details and [operator/README.md](../operator/README.md) for the CRD reference.
+
 ## Customization
 
 ### Custom Helm Values

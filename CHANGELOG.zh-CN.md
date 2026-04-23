@@ -7,6 +7,151 @@
 本文件格式基于 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)，
 并且本项目遵循 [语义化版本](https://semver.org/spec/v2.0.0.html) 规范。
 
+## [0.5.0] - 2026-04-12
+
+### 新增
+
+#### Kubernetes Operator（LLMPlatform CR）
+- `operator/` 目录：基于 controller-runtime 的 Go 语言 Kubernetes Operator
+- 三个 CRD：`LLMPlatform`（完整平台）、`ModelDeployment`（单模型）、`FineTuneRun`（微调任务）
+- Operator Helm chart：`operator/charts/kube-llmops-operator/`（构建时嵌入 umbrella chart）
+- 声明式平台管理，作为直接 `helm install` 的替代方案
+- Reconciler 将 LLMPlatform spec 翻译为 Helm values，通过 Helm SDK 驱动 install/upgrade
+- LLMPlatform spec 新增 `Models []ModelSpec` 字段，在 CR 中声明模型
+- 内置卡住版本恢复：`FixStuckRelease()` 处理 pending-install/pending-upgrade
+- 基于 Generation 的 reconcile 循环防护（`status.observedGeneration == metadata.generation` 时跳过）
+- Operator SA 使用 `cluster-admin` RBAC（Helm chart 里有通配符绑定如 Headlamp，RBAC escalation 防护要求）
+- 示例 CR：`operator/config/samples/llmplatform_full.yaml`
+- 构建脚本：`operator/build.sh`（staging 目录 `_build_charts/` 避免删除 operator 自己的 chart）
+- 用户指南：`operator/docs/user-guide/operator-guide-en.md` + `operator-guide-zh.md`
+- 架构文档：`operator/docs/architecture/operator.md`
+
+#### Headlamp Kubernetes UI（替代旧版自定义 dashboard）
+- `headlamp` 子 chart 封装上游 Headlamp chart
+- `kube-llmops-portal` 插件，两个页面：
+  - **Service Links**：所有平台服务的 NodePort URL 卡片网格
+  - **Monitoring**：通过 iframe 嵌入 Grafana 仪表板
+- 启用 NodePort 时监听 30302 端口
+- Keycloak OIDC SSO 自动配置（issuer URL 从 `nodePort.host` 计算）
+- Grafana 配置 `allow_embedding=true` + 匿名 Viewer 访问以支持 iframe
+- 插件镜像：`kube-llmops/headlamp-plugin:latest`（通过 `docker build plugins/kube-llmops-portal/` 构建）
+- 23 条 Helm 模板测试（`tests/helm/test_headlamp_templates.py`）
+
+#### 高级推理（Phase 5）
+- 基于延迟的路由（默认策略，取代 simple-shuffle）
+- 每模型前缀缓存开关（`prefixCaching: true`）
+- 会话亲和性 via Envoy sidecar（`litellm.sessionAffinity.enabled`）
+- 多触发器 KEDA 自动扩缩（队列深度 + TTFT P95 + TPOT P95）
+- SLO 告警规则（TTFTSLOBreach、TTFTSLOCritical、TPOTSLOBreach）
+- 规模到零 + LiteLLM 冷启动 fallback
+- Spot/抢占式 GPU tolerations（AWS、GCP、Azure、Karpenter）
+- 优雅下线（`terminationGracePeriodSeconds: 90` + preStop hook）
+- MIG GPU 设备支持（`nvidia.com/mig-*`）
+- 金丝雀模型部署，基于权重的流量分割
+- llm-d 解耦式推理（实验性，prefill/decode 分离）
+- 多加速器支持（nvidia、amd、gaudi）
+- Envoy AI Gateway 集成 InferencePool + InferenceModel CRD（IGW 扩展）
+
+#### 模块开关
+- `global.modules.{rag,finetune,security}.enabled` 顶层开关
+- Chart.yaml 双路径条件：`<subchart>.enabled,global.modules.<module>.enabled` — 显式覆盖优先
+- 仪表板和 Prometheus 告警规则按模块自动包含/排除
+- 19 条 Helm 模板测试（`tests/helm/test_module_switches.py`）
+
+#### Keycloak HTTPS + K8s OIDC（Headlamp SSO）
+- `keycloak.tls.enabled` 字段，支持自签（默认）或用户提供的证书
+- `keycloak.tls.selfSigned` + `keycloak.tls.existingSecret` 选项
+- HTTPS NodePort :30809（HTTP :30808 之外新增）
+- OIDC RBAC 绑定，Headlamp → Keycloak → K8s API Server 完整链路
+- 完整 k3s + 自签 CA 配置记录于 `AGENTS.md`
+
+#### 基础设施
+- `harbor` 子 chart：私有容器镜像仓库 + 模型制品仓库
+- `postgresql` 独立子 chart：共享 PostgreSQL（pgvector/pgvector:pg17）— 之前嵌套在 LiteLLM 下
+- `postgresql` 自动创建数据库：litellm、langfuse、dify、dify_plugin、mlflow
+- 每个 DB 自动启用 `pgvector` 扩展
+
+#### Split GGUF 支持（llama.cpp）
+- llama.cpp 部署处理多分片 GGUF 文件（如 Q8_0 9 分片）
+- Model-loader 新增 `allowPatterns` 字段，选择性下载（如 `"*q4_k_m*"`）
+- Pod 启动 hook 创建规范命名 `{prefix}-NNNNN-of-NNNNN.gguf` 的符号链接
+- `--model` 参数使用 shell wrapper 动态读取首分片路径
+- `Recreate` 部署策略防止滚动更新期间 GPU 死锁
+- 已在 NVIDIA GB10（Blackwell ARM64, 128GB）上使用 Gemma-4-31B Q8_0（9 分片, ~31GB）测试
+
+#### 文档
+- 6 个新文档页面（routing、large models、speculative、kserve、llm-d、canary）
+- SLO 仪表板面板（TTFT/TPOT vs 阈值、HPA 副本数）
+- 成本仪表板面板（GPU 空闲率、scale-to-zero 事件）
+- 金丝雀仪表板面板（延迟对比、流量权重）
+- vLLM 仪表板中的前缀缓存命中率面板
+
+### 变更
+- 默认路由策略：simple-shuffle → latency-based-routing
+- `values-single-node.yaml` 默认 LLM：`nohurry/gemma-4-26B-A4B-it-heretic-GUFF`（llama.cpp, q4_k_m, ~16.87GB）
+- vLLM 默认镜像：`vllm/vllm-openai:gemma4-cu130`（自定义构建 — 上游不支持 Gemma 4 架构）
+- llama.cpp 默认镜像：`ghcr.io/ggml-org/llama.cpp:server-cuda-b8672`（多架构，支持 CUDA 13）
+- 引擎自动检测：新增容错 `*GUFF*` 模式（部分 HF 仓库误拼 GGUF）
+- GPU 资源名使用 helper 函数（支持 nvidia/amd/gaudi）
+- DCGM exporter 仅在 nvidia 加速器下启用
+- 移除自定义 dashboard — 改用 Headlamp + kube-llmops-portal 插件
+- Prometheus 告警规则：5 条 → 8 条（新增 3 条 SLO 告警）
+- Grafana 仪表板：10 个 → 11 个（新增 finetune-overview）
+
+### 修复
+- vLLM：移除 `--disable-access-log-for-endpoints` 参数（vLLM 0.9+ 已废弃）
+- LiteLLM：`routingStrategy` 空字符串不再覆盖子 chart 默认值
+- 模型名：DNS-1035 校验已记录（不能有 `.` — `qwen25-7b` ✅，`qwen2.5-7b` ❌）
+- Model loader：CPU-only 模型显式设置 `gpu: 0`（之前 chart 默认 1）
+- Operator build 脚本：staging 目录 `_build_charts/` 不再删除 operator 自己的 chart
+
+## [0.4.0] - 2026-04-04
+
+### 新增
+
+#### 微调管道（Argo Workflows + LLaMA-Factory）
+- `finetune` 子 chart 带 Argo Workflows DAG：prepare-data → finetune → merge-upload → evaluate → quality-gate → deploy
+- LLaMA-Factory 集成：LoRA、QLoRA、全量微调
+- 数据源：MinIO（s3://）、HuggingFace datasets、PVC 挂载
+- 质量门控步骤，可配置指标阈值（eval_loss、accuracy、bleu、rouge）
+- 金丝雀部署 via LiteLLM 权重路由（可配置 canary 百分比）
+- 人工审批 via webhook 通知（Slack/钉钉/通用）
+- 基于 ConfigMap 从 Helm values 生成训练配置
+- RBAC：Argo 工作流执行的 ServiceAccount + ClusterRole
+- MLflow 的 PodDisruptionBudget
+- Alpaca 格式训练数据样例（`examples/finetune/sample-data.json`）
+
+#### MLflow 实验追踪
+- MLflow Deployment，PostgreSQL backend + MinIO artifact store
+- 复用现有 PostgreSQL（数据库 `mlflow`）和 MinIO 基础设施
+- 启用 NodePort 时通过 :30505 暴露
+- 集成到微调工作流用于指标记录和模型注册表
+
+#### JupyterHub（交互式 ML 开发）
+- JupyterHub 子 chart 带 KubeSpawner，提供 GPU notebook 环境
+- 3 种 GPU profile：cpu（默认）、gpu-small（1 GPU, 8Gi）、gpu-large（2 GPU, 16Gi）
+- Keycloak OIDC SSO 集成（keycloak.enabled 时自动配置）
+- Hub 可用性的 PodDisruptionBudget
+- `global.nodePort.enabled=true` 时 NodePort :30888
+- `values-production.yaml` 中默认启用
+
+#### Terraform 模块（基础设施即代码）
+- `terraform/aws-eks/` — EKS 集群带 GPU 节点组（g5.xlarge）、EBS CSI、GP3 存储
+- `terraform/gcp-gke/` — GKE 标准集群带 T4 GPU 节点池、Workload Identity
+- `terraform/azure-aks/` — AKS 集群带 NC6s_v3 GPU 池、Azure CNI、Premium SSD
+- 所有模块：NVIDIA GPU Operator、可选 KEDA、kube-llmops Helm release
+- 跨云一致的 GPU 污点（`nvidia.com/gpu=present:NoSchedule`）
+- 每个模块的 README 含前置条件、成本估算、拆除说明
+
+#### Grafana 仪表板
+- 微调管道仪表板（`finetune-overview`）：作业状态、训练损失、GPU 利用率、步骤进度
+- 总仪表板数：10 → 11
+
+#### Model Loader 性能
+- hf-transfer 并发从 8 提升到 32（`HF_TRANSFER_CONCURRENCY` 环境变量）
+- 通过 `global.modelStore.hfTransferConcurrency` 在 values 中可配置
+- 应用于 model-preload Job、model-loader init-container 和 finetune 工作流步骤
+
 ## [0.3.1] - 2026-03-29
 
 ### 新增

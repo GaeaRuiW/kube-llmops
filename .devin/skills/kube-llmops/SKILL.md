@@ -1,7 +1,7 @@
 ---
 name: kube-llmops
-description: "Deploy, manage, debug, and query the kube-llmops LLMOps platform — installation, model management, monitoring, RAG, troubleshooting"
-argument-hint: "[install|status|models|logs|eval|debug|chat|embed|dashboard|finetune]"
+description: "Deploy, manage, debug, and query the kube-llmops LLMOps platform — installation, model management, monitoring, RAG, troubleshooting, operator"
+argument-hint: "[install|status|models|logs|eval|debug|chat|embed|dashboard|finetune|operator]"
 allowed-tools:
   - read
   - grep
@@ -16,13 +16,14 @@ permissions:
     - Exec(curl *)
     - Exec(docker *)
     - Write(charts/**)
+    - Write(operator/**)
     - Write(values*.yaml)
 ---
 
 # kube-llmops Skill
 
 You are an expert operator for the **kube-llmops** Kubernetes-native LLMOps platform.
-This skill covers the full lifecycle: installation, model management, monitoring, RAG, evaluation, and troubleshooting.
+This skill covers the full lifecycle: installation, model management, monitoring, RAG, evaluation, operator CRs, and troubleshooting.
 
 ## Project Context
 
@@ -35,13 +36,16 @@ This skill covers the full lifecycle: installation, model management, monitoring
 │  LiteLLM (Gateway:4000) → vLLM (LLM:8000)        │
 │                          → TEI (Embed:8080)        │
 │                          → TEI (Rerank:8080)       │
+│                          → llama.cpp (GGUF:8080)    │
 │  Dify (RAG:5001/3000) → LiteLLM → pgvector        │
 │  Langfuse (Trace:3000) ← LiteLLM callbacks         │
 │  Prometheus:9090 + Pushgateway:9091 → Grafana:3000  │
-│  LLM-Guard (Security:8000), Keycloak (SSO:8080)    │
+│  LLM-Guard (Security:8000), Keycloak (SSO:8080/HTTPS:8443) │
 │  Argo Workflows + LLaMA-Factory (Fine-tune)          │
 │  MLflow (Experiment Tracking:5000)                    │
-│  MinIO (S3:9000) + PostgreSQL:5432                  │
+│  Headlamp (K8s UI:4466) + kube-llmops-portal plugin   │
+│  MinIO (S3:9000) + PostgreSQL:5432 + Harbor:80       │
+│  kube-llmops-operator (LLMPlatform CR reconciler)     │
 └──────────────────────────────────────────────────┘
 ```
 
@@ -54,6 +58,10 @@ Handle each subcommand as follows:
 ---
 
 ### `install` — Fresh Installation
+
+Two deployment modes are supported. Ask the user which they prefer:
+
+**Mode A: Direct Helm (simpler, recommended for dev)**
 
 1. Verify prerequisites:
    ```bash
@@ -80,7 +88,29 @@ Handle each subcommand as follows:
      -f charts/kube-llmops-stack/values-single-node.yaml \
      --set global.nodePort.enabled=true \
      --set global.nodePort.host=$NODE_IP \
+     --set global.hfToken=$HF_TOKEN \
      --timeout 10m
+   ```
+
+**Mode B: Operator-managed (declarative via LLMPlatform CR)**
+
+1. Build + push operator image:
+   ```bash
+   bash operator/build.sh
+   docker tag kube-llmops/operator:latest localhost:5000/kube-llmops/operator:latest
+   docker push localhost:5000/kube-llmops/operator:latest
+   ```
+
+2. Install operator chart:
+   ```bash
+   helm install kube-llmops-operator operator/charts/kube-llmops-operator
+   kubectl wait --for=condition=available deploy/kube-llmops-operator-operator --timeout=5m
+   ```
+
+3. Apply an LLMPlatform CR (edit node IP first):
+   ```bash
+   kubectl apply -f operator/config/samples/llmplatform_full.yaml
+   kubectl get llmplatform -w
    ```
 
 5. Wait for pods and print access info:
@@ -94,9 +124,11 @@ Handle each subcommand as follows:
    Grafana:    http://<NODE_IP>:30300    (admin / admin123!)
    Langfuse:   http://<NODE_IP>:30301    (admin@kube-llmops.local / admin123!)
    Dify:       http://<NODE_IP>:30500    (admin@kube-llmops.local / Admin123!)
-   Keycloak:   http://<NODE_IP>:30808    (admin / admin123!)
+   Keycloak:   http://<NODE_IP>:30808    or HTTPS https://<NODE_IP>:30809  (admin / admin123!)
    Prometheus: http://<NODE_IP>:30909
-   MinIO:      http://<NODE_IP>:30900    (minioadmin / minioadmin)
+   MinIO:      http://<NODE_IP>:30901    (minioadmin / minioadmin)
+   Headlamp:   http://<NODE_IP>:30302    (OIDC via Keycloak)
+   MLflow:     http://<NODE_IP>:30505    (finetune module only)
    ```
 
 ---
@@ -110,16 +142,17 @@ Run these checks and report a summary:
 kubectl get pods -l app.kubernetes.io/part-of=kube-llmops -o wide --no-headers | awk '{printf "%-50s %s\n", $1, $3}'
 
 # Key services
-kubectl get svc | grep -E "\-np|litellm|grafana|langfuse"
+kubectl get svc | grep -E "\-np|litellm|grafana|langfuse|headlamp"
 
-# vLLM model ready?
-kubectl exec deploy/kube-llmops-litellm -- python3 -c "
-import urllib.request, json
-try:
-    r = json.loads(urllib.request.urlopen('http://localhost:4000/v1/models', timeout=5).read())
-    print(f'Models available: {[m[\"id\"] for m in r[\"data\"]]}')
-except: print('LiteLLM not ready yet')
-"
+# LLMPlatform CR (if operator mode)
+kubectl get llmplatform 2>/dev/null && kubectl describe llmplatform | grep -A3 "Status:"
+
+# Model deployment status
+kubectl get deploy | grep -E "vllm-|tei-|llamacpp-"
+
+# LLM endpoint health
+NODE_IP=$(kubectl get node -o jsonpath='{.items[0].status.addresses[0].address}')
+curl -s http://$NODE_IP:30400/v1/models -H "Authorization: Bearer sk-kube-llmops-dev" | python3 -m json.tool 2>/dev/null || echo "LiteLLM not reachable"
 
 # MinIO model cache
 kubectl exec deploy/kube-llmops-litellm -- pip install -q minio 2>/dev/null
@@ -149,28 +182,32 @@ Show current models and their auto-detected engines:
 
 ```bash
 # From values
-grep -A5 "source:" charts/kube-llmops-stack/values-single-node.yaml | grep -E "name:|source:"
+grep -A5 "source:" charts/kube-llmops-stack/values-single-node.yaml | grep -E "name:|source:|engine:"
 
 # Running deployments
 kubectl get deploy | grep -E "vllm-|tei-|llamacpp-"
 
-# Explain engine auto-detection
-# The resolveEngine helper in _helpers.tpl detects engine from source name:
-#   *GGUF* → llamacpp
-#   *rerank* → tei
-#   bge-*/e5-*/gte-*/embedding* → tei
-#   everything else → vllm
+# Explain engine auto-detection (from _helpers.tpl resolveEngine)
+#   *GGUF* / *gguf* / *GUFF* (typo-tolerant) → llamacpp
+#   *rerank* / bge-* / e5-* / *embedding*    → tei
+#   everything else                           → vllm
+#   Explicit `engine:` field overrides.
 ```
 
 To add a new model, tell the user to add it to `global.models` in values:
 ```yaml
 global:
   models:
-    - name: my-new-model
-      source: org/model-name     # engine auto-detected
+    - name: my-new-model            # DNS-1035 compliant (no dots!)
+      source: org/model-name        # engine auto-detected from pattern
+      # engine: vllm                # explicit override (required if name has no pattern)
+      replicas: 1
       resources:
-        gpu: 1
+        gpu: 1                       # 0 for CPU-only models (TEI etc.)
         memory: 16Gi
+      # allowPatterns: "*q4_k_m*"  # optional: limit download to matching files (GGUF)
+      engineArgs:
+        --max-model-len: "8192"
 ```
 
 Then upgrade:
@@ -178,22 +215,30 @@ Then upgrade:
 helm upgrade kube-llmops charts/kube-llmops-stack -f charts/kube-llmops-stack/values-single-node.yaml --no-hooks
 ```
 
+Or if using the operator, patch the LLMPlatform CR's `spec.models[]`.
+
 ---
 
 ### `logs` — View Component Logs
 
 ```bash
-# Specify component or show menu
-# Components: vllm, tei, litellm, langfuse, dify, grafana, keycloak, prometheus, minio
+# Components: vllm-<model>, tei-<model>, llamacpp-<model>, kube-llmops-litellm,
+#             kube-llmops-langfuse, kube-llmops-dify-*, kube-llmops-grafana,
+#             kube-llmops-keycloak, kube-llmops-prometheus, kube-llmops-minio,
+#             kube-llmops-headlamp, kube-llmops-operator-operator
 
-# Example for a specific model:
-kubectl logs deploy/vllm-qwen2-5-0-5b --tail=50
+# Current default models (values-single-node.yaml):
+kubectl logs deploy/llamacpp-gemma-4-26b-a4b --tail=50
 kubectl logs deploy/tei-bge-small-en --tail=50
+kubectl logs deploy/tei-bge-reranker-base --tail=50
 kubectl logs deploy/kube-llmops-litellm --tail=50
 
 # Model loader logs (init container):
 kubectl logs deploy/tei-bge-small-en -c model-loader --tail=30
-kubectl logs deploy/vllm-qwen2-5-0-5b -c model-loader --tail=30
+kubectl logs deploy/llamacpp-gemma-4-26b-a4b -c model-loader --tail=30
+
+# Operator logs (for LLMPlatform reconcile issues):
+kubectl logs deploy/kube-llmops-operator-operator --tail=50
 ```
 
 ---
@@ -245,6 +290,15 @@ echo "=== PVC Usage ==="
 kubectl get pvc | grep -E "vllm-|tei-|llamacpp-|minio|prometheus"
 
 echo ""
+echo "=== Helm Release Status ==="
+helm list | grep kube-llmops
+helm history kube-llmops --max 3 2>/dev/null | tail -5
+
+echo ""
+echo "=== LLMPlatform CR (if operator mode) ==="
+kubectl get llmplatform 2>/dev/null && kubectl get llmplatform -o jsonpath='{.items[0].status}' | python3 -m json.tool 2>/dev/null
+
+echo ""
 echo "=== Prometheus Alerts Firing ==="
 kubectl exec deploy/kube-llmops-litellm -- python3 -c "
 import urllib.request, json
@@ -256,11 +310,20 @@ for a in r['data']['alerts']:
 ```
 
 Common fixes:
-- **vLLM OOMKilled**: Increase `resources.memory` or add `--max-model-len`
+- **vLLM "unrecognized arguments"**: old image; check `vllm.image.tag` — Gemma 4 needs `gemma4-cu130`
+- **vLLM "gemma4 architecture not recognized"**: use `gemma4-cu130` image or switch to llama.cpp GGUF
+- **Service name invalid (DNS-1035)**: model `name` has dots — use `-` only (e.g. `qwen25-7b`)
+- **vLLM OOMKilled**: Increase `resources.memory` or lower `--max-model-len`
 - **TEI CrashLoop**: Check model-loader logs: `kubectl logs <pod> -c model-loader`
+- **TEI pod stuck holding GPU**: old deployment; delete the stuck RS — `kubectl scale rs <old-rs> --replicas=0`
+- **LiteLLM CrashLoop "invalid routing_strategy"**: check configmap — should be `latency-based-routing` (full string)
 - **LiteLLM 500**: Check config: `kubectl get cm kube-llmops-litellm-config -o yaml`
 - **Dify 401**: Cookie issue — must use single-domain routing (path-based Ingress or NodePort)
 - **Helm .tgz stale**: `cd charts/kube-llmops-stack && rm -f charts/*.tgz Chart.lock && helm dependency update .`
+- **Operator image not picking up chart change**: chart embeds at build-time — rebuild operator:
+  `bash operator/build.sh && docker push ... && kubectl rollout restart deploy/kube-llmops-operator-operator`
+- **Operator not reconciling after CR change**: bump `status.observedGeneration: 0` via `kubectl patch --subresource=status`
+- **llama.cpp split GGUF not loading**: needs `{prefix}-NNNNN-of-NNNNN.gguf` naming — check symlinks in pod
 
 ---
 
@@ -268,13 +331,13 @@ Common fixes:
 
 ```bash
 NODE_IP=$(kubectl get node -o jsonpath='{.items[0].status.addresses[0].address}')
+MODEL=$(curl -s http://$NODE_IP:30400/v1/models -H "Authorization: Bearer sk-kube-llmops-dev" | python3 -c "import sys,json; d=json.load(sys.stdin); print(next((m['id'] for m in d['data'] if 'bge' not in m['id'] and 'rerank' not in m['id']), 'gemma-4-26b-a4b'))")
+echo "Using model: $MODEL"
 curl -s http://$NODE_IP:30400/v1/chat/completions \
   -H "Authorization: Bearer sk-kube-llmops-dev" \
   -H "Content-Type: application/json" \
-  -d '{"model":"qwen2-5-0-5b","messages":[{"role":"user","content":"'"$ARGUMENTS"'"}],"max_tokens":256}' | python3 -m json.tool
+  -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"${ARGUMENTS:-Hello, what can you do?}\"}],\"max_tokens\":256}" | python3 -m json.tool
 ```
-
-If no message provided, use "Hello, what can you do?" as default.
 
 ---
 
@@ -299,8 +362,10 @@ print(f'First 5: {v[:5]}')
 
 ### `finetune` — Trigger and Monitor Fine-tuning
 
+Requires `global.modules.finetune.enabled: true` (default off).
+
 ```bash
-# Submit a fine-tuning workflow
+# Submit a fine-tuning workflow via Argo
 argo submit -n default --from workflowtemplate/kube-llmops-finetune
 
 # Watch progress
@@ -312,6 +377,48 @@ argo list -n default
 # Check MLflow experiments
 NODE_IP=$(kubectl get node -o jsonpath='{.items[0].status.addresses[0].address}')
 echo "MLflow UI: http://$NODE_IP:30505"
+
+# Or via operator: create a FineTuneRun CR
+kubectl apply -f - <<EOF
+apiVersion: llmops.kubellmops.io/v1alpha1
+kind: FineTuneRun
+metadata:
+  name: my-finetune-run
+spec:
+  baseModel: Qwen/Qwen2.5-0.5B-Instruct
+  method: lora
+  dataset: { type: huggingface, ref: tatsu-lab/alpaca }
+EOF
+```
+
+---
+
+### `operator` — Manage LLMPlatform CR
+
+```bash
+# Show current LLMPlatform
+kubectl get llmplatform -o yaml
+
+# Check operator logs (reconcile loop)
+kubectl logs deploy/kube-llmops-operator-operator --tail=50
+
+# Force reconcile (if spec didn't change but you want to re-run Helm upgrade):
+kubectl patch llmplatform <name> --type=merge --subresource=status \
+  -p '{"status":{"observedGeneration":0}}'
+
+# Rebuild + redeploy operator (after chart changes):
+bash operator/build.sh
+docker tag kube-llmops/operator:latest localhost:5000/kube-llmops/operator:latest
+docker push localhost:5000/kube-llmops/operator:latest
+kubectl rollout restart deployment/kube-llmops-operator-operator
+
+# Check Helm release managed by operator
+helm list
+helm history kube-llmops --max 5
+
+# If stuck in pending-install/pending-upgrade, operator auto-recovers via
+# FixStuckRelease (rollback or uninstall). If manual intervention needed:
+helm rollback kube-llmops <last-good-revision>
 ```
 
 ---
@@ -336,6 +443,8 @@ If invoked with a dashboard name or uid (`/kube-llmops dashboard rag-quality`), 
 | `milvus-overview` | Milvus Vector Database | Milvus collection, search, insert metrics |
 | `system-overview` | System Overview | Node CPU, memory, disk, network, pod resource table |
 | `finetune-overview` | Fine-tuning Pipeline | Fine-tuning workflow status, metrics, MLflow |
+
+Headlamp also embeds these dashboards via iframe at `http://<NODE_IP>:30302/plugins/kube-llmops-portal/monitoring`.
 
 **List all dashboards:**
 
@@ -420,6 +529,7 @@ for panel in dash.get('panels', []):
 ```bash
 NODE_IP=$(kubectl get node -o jsonpath='{.items[0].status.addresses[0].address}')
 echo "Open: http://$NODE_IP:30300/d/${DASH_UID:-rag-quality}"
+echo "Or via Headlamp: http://$NODE_IP:30302/plugins/kube-llmops-portal/monitoring"
 ```
 
 ---
@@ -429,14 +539,17 @@ echo "Open: http://$NODE_IP:30300/d/${DASH_UID:-rag-quality}"
 If the user doesn't provide a subcommand, or asks a general question about kube-llmops, answer using the project knowledge in AGENTS.md and the codebase. Common tasks:
 
 - **Upgrade**: `helm upgrade kube-llmops charts/kube-llmops-stack -f values-single-node.yaml --no-hooks`
-- **Add model**: Edit `global.models` in values-single-node.yaml, then upgrade
+- **Add model**: Edit `global.models` in values-single-node.yaml, then upgrade (or patch LLMPlatform CR)
 - **Change port**: `--set global.nodePort.grafana=31000`
 - **Enable HF token**: `--set global.hfToken=hf_xxx`
 - **Enable NodePort**: `--set global.nodePort.enabled=true --set global.nodePort.host=<NODE_IP>`
 - **Build model-loader**: `docker build -t kube-llmops/model-loader:latest images/model-loader/`
+- **Build operator**: `bash operator/build.sh && docker tag ... localhost:5000/... && docker push ...`
 - **Run E2E tests**: `uv run tests/e2e/test_dify_model_provider.py`
 - **Check smoke test**: `kubectl logs -l app.kubernetes.io/name=rag-smoke-test --tail=30`
 - **Fine-tune model**: `argo submit -n default --from workflowtemplate/kube-llmops-finetune`
 - **MLflow UI**: `http://<NODE_IP>:30505`
-- **System metrics**: node-exporter (CPU/mem/disk) + kube-state-metrics (pod/deploy status)
+- **Headlamp UI**: `http://<NODE_IP>:30302` (replaces v0.4 custom dashboard)
 - **11 dashboards**: vllm, litellm, gpu, rag-quality, cost, slo, infra-roi, tenant, milvus, system-overview, finetune-overview
+- **Module switches**: `global.modules.{rag,finetune,security}.enabled` — one toggle for each feature group
+- **Default LLM (single-node)**: `nohurry/gemma-4-26B-A4B-it-heretic-GUFF` (llama.cpp, q4_k_m, 16.87GB) — fits RTX 3090

@@ -68,7 +68,7 @@ Usage:
   {{- $engine -}}
 {{- else -}}
   {{- $src := default "" .source | lower -}}
-  {{- if or (contains "gguf" $src) (hasSuffix "-gguf" $src) -}}
+  {{- if or (contains "gguf" $src) (hasSuffix "-gguf" $src) (contains "guff" $src) -}}
     llamacpp
   {{- else if or (contains "rerank" $src) -}}
     tei
