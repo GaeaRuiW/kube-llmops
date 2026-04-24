@@ -101,6 +101,17 @@ def test_otel_collector_cluster_label_override():
     assert cluster_attr["value"] == "prod-us-west-2"
 
 
+def test_grafana_uses_recreate_strategy():
+    """Grafana 12 holds an exclusive lock on bleve search index. With a
+    ReadWriteOnce PVC, rolling updates crash-loop the new pod until the old
+    one releases the lock. Deployment must use Recreate strategy."""
+    docs = helm_template()
+    dep = find_resource(docs, "Deployment", "grafana")
+    assert dep is not None, "grafana Deployment not rendered"
+    assert dep["spec"].get("strategy", {}).get("type") == "Recreate", \
+        f"grafana Deployment must use Recreate strategy; got {dep['spec'].get('strategy')}"
+
+
 def test_dcgm_exporter_has_hostpid():
     docs = helm_template()
     ds = find_resource(docs, "DaemonSet", "dcgm-exporter")
@@ -209,6 +220,21 @@ def test_dashboard_file_exists_and_valid(uid, spec):
     assert len(data.get("panels", [])) >= spec["min_panels"], f"{uid} has only {len(data['panels'])} panels"
     var_names = [v["name"] for v in data.get("templating", {}).get("list", [])]
     assert set(var_names) == set(spec["vars"]), f"{uid} vars mismatch: expected {spec['vars']}, got {var_names}"
+
+
+@pytest.mark.parametrize("uid", TIERS.keys())
+def test_dashboard_variables_have_all_value(uid):
+    """Every query variable must set allValue=".+" so $__all expands to a
+    non-empty regex in PromQL filters — without this, when the user selects
+    'All', Grafana may pass empty strings and panels render 'No data'."""
+    with open(DASHBOARDS_DIR / f"{uid}.json") as f:
+        data = json.load(f)
+    for v in data["templating"]["list"]:
+        if v.get("type") != "query":
+            continue
+        assert v.get("includeAll") is True, f"{uid}/{v['name']}: includeAll must be true"
+        assert v.get("multi") is True, f"{uid}/{v['name']}: multi must be true (avoids empty default on load)"
+        assert v.get("allValue") == ".+", f"{uid}/{v['name']}: allValue must be '.+' (got {v.get('allValue')!r})"
 
 
 @pytest.mark.parametrize("uid", TIERS.keys())

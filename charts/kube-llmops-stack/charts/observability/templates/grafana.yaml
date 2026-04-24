@@ -55,6 +55,12 @@ metadata:
     app.kubernetes.io/part-of: kube-llmops
 spec:
   replicas: 1
+  # Grafana 12 keeps an exclusive lock on /var/lib/grafana/unified-search/bleve/*
+  # Two pods on the same ReadWriteOnce PVC fight for the index — rolling updates
+  # cause the new pod to crash-loop until the old one terminates. Force Recreate
+  # so old pod is removed before new one boots.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: grafana
