@@ -448,7 +448,7 @@
                 "value": [
                   {
                     "title": "Drill down \u2192 L2 Node View",
-                    "url": "/d/gpu-node/gpu-node-view?var-cluster=${cluster}&var-node=${__data.fields.Node}&${__url_time_range}"
+                    "url": "/d/gpu-node/gpu-node-view?${cluster:queryparam}&var-node=${__data.fields.Node}&${__url_time_range}"
                   }
                 ]
               }

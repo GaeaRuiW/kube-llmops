@@ -286,6 +286,31 @@ def test_l4_drills_to_l3():
     assert "/d/gpu-gpu/" in content, "L4 Allocation table should link back to L3 per GPU"
 
 
+@pytest.mark.parametrize("uid", TIERS.keys())
+def test_drill_down_urls_use_queryparam_for_variables(uid):
+    """Drill-down URLs must use `${varname:queryparam}` (not `var-X=${varname}`)
+    for dashboard variables.
+
+    `${cluster}` in multi-select serializes as `{kube-llmops}` (with braces)
+    or `.+` (the allValue) — neither a valid value when the receiving dashboard
+    parses its var-cluster= query param. The :queryparam format emits
+    `var-cluster=kube-llmops` correctly (and handles multi-value by repeating
+    the param).
+
+    Field references `${__data.fields.X}` are single scalar values per row
+    and MAY stay as `var-X=${__data.fields.X}`.
+    """
+    content = _dashboard_content(uid)
+    variables = ["cluster", "node", "gpu", "namespace", "pod"]
+    for v in variables:
+        # forbidden: `var-cluster=${cluster}` etc. (dashboard var, not field ref)
+        bad = f"var-{v}=$" + "{" + v + "}"
+        assert bad not in content, (
+            f"{uid}: drill-down URL still uses `{bad}` — multi-select variables "
+            f"must use `${{{v}:queryparam}}` instead"
+        )
+
+
 def test_all_tiers_have_gpu_tag():
     for uid in TIERS:
         with open(DASHBOARDS_DIR / f"{uid}.json") as f:
