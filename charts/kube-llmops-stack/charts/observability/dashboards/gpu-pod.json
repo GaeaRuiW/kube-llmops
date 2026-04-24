@@ -28,7 +28,7 @@
       "targetBlank": false,
       "title": "\u2190 L1 Cluster",
       "type": "link",
-      "url": "/d/gpu-cluster/gpu-l1-cluster-overview?var-cluster=${cluster}&${__url_time_range}"
+      "url": "/d/gpu-cluster/gpu-l1-cluster-overview?${cluster:queryparam}&${__url_time_range}"
     },
     {
       "asDropdown": true,
@@ -584,7 +584,7 @@
                 "value": [
                   {
                     "title": "Drill down \u2192 L3 Single GPU View",
-                    "url": "/d/gpu-gpu/gpu-single-gpu-view?var-cluster=${cluster}&var-node=${__data.fields.Node}&var-gpu=${__data.fields.UUID}&${__url_time_range}"
+                    "url": "/d/gpu-gpu/gpu-single-gpu-view?${cluster:queryparam}&var-node=${__data.fields.Node}&var-gpu=${__data.fields.UUID}&${__url_time_range}"
                   }
                 ]
               }

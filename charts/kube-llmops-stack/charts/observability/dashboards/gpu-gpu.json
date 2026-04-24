@@ -28,7 +28,7 @@
       "targetBlank": false,
       "title": "\u2190 L2 Node",
       "type": "link",
-      "url": "/d/gpu-node/gpu-node-view?var-cluster=${cluster}&var-node=${node}&${__url_time_range}"
+      "url": "/d/gpu-node/gpu-node-view?${cluster:queryparam}&${node:queryparam}&${__url_time_range}"
     },
     {
       "asDropdown": true,
@@ -708,7 +708,7 @@
                 "value": [
                   {
                     "title": "Drill down \u2192 L4 Pod View",
-                    "url": "/d/gpu-pod/gpu-pod-view?var-cluster=${cluster}&var-namespace=${__data.fields.Namespace}&var-pod=${__data.fields.Pod}&${__url_time_range}"
+                    "url": "/d/gpu-pod/gpu-pod-view?${cluster:queryparam}&var-namespace=${__data.fields.Namespace}&var-pod=${__data.fields.Pod}&${__url_time_range}"
                   }
                 ]
               }
