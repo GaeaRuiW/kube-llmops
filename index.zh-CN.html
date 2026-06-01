@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>kube-llmops - Kubernetes 原生 LLMOps 平台</title>
+  <meta name="description" content="一条命令在 Kubernetes 上部署、管理、监控并优化你的整个 LLM 基础设施">
+  <style>
+    :root { --primary: #326ce5; --accent: #10b981; --dark: #0f172a; --gray: #64748b; --light: #f8fafc; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: var(--dark); line-height: 1.6; }
+    .hero { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: white; padding: 100px 20px; text-align: center; }
+    .hero h1 { font-size: 3rem; margin-bottom: 20px; }
+    .hero h1 span { color: var(--accent); }
+    .hero p { font-size: 1.2rem; color: #94a3b8; max-width: 700px; margin: 0 auto 30px; }
+    .btn { display: inline-block; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 5px; transition: all 0.2s; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: #2554b8; }
+    .btn-secondary { background: transparent; color: white; border: 2px solid var(--gray); }
+    .btn-secondary:hover { border-color: white; }
+    .section { padding: 80px 20px; max-width: 1100px; margin: 0 auto; }
+    .section h2 { font-size: 2rem; margin-bottom: 40px; text-align: center; }
+    .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
+    .feature { background: var(--light); padding: 30px; border-radius: 12px; border: 1px solid #e2e8f0; }
+    .feature h3 { font-size: 1.2rem; margin-bottom: 12px; color: var(--primary); }
+    .feature p { color: var(--gray); }
+    .badge-row { text-align: center; margin: 20px 0; }
+    .badge-row img { height: 24px; margin: 3px; }
+    .footer { text-align: center; padding: 40px; color: var(--gray); border-top: 1px solid #e2e8f0; }
+    .cmd { background: #1e293b; color: #e2e8f0; padding: 20px; border-radius: 8px; font-family: monospace; font-size: 0.9rem; margin: 20px 0; }
+    .cmd .prompt { color: var(--accent); }
+    @media (max-width: 600px) { .hero h1 { font-size: 2rem; } }
+  </style>
+</head>
+<body>
+  <section class="hero">
+    <div class="badge-row">
+      <img src="https://img.shields.io/github/stars/GaeaRuiW/kube-llmops?style=flat-square" alt="Stars">
+      <img src="https://img.shields.io/badge/kubernetes-1.28+-blue?style=flat-square" alt="K8s">
+      <img src="https://img.shields.io/github/license/GaeaRuiW/kube-llmops?style=flat-square" alt="License">
+      <img src="https://img.shields.io/github/v/release/GaeaRuiW/kube-llmops?style=flat-square" alt="Release">
+    </div>
+    <h1>kube<span>-llmops</span></h1>
+    <p>Kubernetes 原生 LLMOps 平台 — 一条命令部署、管理、监控并优化你的整个 LLM 基础设施</p>
+    <div>
+      <a href="https://github.com/GaeaRuiW/kube-llmops" class="btn btn-primary">GitHub →</a>
+      <a href="https://github.com/GaeaRuiW/kube-llmops#%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B" class="btn btn-secondary">快速开始</a>
+    </div>
+  </section>
+
+  <section class="section" id="features">
+    <h2>🚀 一站式 LLM 基础设施</h2>
+    <div class="features">
+      <div class="feature"><h3>🧠 模型推理</h3><p>vLLM、llama.cpp、TEI — 根据模型名称自动选择推理引擎，开箱即用。</p></div>
+      <div class="feature"><h3>🛠️ kubectl 插件</h3><p>15+ 命令式操作：deploy、list、scale、canary、logs、finetune、rag 等。</p></div>
+      <div class="feature"><h3>🔑 AI 网关</h3><p>LiteLLM 统一 OpenAI 兼容 API、Key 管理、速率限制、团队预算控制。</p></div>
+      <div class="feature"><h3>📊 可观测性</h3><p>11 个 Grafana 面板 + 8 条告警规则 + Langfuse v3 全链路 LLM 调用追踪。</p></div>
+      <div class="feature"><h3>⚡ 自动扩缩</h3><p>KEDA 根据队列深度/TTFT/TPOT 自动扩缩，支持规模到零。</p></div>
+      <div class="feature"><h3>🔒 企业级安全</h3><p>Keycloak SSO、LLM-Guard Prompt 注入防护、NetworkPolicy 网络隔离。</p></div>
+      <div class="feature"><h3>📚 RAG 基础设施</h3><p>Dify + pgvector + TEI 嵌入/重排序 + Ragas 评估 + 质量门控。</p></div>
+      <div class="feature"><h3>🎯 模型微调</h3><p>LLaMA-Factory LoRA/QLoRA/Full + Argo Workflows 流水线 + MLflow 追踪。</p></div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <p>kube-llmops — Apache 2.0 开源许可</p>
+    <p style="margin-top:10px">
+      <a href="https://github.com/GaeaRuiW/kube-llmops/discussions">讨论区</a> ·
+      <a href="https://github.com/GaeaRuiW/kube-llmops/issues">Issue</a> ·
+      <a href="https://github.com/GaeaRuiW/kube-llmops/blob/main/CONTRIBUTING.md">贡献指南</a>
+    </p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>kube-llmops - Kubernetes-native LLMOps Platform</title>
+  <meta name="description" content="Deploy, manage, monitor, and optimize your entire LLM infrastructure on Kubernetes with one command.">
+  <style>
+    :root { --primary: #326ce5; --accent: #10b981; --dark: #0f172a; --gray: #64748b; --light: #f8fafc; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: var(--dark); line-height: 1.6; }
+    .hero { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: white; padding: 100px 20px; text-align: center; }
+    .hero h1 { font-size: 3rem; margin-bottom: 20px; }
+    .hero h1 span { color: var(--accent); }
+    .hero p { font-size: 1.2rem; color: #94a3b8; max-width: 700px; margin: 0 auto 30px; }
+    .btn { display: inline-block; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 5px; transition: all 0.2s; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: #2554b8; }
+    .btn-secondary { background: transparent; color: white; border: 2px solid var(--gray); }
+    .btn-secondary:hover { border-color: white; }
+    .section { padding: 80px 20px; max-width: 1100px; margin: 0 auto; }
+    .section h2 { font-size: 2rem; margin-bottom: 40px; text-align: center; }
+    .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
+    .feature { background: var(--light); padding: 30px; border-radius: 12px; border: 1px solid #e2e8f0; }
+    .feature h3 { font-size: 1.2rem; margin-bottom: 12px; color: var(--primary); }
+    .feature p { color: var(--gray); }
+    .badge-row { text-align: center; margin: 20px 0; }
+    .badge-row img { height: 24px; margin: 3px; }
+    .footer { text-align: center; padding: 40px; color: var(--gray); border-top: 1px solid #e2e8f0; }
+    .cmd { background: #1e293b; color: #e2e8f0; padding: 20px; border-radius: 8px; font-family: monospace; font-size: 0.9rem; margin: 20px 0; }
+    .cmd .prompt { color: var(--accent); }
+    @media (max-width: 600px) { .hero h1 { font-size: 2rem; } }
+  </style>
+</head>
+<body>
+  <section class="hero">
+    <div class="badge-row">
+      <img src="https://img.shields.io/github/stars/GaeaRuiW/kube-llmops?style=flat-square" alt="Stars">
+      <img src="https://img.shields.io/badge/kubernetes-1.28+-blue?style=flat-square" alt="K8s">
+      <img src="https://img.shields.io/github/license/GaeaRuiW/kube-llmops?style=flat-square" alt="License">
+      <img src="https://img.shields.io/github/v/release/GaeaRuiW/kube-llmops?style=flat-square" alt="Release">
+    </div>
+    <h1>kube<span>-llmops</span></h1>
+    <p>Kubernetes-native LLMOps Platform — Deploy, manage, monitor, and optimize your entire LLM infrastructure with <strong>one command</strong>.</p>
+    <div>
+      <a href="https://github.com/GaeaRuiW/kube-llmops" class="btn btn-primary">GitHub →</a>
+      <a href="#quickstart" class="btn btn-secondary">Quick Start</a>
+    </div>
+  </section>
+
+  <section class="section" id="features">
+    <h2>🚀 What's Inside</h2>
+    <div class="features">
+      <div class="feature"><h3>🧠 Model Serving</h3><p>vLLM, llama.cpp, TEI — auto-selected based on model format. Engine auto-detection from source name.</p></div>
+      <div class="feature"><h3>🛠️ kubectl CLI Plugin</h3><p>15+ imperative commands: deploy, list, scale, canary, logs, test, finetune, rag, migrate and more.</p></div>
+      <div class="feature"><h3>🔑 AI Gateway</h3><p>LiteLLM unified API, key management, rate limiting, budget control per team.</p></div>
+      <div class="feature"><h3>📊 Observability</h3><p>11 Grafana dashboards + 8 alert rules + Langfuse v3 LLM tracing with full prompt visibility.</p></div>
+      <div class="feature"><h3>⚡ KEDA Autoscaling</h3><p>Scale based on queue depth, TTFT P95, TPOT P95. Supports scale-to-zero with fallback.</p></div>
+      <div class="feature"><h3>🔒 Enterprise Security</h3><p>Keycloak SSO, LLM-Guard prompt injection defense, NetworkPolicy isolation.</p></div>
+      <div class="feature"><h3>📚 RAG Infrastructure</h3><p>Dify platform + pgvector + TEI embedding/reranking + Ragas evaluation + quality gate.</p></div>
+      <div class="feature"><h3>🎯 Fine-tuning</h3><p>LLaMA-Factory LoRA/QLoRA/Full + Argo Workflows pipeline + MLflow tracking.</p></div>
+    </div>
+  </section>
+
+  <section class="section" id="quickstart">
+    <h2>⚡ Quick Start</h2>
+    <div class="cmd">
+      <span class="prompt">$</span> helm install kube-llmops charts/kube-llmops-stack \<br>
+      &nbsp;&nbsp;-f charts/kube-llmops-stack/values-single-node.yaml \<br>
+      &nbsp;&nbsp;--set global.nodePort.enabled=true
+      <br><br>
+      <span class="prompt">$</span> curl http://litellm.llmops.local/v1/chat/completions \<br>
+      &nbsp;&nbsp;-H "Authorization: Bearer sk-kube-llmops-dev" \<br>
+      &nbsp;&nbsp;-d '{"model":"qwen2-5-0-5b","messages":[{"role":"user","content":"Hello!"}]}'
+    </div>
+    <p style="text-align:center;margin-top:20px">
+      <a href="https://github.com/GaeaRuiW/kube-llmops#readme" class="btn btn-primary">📖 Full Documentation</a>
+    </p>
+  </section>
+
+  <footer class="footer">
+    <p>kube-llmops — Apache 2.0 Licensed</p>
+    <p style="margin-top:10px">
+      <a href="https://github.com/GaeaRuiW/kube-llmops/discussions">Discussions</a> ·
+      <a href="https://github.com/GaeaRuiW/kube-llmops/issues">Issues</a> ·
+      <a href="https://github.com/GaeaRuiW/kube-llmops/blob/main/CONTRIBUTING.md">Contributing</a>
+    </p>
+  </footer>
+</body>
+</html>
