@@ -8,8 +8,8 @@
 {{- end }}
 
 {{- range $idx, $model := $models }}
-{{- $engine := include "kube-llmops.resolveEngine" $model | trim }}
-{{- if or (eq $engine "vllm") (eq $engine "llamacpp") }}
+{{- $engine := include "kube-llmops.resolveEngine" (dict "model" $model "global" $.Values.global) | trim }}
+{{- if or (eq $engine "vllm") (eq $engine "sglang") (eq $engine "chitu") (eq $engine "llamacpp") }}
 
 {{/* Per-engine config */}}
 {{- $engineCfg := index $.Values.engines $engine | default dict }}
@@ -89,21 +89,25 @@ spec:
         activationThreshold: "1"
       {{- end }}
     {{- end }}
-    {{/* Trigger 2: TTFT P95 (vLLM only) */}}
-    {{- if and (eq $engine "vllm") (($globalTriggers.ttftP95).enabled | default false) }}
+    {{/* Trigger 2: TTFT P95 (vLLM and SGLang) */}}
+    {{- if and (or (eq $engine "vllm") (eq $engine "sglang")) (($globalTriggers.ttftP95).enabled | default false) }}
+    {{- $ttftMetric := "vllm:time_to_first_token_seconds_bucket" }}
+    {{- if eq $engine "sglang" }}{{- $ttftMetric = "sglang:time_to_first_token_seconds_bucket" }}{{- end }}
     - type: prometheus
       metadata:
         serverAddress: {{ $promAddr }}
-        query: histogram_quantile(0.95, rate(vllm:time_to_first_token_seconds_bucket{{ "{" }}model_name="{{ $model.name }}"{{ "}" }}[{{ $ttftWindow }}])) or vector(0)
+        query: histogram_quantile(0.95, rate({{ $ttftMetric }}{{ "{" }}model_name="{{ $model.name }}"{{ "}" }}[{{ $ttftWindow }}])) or vector(0)
         threshold: {{ $ttftThreshold | quote }}
         metricName: ttft_p95_{{ $model.name }}
     {{- end }}
-    {{/* Trigger 3: TPOT P95 (vLLM only) */}}
-    {{- if and (eq $engine "vllm") (($globalTriggers.tpotP95).enabled | default false) }}
+    {{/* Trigger 3: TPOT P95 (vLLM and SGLang) */}}
+    {{- if and (or (eq $engine "vllm") (eq $engine "sglang")) (($globalTriggers.tpotP95).enabled | default false) }}
+    {{- $tpotMetric := "vllm:time_per_output_token_seconds_bucket" }}
+    {{- if eq $engine "sglang" }}{{- $tpotMetric = "sglang:time_per_output_token_seconds_bucket" }}{{- end }}
     - type: prometheus
       metadata:
         serverAddress: {{ $promAddr }}
-        query: histogram_quantile(0.95, rate(vllm:time_per_output_token_seconds_bucket{{ "{" }}model_name="{{ $model.name }}"{{ "}" }}[{{ $tpotWindow }}])) or vector(0)
+        query: histogram_quantile(0.95, rate({{ $tpotMetric }}{{ "{" }}model_name="{{ $model.name }}"{{ "}" }}[{{ $tpotWindow }}])) or vector(0)
         threshold: {{ $tpotThreshold | quote }}
         metricName: tpot_p95_{{ $model.name }}
     {{- end }}

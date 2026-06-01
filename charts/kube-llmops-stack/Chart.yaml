@@ -25,10 +25,22 @@ dependencies:
     condition: vllm.enabled
     tags:
       - model-serving
+  - name: sglang
+    version: 1.0.0
+    repository: "file://charts/sglang"
+    condition: sglang.enabled
+    tags:
+      - model-serving
   - name: llamacpp
     version: 1.0.0
     repository: "file://charts/llamacpp"
     condition: llamacpp.enabled
+    tags:
+      - model-serving
+  - name: chitu
+    version: 1.0.0
+    repository: "file://charts/chitu"
+    condition: chitu.enabled
     tags:
       - model-serving
   - name: tei

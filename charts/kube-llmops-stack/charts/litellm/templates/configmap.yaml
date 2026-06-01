@@ -1,6 +1,6 @@
 {{/*
 Generate LiteLLM config from models list.
-Maps each model to its internal vLLM/llamacpp/TEI service endpoint.
+Maps each model to its internal vLLM/SGLang/Chitu/llamacpp/TEI service endpoint.
 Supports global.models (unified list) or per-subchart models + embeddingModels.
 */}}
 apiVersion: v1
@@ -17,13 +17,19 @@ data:
     {{/* --- Global models: auto-detect engine + model type --- */}}
     {{- if and .Values.global .Values.global.models }}
     {{- range $idx, $model := .Values.global.models }}
-      {{- $engine := include "kube-llmops.resolveEngine" $model | trim }}
+      {{- $engine := include "kube-llmops.resolveEngine" (dict "model" $model "global" $.Values.global) | trim }}
       {{- $modelType := include "kube-llmops.resolveModelType" $model | trim }}
       {{- $port := "8000" }}
       {{- $prefix := "vllm" }}
       {{- $litellmPrefix := "openai" }}
       {{- $apiSuffix := "/v1" }}
-      {{- if eq $engine "llamacpp" }}
+      {{- if eq $engine "sglang" }}
+        {{- $port = "30000" }}
+        {{- $prefix = "sglang" }}
+      {{- else if eq $engine "chitu" }}
+        {{- $port = "21002" }}
+        {{- $prefix = "chitu" }}
+      {{- else if eq $engine "llamacpp" }}
         {{- $port = "8080" }}
         {{- $prefix = "llamacpp" }}
       {{- else if eq $engine "tei" }}
@@ -75,7 +81,7 @@ data:
     {{/* --- Legacy: per-subchart models + embeddingModels --- */}}
     {{- else }}
     {{- range $idx, $model := .Values.models }}
-      {{- $engine := include "kube-llmops.resolveEngine" $model | trim }}
+      {{- $engine := include "kube-llmops.resolveEngine" (dict "model" $model "global" $.Values.global) | trim }}
       {{- $port := "8000" }}
       {{- $prefix := "vllm" }}
       {{- if eq $engine "llamacpp" }}

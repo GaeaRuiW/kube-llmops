@@ -1,0 +1,87 @@
+# SGLang sub-chart default values
+# These are overridden by the parent chart's models[] entries
+
+enabled: true
+
+# Model defaults (typically overridden per-model from parent)
+model:
+  name: ""
+  source: ""
+  replicas: 1
+  resources:
+    gpu: 1
+    memory: 16Gi
+    cpu: 4
+  engineArgs: {}
+
+# SGLang container image
+image:
+  repository: lmsysorg/sglang
+  tag: latest-runtime
+  pullPolicy: IfNotPresent
+
+# Service
+service:
+  type: ClusterIP
+  port: 30000
+  nodePort: null              # Set when service.type=NodePort, e.g. 30800
+
+# Probes — tuned for LLM model loading (typically 1-10 min)
+# For very large models (70B+), increase via --set sglang.livenessProbe.initialDelaySeconds=600
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 30000
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 60     # ~10 min total (30s + 60*10s)
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 30000
+  initialDelaySeconds: 240  # 4 min grace for model download + load
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 20     # ~14 min total (240s + 20*30s)
+
+# Model loader init container
+modelLoader:
+  enabled: true
+  image:
+    repository: python
+    tag: "3.13-slim"
+    pullPolicy: IfNotPresent
+  # HuggingFace token for gated models (Llama, Gemma, etc.)
+  # Usually passed from global.hfToken; set here for per-subchart override
+  hfToken: ""
+
+# Model cache volume
+modelCache:
+  enabled: true
+  storageClass: ""
+  size: 50Gi
+  # Use existing PVC (if set, storageClass and size are ignored)
+  existingClaim: ""
+
+# GPU tolerations (applied automatically when gpu > 0)
+gpuToleration:
+  key: nvidia.com/gpu
+  operator: Exists
+  effect: NoSchedule
+
+# Unified memory GPU support (NVIDIA GB10, Grace Blackwell)
+# When enabled:
+#   - Runs drop-cache init container (privileged) to free page cache before model load
+#   - Omits container memory limit (cgroup must not restrict unified memory)
+# Leave DISABLED for discrete GPU systems (A100, H100, RTX, etc.)
+unifiedMemory:
+  enabled: false
+
+# Custom CA certificates (for corporate proxies / self-signed certs)
+# Mount a ConfigMap containing CA certs into containers
+customCACert:
+  enabled: false
+  configMapName: ""           # Name of ConfigMap with CA cert files
+  mountPath: /usr/local/share/ca-certificates/custom

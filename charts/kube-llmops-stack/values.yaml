@@ -16,13 +16,27 @@ global:
     security:
       enabled: false      # LLM-Guard, NetworkPolicy + tenant dashboard
 
+# -- Default LLM inference engine (used when auto-detection finds no MoE/VLM pattern)
+# Options: vllm, sglang, chitu
+# MoE models (DeepSeek-V3/R1, Qwen3-MoE, Mixtral, GLM-4.5+) auto-select sglang.
+# VLM models (*-VL-*, *-vision*) auto-select sglang.
+# Set to "sglang" to use SGLang for all standard LLMs by default.
+defaultLLMEngine: vllm
+
 # -- Model definitions
 # Each model will be deployed with the auto-selected or explicitly specified engine.
+# Engine auto-detection uses a capability-based approach:
+#   1. Explicit engine: field overrides all
+#   2. Source name: GGUF → llamacpp, embedding/reranker → tei
+#   3. features tags: domestic-gpu → chitu, moe → sglang, vlm → sglang
+#   4. Source auto-detect: known MoE/VLM patterns → sglang
+#   5. Default: global.defaultLLMEngine (above)
 # Example:
 #   models:
 #     - name: qwen2-5-0-5b
 #       source: Qwen/Qwen2.5-0.5B-Instruct
-#       engine: auto              # auto | vllm | llamacpp | sglang | tei
+#       engine: auto              # auto | vllm | sglang | llamacpp | chitu | tei
+#       features: []              # Capability hints: moe, vlm, domestic-gpu
 #       replicas: 1
 #       resources:
 #         gpu: 1
@@ -72,6 +86,48 @@ vllm:
   customCACert:
     enabled: false
     configMapName: ""         # Pre-created ConfigMap with CA cert files
+    mountPath: /usr/local/share/ca-certificates/custom
+
+# -- SGLang engine configuration (sub-chart)
+# Auto-selected for MoE models (DeepSeek-V3/R1, Qwen3-MoE, Mixtral, GLM-4.5+)
+# and VLM models (*-VL-*, *-vision*). Also selected via features: [moe] or [vlm].
+sglang:
+  enabled: true
+  models: []
+  image:
+    repository: lmsysorg/sglang
+    tag: latest-runtime
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 30000
+  modelLoader:
+    enabled: true
+    hfToken: ""
+  modelCache:
+    enabled: true
+    storageClass: ""
+    size: 50Gi
+    existingClaim: ""
+  readinessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 60
+  livenessProbe:
+    initialDelaySeconds: 240
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 20
+  gpuToleration:
+    key: nvidia.com/gpu
+    operator: Exists
+    effect: NoSchedule
+  unifiedMemory:
+    enabled: false
+  customCACert:
+    enabled: false
+    configMapName: ""
     mountPath: /usr/local/share/ca-certificates/custom
 
 # -- llama.cpp engine configuration (sub-chart, for GGUF models)
@@ -135,6 +191,47 @@ tei:
     key: nvidia.com/gpu
     operator: Exists
     effect: NoSchedule
+
+# -- Chitu (赤兔) engine configuration (sub-chart)
+# Auto-selected via features: [domestic-gpu] for Ascend/Hygon/Muxi/MooreThreads GPUs.
+# Best for: DeepSeek, Qwen3, GLM models on domestic hardware.
+chitu:
+  enabled: true
+  models: []
+  image:
+    repository: qingcheng-ai-cn-beijing.cr.volces.com/public/chitu-nvidia_arch_90
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 21002
+  modelLoader:
+    enabled: true
+    hfToken: ""
+  modelCache:
+    enabled: true
+    storageClass: ""
+    size: 50Gi
+    existingClaim: ""
+  readinessProbe:
+    initialDelaySeconds: 60
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 60
+  livenessProbe:
+    initialDelaySeconds: 300
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 20
+  gpuToleration:
+    key: nvidia.com/gpu
+    operator: Exists
+    effect: NoSchedule
+  unifiedMemory:
+    enabled: false
+  chituConfig:
+    useCudaGraph: true
+    softFp8: false
 
 # -- AI Gateway (LiteLLM)
 litellm:

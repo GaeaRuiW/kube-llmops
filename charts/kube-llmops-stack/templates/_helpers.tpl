@@ -50,26 +50,42 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
-Resolve engine for a model based on its source name.
-Input: a model dict with .source (required) and .engine (optional).
-Output: one of "vllm", "tei", "llamacpp".
+Resolve engine for a model based on its source name, feature tags, and defaults.
+
+Input (new API — preferred):
+  dict "model" $model "global" $.Values.global
+Input (legacy — backward compatible, defaults fallback to "vllm"):
+  $model   (a model dict with .source, .engine, .features)
+
+Output: one of "vllm", "sglang", "llamacpp", "chitu", "tei".
 
 Priority:
   1. Explicit .engine value (if set and not "" or "auto") — user override
-  2. Heuristic detection from .source name patterns
-  3. Fallback: vllm
+  2. Source-based: GGUF/GUFF → llamacpp, embedding/reranker → tei
+  3. Feature tag: domestic-gpu → chitu, moe → sglang, vlm → sglang
+  4. Source auto-detect: known MoE patterns → sglang, known VLM patterns → sglang
+  5. Fallback: global.defaultLLMEngine (default "vllm")
 
 Usage:
-  {{- $engine := include "kube-llmops.resolveEngine" $model | trim -}}
+  {{- $engine := include "kube-llmops.resolveEngine" (dict "model" $model "global" $.Values.global) | trim -}}
 */}}
 {{- define "kube-llmops.resolveEngine" -}}
-{{- $engine := default "" .engine -}}
+{{- $model := . -}}
+{{- $global := dict -}}
+{{- if hasKey . "model" -}}
+  {{- $model = .model -}}
+  {{- $global = .global | default dict -}}
+{{- end -}}
+{{- $engine := default "" $model.engine -}}
 {{- if and (ne $engine "") (ne $engine "auto") -}}
   {{- $engine -}}
 {{- else -}}
-  {{- $src := default "" .source | lower -}}
+  {{- $src := default "" $model.source | lower -}}
+  {{- $features := default list $model.features -}}
+  {{/* 1. GGUF/GUFF → llamacpp */}}
   {{- if or (contains "gguf" $src) (hasSuffix "-gguf" $src) (contains "guff" $src) -}}
     llamacpp
+  {{/* 2. Embedding/Reranker → tei */}}
   {{- else if or (contains "rerank" $src) -}}
     tei
   {{- else if or
@@ -78,14 +94,81 @@ Usage:
     (contains "/gte-" $src)
     (contains "minilm" $src)
     (contains "/jina-embed" $src)
+    (contains "jina-embeddings" $src)
     (contains "/nomic-embed" $src)
+    (contains "nomic-embed" $src)
     (contains "/all-mpnet" $src)
     (contains "embedding" $src)
   -}}
     tei
+  {{/* 3. Feature: domestic-gpu → chitu */}}
+  {{- else if has "domestic-gpu" $features -}}
+    chitu
+  {{/* 4. Feature: moe → sglang */}}
+  {{- else if has "moe" $features -}}
+    sglang
+  {{/* 5. Feature: vlm → sglang */}}
+  {{- else if has "vlm" $features -}}
+    sglang
+  {{/* 6. Auto-detect MoE from source → sglang */}}
+  {{- else if eq (include "kube-llmops.isMoESource" $src) "true" -}}
+    sglang
+  {{/* 7. Auto-detect VLM from source → sglang */}}
+  {{- else if eq (include "kube-llmops.isVLMSource" $src) "true" -}}
+    sglang
+  {{/* 8. Default: global.defaultLLMEngine or "vllm" */}}
   {{- else -}}
-    vllm
+    {{- $global.defaultLLMEngine | default "vllm" -}}
   {{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Detect MoE architecture from a lowercased source name.
+Returns "true" or "false" (string).
+
+Known MoE families:
+  - DeepSeek V3/V4/R1 (not distill variants, which are dense)
+  - Qwen3 MoE: *-NNNb-aNNNb pattern (e.g., qwen3-235b-a22b)
+  - Mixtral
+  - GLM 4.5+ (4.5, 4.6, 4.7, 5, 5.1 — MoE; but glm-4-32b is dense)
+  - Kimi K2+
+*/}}
+{{- define "kube-llmops.isMoESource" -}}
+{{- $s := . -}}
+{{- if and (or (contains "deepseek-v3" $s) (contains "deepseek-v4" $s) (contains "deepseek-r1" $s)) (not (contains "distill" $s)) -}}
+true
+{{- else if regexMatch "qwen3-[0-9]+b-a[0-9]+b" $s -}}
+true
+{{- else if contains "mixtral" $s -}}
+true
+{{- else if or (contains "glm-4." $s) (contains "glm-5" $s) -}}
+true
+{{- else if contains "kimi-k2" $s -}}
+true
+{{- else -}}
+false
+{{- end -}}
+{{- end -}}
+
+{{/*
+Detect Vision-Language Model from a lowercased source name.
+Returns "true" or "false" (string).
+
+Known VLM patterns:
+  - *-vl-* or *-vl (Qwen2.5-VL-7B, etc.)
+  - *-vlm*
+  - *-vision* (Llama-3.2-Vision, etc.)
+  - GLM *V suffix (glm-4.5v, glm-4.6v, etc.)
+*/}}
+{{- define "kube-llmops.isVLMSource" -}}
+{{- $s := . -}}
+{{- if or (contains "-vl-" $s) (hasSuffix "-vl" $s) (contains "-vlm" $s) (contains "-vision" $s) -}}
+true
+{{- else if regexMatch "glm-[0-9]+\\.[0-9]+v" $s -}}
+true
+{{- else -}}
+false
 {{- end -}}
 {{- end -}}
 

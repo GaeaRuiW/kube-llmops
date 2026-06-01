@@ -1,0 +1,3 @@
+{"created_at_ms":1776954794997,"model":"claude-opus-4-6","session_id":"session-1776954794998-0","type":"session_meta","updated_at_ms":1776954807661,"version":1,"workspace_root":"/home/rui/kube-llmops"}
+{"message":{"blocks":[{"text":"写一行 Python 打印 Hello","type":"text"}],"role":"user"},"type":"message"}
+{"message":{"blocks":[{"text":"```python\nprint(\"Hello\")\n```","type":"text"}],"role":"assistant","usage":{"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"input_tokens":20413,"output_tokens":14}},"type":"message"}

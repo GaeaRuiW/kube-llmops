@@ -7,7 +7,7 @@ It is called from the parent chart with model-specific context.
 {{- $models = .Values.global.models }}
 {{- end }}
 {{- range $idx, $model := $models }}
-{{- $resolvedEngine := include "kube-llmops.resolveEngine" $model | trim }}
+{{- $resolvedEngine := include "kube-llmops.resolveEngine" (dict "model" $model "global" $.Values.global) | trim }}
 {{- if eq $resolvedEngine "vllm" }}
 {{- $resources := default dict $model.resources }}
 {{- $gpu := ternary (int $resources.gpu) 1 (hasKey $resources "gpu") }}

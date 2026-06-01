@@ -3,7 +3,7 @@
 {{- $models = .Values.global.models }}
 {{- end }}
 {{- range $idx, $model := $models }}
-{{- $resolvedEngine := include "kube-llmops.resolveEngine" $model | trim }}
+{{- $resolvedEngine := include "kube-llmops.resolveEngine" (dict "model" $model "global" $.Values.global) | trim }}
 {{- if eq $resolvedEngine "llamacpp" }}
 {{- if and $.Values.modelCache.enabled (not $.Values.modelCache.existingClaim) }}
 ---

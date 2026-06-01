@@ -26,6 +26,14 @@ engines:
     metric: "vllm:num_requests_waiting"
     labelName: model_name           # label key used in the Prometheus metric
     threshold: "2"                  # scale when > 2 requests waiting
+  sglang:
+    metric: "sglang:num_requests_waiting"
+    labelName: model_name
+    threshold: "2"
+  chitu:
+    metric: "chitu:num_requests_waiting"
+    labelName: model_name
+    threshold: "2"
   llamacpp:
     metric: "llamacpp_requests_processing"
     labelName: model                # label key (relabeled from kube-llmops/model)
