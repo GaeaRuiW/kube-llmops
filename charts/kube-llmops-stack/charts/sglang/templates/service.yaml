@@ -4,19 +4,19 @@
 {{- end }}
 {{- range $idx, $model := $models }}
 {{- $resolvedEngine := include "kube-llmops.resolveEngine" (dict "model" $model "global" $.Values.global) | trim }}
-{{- if eq $resolvedEngine "vllm" }}
+{{- if eq $resolvedEngine "sglang" }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: vllm-{{ $model.name }}
+  name: sglang-{{ $model.name }}
   labels:
-    app.kubernetes.io/name: vllm
+    app.kubernetes.io/name: sglang
     app.kubernetes.io/instance: {{ $.Release.Name }}
     app.kubernetes.io/component: model-serving
     app.kubernetes.io/part-of: kube-llmops
     kube-llmops/model: {{ $model.name }}
-    kube-llmops/engine: vllm
+    kube-llmops/engine: sglang
 spec:
   type: {{ $.Values.service.type }}
   ports:
@@ -28,33 +28,8 @@ spec:
       nodePort: {{ $.Values.service.nodePort }}
       {{- end }}
   selector:
-    app.kubernetes.io/name: vllm
+    app.kubernetes.io/name: sglang
     app.kubernetes.io/instance: {{ $.Release.Name }}
     kube-llmops/model: {{ $model.name }}
-{{- if and $model.canary $model.canary.enabled }}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: vllm-{{ $model.name }}-canary
-  labels:
-    app.kubernetes.io/name: vllm
-    app.kubernetes.io/instance: {{ $.Release.Name }}
-    app.kubernetes.io/component: canary
-    app.kubernetes.io/part-of: kube-llmops
-    kube-llmops/model: {{ $model.name }}-canary
-    kube-llmops/engine: vllm
-spec:
-  type: {{ $.Values.service.type }}
-  ports:
-    - port: {{ $.Values.service.port }}
-      targetPort: http
-      protocol: TCP
-      name: http
-  selector:
-    app.kubernetes.io/name: vllm
-    app.kubernetes.io/instance: {{ $.Release.Name }}
-    kube-llmops/model: {{ $model.name }}-canary
-{{- end }}
 {{- end }}
 {{- end }}

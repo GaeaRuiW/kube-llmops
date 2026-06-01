@@ -71,6 +71,8 @@ python -m pytest tests/helm/test_phase5_templates.py -v
 │  or NODE_IP:304xx                                 │
 ├──────────────────────────────────────────────────┤
 │ LiteLLM (Gateway:4000) → vLLM (LLM:8000)        │
+│                        → SGLang (MoE/VLM:30000)  │
+│                        → Chitu (Domestic:21002)   │
 │                        → TEI (Embed:8080)         │
 │                        → TEI (Rerank:8080)        │
 │                        → llama.cpp (GGUF:8080)    │
@@ -145,19 +147,33 @@ global:
 - Dashboards and Prometheus alert groups auto-included/excluded per module
 - Defaults: all modules off; values-single-node.yaml enables `rag: true`
 
-### Engine Auto-Detection
-Models are defined in a single `global.models` list. Engine is auto-detected from source name:
-- `*GGUF*`, `*gguf*`, `*GUFF*` (case-insensitive; `guff` typo-tolerant since v0.5.0) → llamacpp
-- `*rerank*`, `bge-*`, `e5-*`, `*embedding*` → tei
-- everything else → vllm
-- Explicit `engine:` field overrides auto-detection
+### Engine Auto-Detection (Capability-Based)
+Models are defined in a single `global.models` list. Engine is auto-detected via a
+capability-based resolution algorithm (priority order):
+1. **Explicit engine**: `engine: vllm|sglang|llamacpp|chitu|tei` — user override
+2. **Source name (format)**: `*GGUF*`/`*GUFF*` → llamacpp; `*rerank*`/`bge-*`/`embedding` → tei
+3. **Feature tags**: `features: [domestic-gpu]` → chitu; `features: [moe]` → sglang; `features: [vlm]` → sglang
+4. **Source auto-detect (MoE)**: DeepSeek-V3/V4/R1 (not distill), Qwen3-*B-A*B, Mixtral, GLM-4.5+, Kimi-K2+ → sglang
+5. **Source auto-detect (VLM)**: `*-VL-*`, `*-vision*`, GLM-*V → sglang
+6. **Default**: `global.defaultLLMEngine` (default `"vllm"`)
+
+Set `global.defaultLLMEngine: sglang` to use SGLang for all standard LLMs by default.
+
+Implementation: Helm `_helpers.tpl` (`resolveEngine`, `isMoESource`, `isVLMSource`)
+and Go `operator/internal/engine/resolver.go` (`ResolveEngineEx`).
 
 ### Default Engine Images
 - **vLLM**: `vllm/vllm-openai:gemma4-cu130` (custom build — needed for Gemma 4 architecture)
+- **SGLang**: `lmsysorg/sglang:latest-runtime` (production runtime, ~40% smaller)
 - **llama.cpp**: `ghcr.io/ggml-org/llama.cpp:server-cuda-b8672`
+- **Chitu**: `qingcheng-ai-cn-beijing.cr.volces.com/public/chitu-nvidia_arch_90:latest`
 - **TEI**: `ghcr.io/huggingface/text-embeddings-inference:cpu-1.8` (CPU default; GPU tag `1.8` for CUDA)
 
-Override per deployment via `vllm.image.tag` / `llamacpp.image.tag`.
+Override per deployment via `vllm.image.tag` / `sglang.image.tag` / `llamacpp.image.tag` / `chitu.image.tag`.
+
+Chitu image variants for domestic GPUs:
+- Ascend A2: `chitu-ascend_a2:latest`; Ascend A3: `chitu-ascend_a3:latest`
+- Muxi: `chitu-muxi:latest`; NVIDIA arch 80/89: `chitu-nvidia_arch_80_89:latest`
 
 ### Unified Model Distribution
 ```

@@ -150,8 +150,8 @@ data:
     # Add LLM model
     {{- $llmModel := "qwen2-5-0-5b" }}
     {{- range .Values.global.models }}
-    {{- $engine := include "kube-llmops.resolveEngine" . | trim }}
-    {{- if eq $engine "vllm" }}
+    {{- $engine := include "kube-llmops.resolveEngine" (dict "model" . "global" $.Values.global) | trim }}
+    {{- if or (eq $engine "vllm") (eq $engine "sglang") (eq $engine "chitu") }}
     {{- $llmModel = .name }}
     {{- end }}
     {{- end }}

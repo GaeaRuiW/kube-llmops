@@ -28,17 +28,17 @@ global:
     security:
       enabled: false     # enable when LLM-Guard is needed (~6GB RAM)
   models:
-    - name: gemma-4-26b-a4b
-      source: nohurry/gemma-4-26B-A4B-it-heretic-GUFF
-      engine: llamacpp                                    # explicit (optional — auto-detect also handles "GUFF" typo)
-      allowPatterns: "*q4_k_m*"                           # 16.87 GB — fits RTX 3090 (24GB) with KV room
+    - name: qwen3-27b-heretic
+      source: Abiray/Qwen3.6-27B-heretic-ARA-GGUF
+      engine: llamacpp
+      allowPatterns: "*Q4_K_M*"                           # 16 GB — fits RTX 3090 (24GB)
       replicas: 1
       resources:
         gpu: 1
         memory: 24Gi
       engineArgs:
         --jinja: ""                                       # Enable Jinja2 chat templates for tool calling
-        --ctx-size: "163840"                              # 160K context (model supports 256K, limited by 24GB VRAM)
+        --ctx-size: "65536"                               # 64K — safe default, let auto-fitter expand if VRAM allows
     - name: bge-small-en
       source: BAAI/bge-small-en-v1.5
       replicas: 1
@@ -106,6 +106,9 @@ litellm:
   langfuseSecretKey: "sk-lf-kube-llmops"
   rateLimiting:
     enabled: true
+  modelGroupAlias:
+    # Route Anthropic-format model names (used by claw-code, etc.) → local model
+    "anthropic/qwen3-27b-heretic": "qwen3-27b-heretic"
   guardrails:
     presidio:
       enabled: false

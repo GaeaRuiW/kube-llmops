@@ -969,7 +969,8 @@ spec:
             BASE_MODEL_NAME=""
             {{- if and .Values.global .Values.global.models }}
             {{- range .Values.global.models }}
-            {{- if eq (include "kube-llmops.resolveEngine" . | trim) "vllm" }}
+            {{- $ftEngine := include "kube-llmops.resolveEngine" (dict "model" . "global" $.Values.global) | trim }}
+            {{- if or (eq $ftEngine "vllm") (eq $ftEngine "sglang") (eq $ftEngine "chitu") }}
             if [ -z "${BASE_MODEL_NAME}" ]; then
               BASE_MODEL_NAME="{{ .name }}"
             fi

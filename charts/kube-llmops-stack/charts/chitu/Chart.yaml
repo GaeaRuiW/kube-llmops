@@ -1,0 +1,6 @@
+apiVersion: v2
+name: chitu
+description: "Chitu (赤兔) inference engine for kube-llmops — high-performance LLM serving with multi-hardware support"
+type: application
+version: 1.0.0
+appVersion: "0.5.6"

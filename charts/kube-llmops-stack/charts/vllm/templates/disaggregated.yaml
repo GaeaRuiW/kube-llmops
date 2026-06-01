@@ -8,7 +8,7 @@ Prerequisite: Gateway API CRDs must be installed.
 {{- $models = .Values.global.models }}
 {{- end }}
 {{- range $idx, $model := $models }}
-{{- $resolvedEngine := include "kube-llmops.resolveEngine" $model | trim }}
+{{- $resolvedEngine := include "kube-llmops.resolveEngine" (dict "model" $model "global" $.Values.global) | trim }}
 {{- if and (eq $resolvedEngine "vllm") $model.disaggregated $model.disaggregated.enabled }}
 {{- $prefill := $model.disaggregated.prefill }}
 {{- $decode := $model.disaggregated.decode }}

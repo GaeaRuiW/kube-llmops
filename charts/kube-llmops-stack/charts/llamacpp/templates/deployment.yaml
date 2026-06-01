@@ -3,7 +3,7 @@
 {{- $models = .Values.global.models }}
 {{- end }}
 {{- range $idx, $model := $models }}
-{{- $resolvedEngine := include "kube-llmops.resolveEngine" $model | trim }}
+{{- $resolvedEngine := include "kube-llmops.resolveEngine" (dict "model" $model "global" $.Values.global) | trim }}
 {{- if eq $resolvedEngine "llamacpp" }}
 {{- $resources := default dict $model.resources }}
 {{- $gpu := ternary (int $resources.gpu) 0 (hasKey $resources "gpu") }}

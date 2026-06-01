@@ -4,15 +4,15 @@
 {{- end }}
 {{- range $idx, $model := $models }}
 {{- $resolvedEngine := include "kube-llmops.resolveEngine" (dict "model" $model "global" $.Values.global) | trim }}
-{{- if eq $resolvedEngine "tei" }}
+{{- if eq $resolvedEngine "sglang" }}
 {{- if and $.Values.modelCache.enabled (not $.Values.modelCache.existingClaim) }}
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: tei-{{ $model.name }}-cache
+  name: sglang-{{ $model.name }}-cache
   labels:
-    app.kubernetes.io/name: tei
+    app.kubernetes.io/name: sglang
     app.kubernetes.io/instance: {{ $.Release.Name }}
     app.kubernetes.io/part-of: kube-llmops
     kube-llmops/model: {{ $model.name }}

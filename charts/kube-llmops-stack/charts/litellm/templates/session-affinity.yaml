@@ -71,14 +71,17 @@ data:
             endpoints:
               {{- if and .Values.global .Values.global.models }}
               {{- range $model := .Values.global.models }}
-              {{- $engine := include "kube-llmops.resolveEngine" $model | trim }}
-              {{- if eq $engine "vllm" }}
+              {{- $engine := include "kube-llmops.resolveEngine" (dict "model" $model "global" $.Values.global) | trim }}
+              {{- if or (eq $engine "vllm") (eq $engine "sglang") (eq $engine "chitu") }}
+              {{- $saPort := 8000 }}
+              {{- if eq $engine "sglang" }}{{- $saPort = 30000 }}{{- end }}
+              {{- if eq $engine "chitu" }}{{- $saPort = 21002 }}{{- end }}
               - lb_endpoints:
                   - endpoint:
                       address:
                         socket_address:
-                          address: vllm-{{ $model.name }}.{{ $.Release.Namespace }}.svc.cluster.local
-                          port_value: 8000
+                          address: {{ $engine }}-{{ $model.name }}.{{ $.Release.Namespace }}.svc.cluster.local
+                          port_value: {{ $saPort }}
               {{- end }}
               {{- end }}
               {{- end }}
