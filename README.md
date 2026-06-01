@@ -1,8 +1,22 @@
-**English** | [中文](README.zh-CN.md)
+**English** | [中文](README.zh-CN.md) | [🌐 Project Site](https://gaearuiw.github.io/kube-llmops/)
+
+<div align="center">
 
 # kube-llmops
 
-**Kubernetes-native LLMOps Platform** -- Deploy, manage, monitor, and optimize your entire LLM infrastructure with one command.
+[![GitHub Stars](https://img.shields.io/github/stars/GaeaRuiW/kube-llmops?style=flat-square&logo=github)](https://github.com/GaeaRuiW/kube-llmops)
+[![GitHub Forks](https://img.shields.io/github/forks/GaeaRuiW/kube-llmops?style=flat-square)](https://github.com/GaeaRuiW/kube-llmops/fork)
+[![License](https://img.shields.io/github/license/GaeaRuiW/kube-llmops?style=flat-square)](https://github.com/GaeaRuiW/kube-llmops/blob/main/LICENSE)
+[![Release](https://img.shields.io/github/v/release/GaeaRuiW/kube-llmops?style=flat-square&logo=helm)](https://github.com/GaeaRuiW/kube-llmops/releases)
+[![Kubernetes](https://img.shields.io/badge/Kubernetes-1.28+-326CE5?style=flat-square&logo=kubernetes)](https://kubernetes.io)
+[![Go](https://img.shields.io/github/go-mod/go-version/GaeaRuiW/kube-llmops?style=flat-square&logo=go)](https://go.dev)
+[![Helm](https://img.shields.io/badge/Helm-3.x-0F1689?style=flat-square&logo=helm)](https://helm.sh)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](https://github.com/GaeaRuiW/kube-llmops/pulls)
+[![Discuss](https://img.shields.io/badge/chat-discussions-8A2BE2?style=flat-square)](https://github.com/GaeaRuiW/kube-llmops/discussions)
+
+**🏆 The most comprehensive Kubernetes-native LLMOps Platform — One command to deploy, manage, monitor, and optimize your entire LLM infrastructure.**
+
+</div>
 
 > [!NOTE]
 > v1.0.0 released -- the v1.0 trio is complete: **Operator** (LLMPlatform / ModelDeployment / FineTuneRun CRDs) + **kubectl-llmops CLI** (15+ commands, `kubectl llmops <cmd>`) + **Headlamp Dashboard** (Kubernetes UI + `kube-llmops-portal` plugin). See [CHANGELOG](CHANGELOG.md) for details.
@@ -213,4 +227,13 @@ Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## Star History
 
-If you find this project useful, please give it a star!
+If you find this project useful, please give it a star! ⭐
+
+## 🤝 Community
+
+- 💬 [Discussions](https://github.com/GaeaRuiW/kube-llmops/discussions) — Ask questions, share your setups, suggest features
+- 🐛 [Issues](https://github.com/GaeaRuiW/kube-llmops/issues) — Report bugs or request features
+- 📖 [CONTRIBUTING.md](CONTRIBUTING.md) — Guide for first-time contributors
+- 🏷️ Look for [`good first issue`](https://github.com/GaeaRuiW/kube-llmops/labels/good%20first%20issue) and [`help wanted`](https://github.com/GaeaRuiW/kube-llmops/labels/help%20wanted) labels to get started contributing
+
+**We need your help to reach 1,000 stars!** Every star, issue, PR, and discussion helps the project grow. Share kube-llmops with your team, write a blog post, or contribute a feature — all contributions are welcome ❤️

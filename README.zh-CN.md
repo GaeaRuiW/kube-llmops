@@ -1,8 +1,20 @@
-[English](README.md) | **中文**
+[English](README.md) | **中文** | [🌐 项目站点](https://gaearuiw.github.io/kube-llmops/)
+
+<div align="center">
 
 # kube-llmops
 
-**Kubernetes 原生 LLMOps 平台** -- 一条命令部署、管理、监控并优化你的整个 LLM 基础设施。
+[![GitHub Stars](https://img.shields.io/github/stars/GaeaRuiW/kube-llmops?style=flat-square&logo=github)](https://github.com/GaeaRuiW/kube-llmops)
+[![GitHub Forks](https://img.shields.io/github/forks/GaeaRuiW/kube-llmops?style=flat-square)](https://github.com/GaeaRuiW/kube-llmops/fork)
+[![License](https://img.shields.io/github/license/GaeaRuiW/kube-llmops?style=flat-square)](https://github.com/GaeaRuiW/kube-llmops/blob/main/LICENSE)
+[![Release](https://img.shields.io/github/v/release/GaeaRuiW/kube-llmops?style=flat-square&logo=helm)](https://github.com/GaeaRuiW/kube-llmops/releases)
+[![Kubernetes](https://img.shields.io/badge/Kubernetes-1.28+-326CE5?style=flat-square&logo=kubernetes)](https://kubernetes.io)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](https://github.com/GaeaRuiW/kube-llmops/pulls)
+[![Discuss](https://img.shields.io/badge/chat-discussions-8A2BE2?style=flat-square)](https://github.com/GaeaRuiW/kube-llmops/discussions)
+
+**🏆 Kubernetes 原生 LLMOps 平台 — 一条命令部署、管理、监控并优化你的整个 LLM 基础设施。**
+
+</div>
 
 > [!NOTE]
 > v1.0.0 已发布 -- v1.0 规划的三件套全部完成：**Operator**（LLMPlatform / ModelDeployment / FineTuneRun CRD）+ **kubectl-llmops CLI**（15+ 命令，`kubectl llmops <cmd>`）+ **Headlamp 仪表板**（Kubernetes UI + `kube-llmops-portal` 插件）。详见 [CHANGELOG](CHANGELOG.zh-CN.md)。
@@ -219,4 +231,13 @@ kubectl port-forward svc/kube-llmops-langfuse 3001:3000 &
 
 ## Star 历史
 
-如果您觉得本项目对您有帮助，请给我们一个 Star！
+如果您觉得这个项目有用，请给我们一个 Star！⭐
+
+## 🤝 社区
+
+- 💬 [讨论区](https://github.com/GaeaRuiW/kube-llmops/discussions) — 提问、分享你的部署方案、建议新功能
+- 🐛 [Issues](https://github.com/GaeaRuiW/kube-llmops/issues) — 报告 Bug 或请求功能
+- 📖 [贡献指南](CONTRIBUTING.zh-CN.md) — 首次贡献者指南
+- 🏷️ 关注 [`good first issue`](https://github.com/GaeaRuiW/kube-llmops/labels/good%20first%20issue) 和 [`help wanted`](https://github.com/GaeaRuiW/kube-llmops/labels/help%20wanted) 标签开始贡献
+
+**我们需要你的帮助来达到 1,000 Stars！** 每一个 Star、Issue、PR 和讨论都在帮助项目成长。分享 kube-llmops 给你的团队，写一篇博客，或贡献一个功能 — 所有贡献都受欢迎 ❤️
