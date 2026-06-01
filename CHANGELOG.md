@@ -7,6 +7,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-05-27
+
+> **Multi-Engine:** Capability-based engine selection with SGLang + Chitu support.
+
+### Added
+
+#### SGLang Engine
+- New `sglang` subchart: `lmsysorg/sglang:latest-runtime`, port 30000, OpenAI-compatible `/v1`
+- Auto-selected for MoE models (DeepSeek-V3/V4/R1, Qwen3-MoE, Mixtral, GLM-4.5+, Kimi-K2+)
+- Auto-selected for VLM models (`*-VL-*`, `*-vision*`, GLM-*V)
+- RadixAttention support via `prefixCaching: true`
+- KEDA ScaledObject + TTFT/TPOT P95 triggers
+
+#### Chitu (赤兔) Engine
+- New `chitu` subchart: Tsinghua Chitu inference engine, port 21002, OpenAI-compatible `/v1`
+- Multi-hardware: NVIDIA (arch 80/89/90), Ascend (A2/A3), Muxi, Hygon, MooreThreads
+- Selected via `features: [domestic-gpu]` tag
+- Hydra config: `chituConfig.useCudaGraph`, `chituConfig.softFp8`
+- torchrun-based multi-GPU via `--nproc_per_node`
+
+#### Capability-Based Engine Resolution
+- `features` field on model definitions: `moe`, `vlm`, `domestic-gpu`
+- Source name auto-detection: MoE patterns → sglang, VLM patterns → sglang
+- `global.defaultLLMEngine` setting to switch default (vllm, sglang, or chitu)
+- Go: `ResolveEngineEx()` with features + defaultEngine params, `IsMoESource()`, `IsVLMSource()`
+- Helm: `resolveEngine` updated with backward-compatible new API `(dict "model" $model "global" $.Values.global)`
+
+### Changed
+- LiteLLM configmap: routes to 5 engines (vllm:8000, sglang:30000, chitu:21002, llamacpp:8080, tei:8080)
+- KEDA: ScaledObject for all 5 engines, TTFT/TPOT P95 triggers for SGLang
+- Session affinity: Envoy endpoints for all LLM engines
+- Dify/Finetune templates: recognise sglang/chitu as LLM engines
+- All `resolveEngine` call sites pass global context for `defaultLLMEngine`
+
 ## [1.0.0] - 2026-04-23
 
 > **Milestone:** Phase 6 complete — Operator + CLI + Dashboard all GA.
