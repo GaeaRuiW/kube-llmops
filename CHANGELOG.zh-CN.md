@@ -7,6 +7,40 @@
 本文件格式基于 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)，
 并且本项目遵循 [语义化版本](https://semver.org/spec/v2.0.0.html) 规范。
 
+## [1.1.0] - 2026-05-27
+
+> **多引擎：** 基于能力标签的引擎选择 + SGLang + Chitu（赤兔）支持。
+
+### 新增
+
+#### SGLang 引擎
+- 新增 `sglang` subchart：`lmsysorg/sglang:latest-runtime`，端口 30000，兼容 OpenAI `/v1`
+- MoE 模型自动选择（DeepSeek-V3/V4/R1、Qwen3-MoE、Mixtral、GLM-4.5+、Kimi-K2+）
+- VLM 模型自动选择（`*-VL-*`、`*-vision*`、GLM-*V）
+- 支持 RadixAttention 前缀缓存（`prefixCaching: true`）
+- KEDA ScaledObject + TTFT/TPOT P95 触发器
+
+#### Chitu（赤兔）引擎
+- 新增 `chitu` subchart：清华赤兔推理引擎，端口 21002，兼容 OpenAI `/v1`
+- 多硬件支持：NVIDIA（arch 80/89/90）、昇腾（A2/A3）、沐曦、海光、摩尔线程
+- 通过 `features: [domestic-gpu]` 标签选择
+- Hydra 配置：`chituConfig.useCudaGraph`、`chituConfig.softFp8`
+- 基于 torchrun 的多 GPU 支持（`--nproc_per_node`）
+
+#### 基于能力标签的引擎选择
+- 模型定义新增 `features` 字段：`moe`、`vlm`、`domestic-gpu`
+- 源名自动识别：MoE 模式 → sglang，VLM 模式 → sglang
+- `global.defaultLLMEngine` 设置切换默认引擎（vllm、sglang 或 chitu）
+- Go 侧：`ResolveEngineEx()` + `IsMoESource()` + `IsVLMSource()`
+- Helm 侧：`resolveEngine` 支持向后兼容的新 API `(dict "model" $model "global" $.Values.global)`
+
+### 变更
+- LiteLLM configmap：路由到 5 个引擎（vllm:8000、sglang:30000、chitu:21002、llamacpp:8080、tei:8080）
+- KEDA：支持所有 5 个引擎的 ScaledObject，SGLang 支持 TTFT/TPOT P95 触发器
+- 会话亲和性：Envoy 端点覆盖所有 LLM 引擎
+- Dify/Finetune 模板：识别 sglang/chitu 为 LLM 引擎
+- 所有 `resolveEngine` 调用点传递 global 上下文以支持 `defaultLLMEngine`
+
 ## [1.0.0] - 2026-04-23
 
 > **里程碑：** Phase 6 完成 — Operator + CLI + Dashboard 三件套 GA。
