@@ -31,19 +31,19 @@ All three solve the problem of deploying and managing LLMs on Kubernetes — but
 
 ## When to Choose Each
 
-### Choose kube-llmops if...
+### Choose kube-llmops if
 - You want a **one-command, batteries-included** LLM platform
 - You need **multi-team** support with key management, rate limiting, and budget tracking
 - You want **observability out of the box** — tracing, dashboards, alerts, GPU monitoring
 - You're deploying **RAG** or **fine-tuning** pipelines
 - You value **SSO integration** (Keycloak)
 
-### Choose KAITO if...
+### Choose KAITO if
 - You're on **Azure** and want deep integration
 - You need basic inference + tuning without the extras
 - You want a **CNCF Sandbox** project with backing from Microsoft
 
-### Choose KServe if...
+### Choose KServe if
 - You need a **standardized, production-grade** inference platform
 - You're already in the **Knative/ISTIO** ecosystem
 - You want **CNCF Incubating** project stability
@@ -66,4 +66,3 @@ curl http://litellm.llmops.local/v1/chat/completions \
 ## Star History
 
 If you found this comparison useful, give [kube-llmops](https://github.com/GaeaRuiW/kube-llmops) a star on GitHub! It helps the project grow and reach more teams. ⭐
-

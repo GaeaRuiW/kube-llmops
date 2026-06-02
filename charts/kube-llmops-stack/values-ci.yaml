@@ -18,6 +18,8 @@ tei:
 
 litellm:
   enabled: true
+  image:
+    tag: main-v1.82.3-stable
   masterKey: sk-ci-test-key
   models: []          # No backend models in CI
   postgresql:
@@ -25,7 +27,7 @@ litellm:
     auth:
       password: ci-test-pw
     image:
-      tag: "16-alpine"
+      tag: "pg16"
   resources:
     requests:
       cpu: 100m

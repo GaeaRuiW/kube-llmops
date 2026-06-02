@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 LABEL org.opencontainers.image.source="https://github.com/GaeaRuiW/kube-llmops"
 LABEL org.opencontainers.image.description="kube-llmops model-resolver: auto-detect model format and select optimal engine"

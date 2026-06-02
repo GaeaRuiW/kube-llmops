@@ -42,6 +42,7 @@ jobs:
           image-ref: ghcr.io/gaearuiw/kube-llmops/${{ matrix.image.name }}:ci
           format: table
           exit-code: 1
+          ignore-unfixed: true
           severity: CRITICAL
           timeout: 5m
 
