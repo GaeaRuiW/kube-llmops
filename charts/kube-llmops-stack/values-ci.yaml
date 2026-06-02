@@ -34,7 +34,7 @@ litellm:
       memory: 256Mi
     limits:
       cpu: 500m
-      memory: 512Mi
+      memory: 2Gi
 
 observability:
   enabled: true
@@ -68,6 +68,9 @@ security:
   enabled: false
 
 keycloak:
+  enabled: false
+
+headlamp:
   enabled: false
 
 milvus:
