@@ -16,6 +16,19 @@ global:
     security:
       enabled: false      # LLM-Guard, NetworkPolicy + tenant dashboard
 
+  # Scale-to-zero uses the KEDA HTTP add-on as the wake-up path. Model serving
+  # pod metrics disappear at 0 replicas, so true 0->1 scaling must be driven by
+  # the always-on HTTP interceptor.
+  scaleToZero:
+    httpAddOn:
+      enabled: true
+      namespace: keda-system
+      interceptorService: keda-add-ons-http-interceptor-proxy
+      interceptorPort: 8080
+      externalScalerService: keda-add-ons-http-external-scaler
+      externalScalerPort: 9090
+      aliasServicePrefix: keda-http
+
 # -- Default LLM inference engine (used when auto-detection finds no MoE/VLM pattern)
 # Options: vllm, sglang, chitu
 # MoE models (DeepSeek-V3/R1, Qwen3-MoE, Mixtral, GLM-4.5+) auto-select sglang.
@@ -400,8 +413,8 @@ security: {}
 ingress:
   enabled: false
   className: traefik         # k3s default; set to nginx for other clusters
+  # Leave empty to access all services without a domain.
   host: ""                   # Set to your domain (e.g. llm.example.com)
-                             # Leave empty to access all services without a domain
   tls: false
   annotations: {}
 

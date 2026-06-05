@@ -25,14 +25,7 @@ SINGLE_MODEL = {
 
 def helm_template(set_values=None, values_files=None, show_only=None):
     """Run helm template and return parsed YAML documents."""
-    cmd = ["helm", "template", "test", str(CHART_DIR)]
-    for vf in (values_files or []):
-        cmd += ["-f", str(vf)]
-    for k, v in (set_values or {}).items():
-        cmd += ["--set", f"{k}={v}"]
-    if show_only:
-        cmd += ["--show-only", show_only]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+    result = helm_template_result(set_values=set_values, values_files=values_files, show_only=show_only)
     if result.returncode != 0:
         # Templates that render nothing cause "could not find template" – treat as empty
         if "could not find template" in result.stderr:
@@ -43,6 +36,18 @@ def helm_template(set_values=None, values_files=None, show_only=None):
         if doc:
             docs.append(doc)
     return docs
+
+
+def helm_template_result(set_values=None, values_files=None, show_only=None):
+    """Run helm template and return the raw subprocess result."""
+    cmd = ["helm", "template", "test", str(CHART_DIR)]
+    for vf in (values_files or []):
+        cmd += ["-f", str(vf)]
+    for k, v in (set_values or {}).items():
+        cmd += ["--set", f"{k}={v}"]
+    if show_only:
+        cmd += ["--show-only", show_only]
+    return subprocess.run(cmd, capture_output=True, text=True, timeout=60)
 
 
 def find_by_kind(docs, kind, name_contains=None):
@@ -220,7 +225,7 @@ class TestScaleToZero:
     def test_scale_to_zero_enabled(self):
         vals = {
             **KEDA_BASE,
-            "keda.models.test-model.scaleToZero.enabled": "true",
+            "global.models[0].scaleToZero.enabled": "true",
             "keda.models.test-model.scaleToZero.idleTimeout": "600",
         }
         docs = helm_template(
@@ -229,13 +234,14 @@ class TestScaleToZero:
         )
         sos = find_by_kind(docs, "ScaledObject")
         assert sos[0]["spec"]["minReplicaCount"] == 0
+        assert sos[0]["spec"]["cooldownPeriod"] == 600
         assert sos[0]["spec"]["idleReplicaCount"] == 0
         assert sos[0]["spec"]["advanced"]["horizontalPodAutoscalerConfig"]["behavior"]["scaleDown"]["stabilizationWindowSeconds"] == 600
 
-    def test_scale_to_zero_activation_threshold(self):
+    def test_scale_to_zero_uses_http_add_on_trigger(self):
         vals = {
             **KEDA_BASE,
-            "keda.models.test-model.scaleToZero.enabled": "true",
+            "global.models[0].scaleToZero.enabled": "true",
         }
         docs = helm_template(
             set_values=vals,
@@ -243,8 +249,65 @@ class TestScaleToZero:
         )
         sos = find_by_kind(docs, "ScaledObject")
         triggers = sos[0]["spec"]["triggers"]
-        queue_trigger = triggers[0]
-        assert queue_trigger["metadata"]["activationThreshold"] == "1"
+        http_trigger = triggers[0]
+        queue_trigger = triggers[1]
+        assert http_trigger["type"] == "external-push"
+        assert http_trigger["metadata"]["interceptorRoute"] == "keda-http-vllm-test-model"
+        assert http_trigger["metadata"]["scalerAddress"] == "keda-add-ons-http-external-scaler.keda-system:9090"
+        assert "num_requests_waiting" in queue_trigger["metadata"]["query"]
+        assert "activationThreshold" not in queue_trigger["metadata"]
+
+    def test_scale_to_zero_interceptor_route_rendered(self):
+        vals = {
+            **KEDA_BASE,
+            "global.models[0].scaleToZero.enabled": "true",
+            "global.models[0].scaleToZero.targetPendingRequests": "3",
+        }
+        docs = helm_template(
+            set_values=vals,
+            show_only="charts/keda/templates/http-add-on-routing.yaml",
+        )
+        svcs = find_by_kind(docs, "Service", "keda-http-vllm-test-model")
+        routes = find_by_kind(docs, "InterceptorRoute", "keda-http-vllm-test-model")
+        assert len(svcs) == 1
+        assert len(routes) == 1
+        assert svcs[0]["spec"]["type"] == "ExternalName"
+        assert svcs[0]["spec"]["externalName"] == "keda-add-ons-http-interceptor-proxy.keda-system.svc.cluster.local"
+        assert svcs[0]["spec"]["ports"][0]["port"] == 8080
+        route = routes[0]
+        assert route["spec"]["target"]["service"] == "vllm-test-model"
+        assert route["spec"]["target"]["port"] == 8000
+        assert route["spec"]["scalingMetric"]["concurrency"]["targetValue"] == 3
+        assert "keda-http-vllm-test-model.default.svc.cluster.local" in route["spec"]["rules"][0]["hosts"]
+
+    def test_scale_to_zero_requires_keda_enabled(self):
+        vals = {
+            **SINGLE_MODEL,
+            "global.models[0].scaleToZero.enabled": "true",
+        }
+        result = helm_template_result(set_values=vals)
+        assert result.returncode != 0
+        assert "requires keda.enabled=true" in result.stderr
+
+    def test_scale_to_zero_requires_http_add_on_enabled(self):
+        vals = {
+            **KEDA_BASE,
+            "global.models[0].scaleToZero.enabled": "true",
+            "global.scaleToZero.httpAddOn.enabled": "false",
+        }
+        result = helm_template_result(set_values=vals)
+        assert result.returncode != 0
+        assert "requires global.scaleToZero.httpAddOn.enabled=true" in result.stderr
+
+    def test_scale_to_zero_rejects_unsupported_engine(self):
+        vals = {
+            **KEDA_BASE,
+            "global.models[0].engine": "tei",
+            "global.models[0].scaleToZero.enabled": "true",
+        }
+        result = helm_template_result(set_values=vals)
+        assert result.returncode != 0
+        assert "resolved to unsupported engine" in result.stderr
 
 
 TWO_MODELS = {
@@ -270,12 +333,29 @@ class TestScaleToZeroFallback:
     def test_fallback_rendered_when_set(self):
         vals = {
             **TWO_MODELS,
+            "keda.enabled": "true",
+            "global.models[0].scaleToZero.enabled": "true",
             "global.models[0].scaleToZero.fallbackModel": "big-model",
         }
         docs = helm_template(set_values=vals)
         config = get_configmap_data(docs, "litellm-config")
         small_entry = [e for e in config["model_list"] if e["model_name"] == "small-model"][0]
         assert small_entry["model_info"]["metadata"]["fallbacks"] == ["big-model"]
+
+    def test_scale_to_zero_routes_litellm_through_http_interceptor(self):
+        vals = {
+            **TWO_MODELS,
+            "keda.enabled": "true",
+            "global.models[0].scaleToZero.enabled": "true",
+        }
+        docs = helm_template(
+            set_values=vals,
+            show_only="charts/litellm/templates/configmap.yaml",
+        )
+        config = get_configmap_data(docs, "litellm-config")
+        small_entry = [e for e in config["model_list"] if e["model_name"] == "small-model"][0]
+        api_base = small_entry["litellm_params"]["api_base"]
+        assert api_base == "http://keda-http-vllm-small-model.default.svc.cluster.local:8080/v1"
 
 
 class TestSpotToleration:

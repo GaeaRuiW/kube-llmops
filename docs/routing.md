@@ -56,19 +56,36 @@ When a model is unavailable (e.g., scaled to zero), LiteLLM routes to the next m
 
 ### Scale-to-Zero Fallback
 
-KEDA can scale models to zero replicas during idle periods. Configure a fallback model for cold-start coverage:
+KEDA can scale models to zero replicas during idle periods. True scale-from-zero uses the KEDA HTTP add-on interceptor, because model-serving metrics such as `vllm:num_requests_waiting` disappear when the serving Deployment is at 0 replicas.
 
 ```yaml
+global:
+  models:
+    - name: qwen2-5-0-5b
+      source: Qwen/Qwen2.5-0.5B-Instruct
+      scaleToZero:
+        enabled: true
+        fallbackModel: "qwen3-8b" # optional LiteLLM fallback during cold start
+
 keda:
+  enabled: true
   models:
     qwen2-5-0-5b:
       scaleToZero:
-        enabled: true
         idleTimeout: 900          # 15 min idle before scale-down
-        fallbackModel: "qwen3-8b" # serves requests during cold start
 ```
 
-The fallback is auto-injected into LiteLLM's config — no manual `fallbacks` entry needed.
+When enabled, LiteLLM routes the model to a per-model ExternalName alias for the KEDA HTTP add-on interceptor. The interceptor holds the first request while KEDA scales the backend Deployment from 0 to 1, then forwards the unchanged OpenAI-compatible request path to the real model Service.
+
+Install both KEDA core and the HTTP add-on before enabling this:
+
+```bash
+helm repo add kedacore https://kedacore.github.io/charts
+helm install keda kedacore/keda --namespace keda-system --create-namespace
+helm install http-add-on kedacore/keda-add-ons-http --namespace keda-system
+```
+
+`keda.models.<name>.scaleToZero.enabled` is intentionally not supported as the activation switch, because LiteLLM cannot see sibling `keda.*` values. Put `enabled` and `fallbackModel` under `global.models[].scaleToZero`; keep KEDA-only tuning such as `idleTimeout` under `keda.models.<name>.scaleToZero`.
 
 ## Canary Routing
 

@@ -1,0 +1,25 @@
+{{/*
+Validate scale-to-zero wiring at the umbrella chart level. LiteLLM only sees
+global values, while the KEDA subchart owns the ScaledObject and InterceptorRoute
+resources, so model-level scale-to-zero must be rejected when those pieces are
+not enabled together.
+*/}}
+{{- $global := default dict .Values.global -}}
+{{- $models := default list $global.models -}}
+{{- $keda := default dict .Values.keda -}}
+{{- $httpS2zEnabled := eq (include "kube-llmops.httpScaleToZeroEnabled" . | trim) "true" -}}
+{{- range $model := $models }}
+{{- $s2z := default dict $model.scaleToZero }}
+{{- if ($s2z.enabled | default false) }}
+{{- $engine := include "kube-llmops.resolveEngine" (dict "model" $model "global" $global) | trim }}
+{{- if not ($keda.enabled | default false) }}
+{{- fail (printf "global.models[].scaleToZero.enabled=true on model %q requires keda.enabled=true so KEDA can create the HTTP add-on ScaledObject and InterceptorRoute" $model.name) }}
+{{- end }}
+{{- if not $httpS2zEnabled }}
+{{- fail (printf "global.models[].scaleToZero.enabled=true on model %q requires global.scaleToZero.httpAddOn.enabled=true because serving pod metrics cannot wake 0 replicas" $model.name) }}
+{{- end }}
+{{- if ne (include "kube-llmops.supportsHttpScaleToZero" $engine | trim) "true" }}
+{{- fail (printf "global.models[].scaleToZero.enabled=true on model %q resolved to unsupported engine %q; supported engines are vllm, sglang, chitu, and llamacpp" $model.name $engine) }}
+{{- end }}
+{{- end }}
+{{- end }}

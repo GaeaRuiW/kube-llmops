@@ -12,7 +12,7 @@
 #
 # Prerequisites:
 #   - Kubernetes 1.28+ with GPU-capable nodes (8+ NVIDIA GPUs recommended)
-#   - KEDA operator installed (kubectl apply -f https://github.com/kedacore/keda/releases/latest/download/keda-2.x.yaml)
+#   - KEDA operator installed (and KEDA HTTP add-on if using model scale-to-zero)
 #   - StorageClass available for persistent volumes
 #   - IMPORTANT: Override ALL default/empty secrets before deploying!
 #     Never commit real credentials to this file.
@@ -23,7 +23,7 @@
 #   - Full observability: OTEL Collector, Prometheus (50Gi, 30d), Grafana, DCGM
 #   - LLM tracing via Langfuse (HA: 2 replicas)
 #   - Centralized logging: Fluent Bit + Loki (20Gi)
-#   - GPU-aware autoscaling via KEDA (scales on queue depth)
+#   - GPU-aware autoscaling via KEDA (serving metrics for 1->N, HTTP add-on for 0->1)
 #   - NetworkPolicy isolation between components
 #   - Increased resource limits across the board
 # =============================================================================
@@ -228,7 +228,9 @@ logging:
 # Autoscaling (KEDA) - GPU-aware horizontal pod autoscaling
 # -----------------------------------------------------------------------------
 # Requires the KEDA operator to be pre-installed in the cluster.
-# Scales model replicas based on Prometheus metrics (e.g., vLLM queue depth).
+# Scales model replicas based on Prometheus metrics when pods exist. For
+# scale-to-zero, enable global.models[].scaleToZero and install the KEDA HTTP
+# add-on so the interceptor can wake the backend from 0 replicas.
 keda:
   enabled: true
   defaults:

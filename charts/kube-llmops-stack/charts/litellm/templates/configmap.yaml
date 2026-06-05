@@ -46,11 +46,19 @@ data:
       {{- else if eq $modelType "reranker" }}
         {{- $mode = "rerank" }}
       {{- end }}
+      {{- $apiBase := printf "http://%s-%s.%s.svc.cluster.local:%s%s" $prefix $model.name $.Release.Namespace $port $apiSuffix }}
+      {{- $s2z := default dict $model.scaleToZero }}
+      {{- $s2zEnabled := $s2z.enabled | default false }}
+      {{- $httpS2zEnabled := eq (include "kube-llmops.httpScaleToZeroEnabled" $ | trim) "true" }}
+      {{- if and $s2zEnabled $httpS2zEnabled (eq (include "kube-llmops.supportsHttpScaleToZero" $engine | trim) "true") }}
+        {{- $alias := include "kube-llmops.httpScaleAliasName" (dict "root" $ "engine" $engine "model" $model) }}
+        {{- $apiBase = printf "http://%s.%s.svc.cluster.local:%s%s" $alias $.Release.Namespace (include "kube-llmops.httpAddOnInterceptorPort" $) $apiSuffix }}
+      {{- end }}
       {{- if and $model.canary $model.canary.enabled }}
       - model_name: {{ $model.name }}
         litellm_params:
           model: {{ $litellmPrefix }}/{{ $model.name }}
-          api_base: http://{{ $prefix }}-{{ $model.name }}.{{ $.Release.Namespace }}.svc.cluster.local:{{ $port }}{{ $apiSuffix }}
+          api_base: {{ $apiBase }}
           api_key: "no-key-needed"
           weight: {{ sub 100 (int ($model.canary.weight | default 10)) }}
         model_info:
@@ -67,7 +75,7 @@ data:
       - model_name: {{ $model.name }}
         litellm_params:
           model: {{ $litellmPrefix }}/{{ $model.name }}
-          api_base: http://{{ $prefix }}-{{ $model.name }}.{{ $.Release.Namespace }}.svc.cluster.local:{{ $port }}{{ $apiSuffix }}
+          api_base: {{ $apiBase }}
           api_key: "no-key-needed"
         model_info:
           mode: {{ $mode }}

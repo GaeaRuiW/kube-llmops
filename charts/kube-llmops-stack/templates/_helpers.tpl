@@ -197,6 +197,101 @@ Used by LiteLLM configmap to choose prefix (huggingface/ vs openai/).
 {{- end -}}
 
 {{/*
+Return true when an engine serves OpenAI-compatible HTTP traffic that can be
+fronted by the KEDA HTTP add-on interceptor.
+*/}}
+{{- define "kube-llmops.supportsHttpScaleToZero" -}}
+{{- if or (eq . "vllm") (eq . "sglang") (eq . "chitu") (eq . "llamacpp") -}}
+true
+{{- else -}}
+false
+{{- end -}}
+{{- end -}}
+
+{{/*
+Model serving service port for each engine.
+*/}}
+{{- define "kube-llmops.modelServingPort" -}}
+{{- if eq . "sglang" -}}
+30000
+{{- else if eq . "chitu" -}}
+21002
+{{- else if eq . "llamacpp" -}}
+8080
+{{- else if eq . "tei" -}}
+8080
+{{- else -}}
+8000
+{{- end -}}
+{{- end -}}
+
+{{/*
+Whether global scale-to-zero HTTP add-on routing is enabled. This only takes
+effect for models that explicitly set global.models[].scaleToZero.enabled=true.
+*/}}
+{{- define "kube-llmops.httpScaleToZeroEnabled" -}}
+{{- $global := default dict .Values.global -}}
+{{- $s2z := default dict $global.scaleToZero -}}
+{{- $http := default dict $s2z.httpAddOn -}}
+{{- if hasKey $http "enabled" -}}
+{{- $http.enabled -}}
+{{- else -}}
+true
+{{- end -}}
+{{- end -}}
+
+{{/*
+KEDA HTTP add-on settings shared by LiteLLM and KEDA templates.
+*/}}
+{{- define "kube-llmops.httpAddOnNamespace" -}}
+{{- $global := default dict .Values.global -}}
+{{- $s2z := default dict $global.scaleToZero -}}
+{{- $http := default dict $s2z.httpAddOn -}}
+{{- $http.namespace | default "keda-system" -}}
+{{- end -}}
+
+{{- define "kube-llmops.httpAddOnInterceptorService" -}}
+{{- $global := default dict .Values.global -}}
+{{- $s2z := default dict $global.scaleToZero -}}
+{{- $http := default dict $s2z.httpAddOn -}}
+{{- $http.interceptorService | default "keda-add-ons-http-interceptor-proxy" -}}
+{{- end -}}
+
+{{- define "kube-llmops.httpAddOnInterceptorPort" -}}
+{{- $global := default dict .Values.global -}}
+{{- $s2z := default dict $global.scaleToZero -}}
+{{- $http := default dict $s2z.httpAddOn -}}
+{{- $http.interceptorPort | default 8080 -}}
+{{- end -}}
+
+{{- define "kube-llmops.httpAddOnExternalScalerAddress" -}}
+{{- $global := default dict .Values.global -}}
+{{- $s2z := default dict $global.scaleToZero -}}
+{{- $http := default dict $s2z.httpAddOn -}}
+{{- if $http.externalScalerAddress -}}
+{{- $http.externalScalerAddress -}}
+{{- else -}}
+{{- $svc := $http.externalScalerService | default "keda-add-ons-http-external-scaler" -}}
+{{- $ns := $http.externalScalerNamespace | default (include "kube-llmops.httpAddOnNamespace" .) -}}
+{{- $port := $http.externalScalerPort | default 9090 -}}
+{{- printf "%s.%s:%v" $svc $ns $port -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Per-model ExternalName alias used as LiteLLM's api_base host. The alias points
+to the KEDA HTTP add-on interceptor, while the HTTP Host header remains unique
+per model so InterceptorRoute can route to the real backend service.
+*/}}
+{{- define "kube-llmops.httpScaleAliasName" -}}
+{{- $prefix := "keda-http" -}}
+{{- if and .root.Values.global .root.Values.global.scaleToZero .root.Values.global.scaleToZero.httpAddOn .root.Values.global.scaleToZero.httpAddOn.aliasServicePrefix -}}
+{{- $prefix = .root.Values.global.scaleToZero.httpAddOn.aliasServicePrefix -}}
+{{- end -}}
+{{- printf "%s-%s-%s" $prefix .engine .model.name | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
 Shared model-loader init-container Python script.
 Flow: MinIO cache → HuggingFace fallback → upload back to MinIO.
 

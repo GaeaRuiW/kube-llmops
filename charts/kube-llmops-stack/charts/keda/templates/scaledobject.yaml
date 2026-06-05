@@ -1,5 +1,6 @@
 {{- if .Values.enabled }}
 {{- $promAddr := .Values.defaults.prometheusAddress | default (printf "http://%s-prometheus.%s.svc.cluster.local:9090" .Release.Name .Release.Namespace) }}
+{{- $httpS2zEnabled := eq (include "kube-llmops.httpScaleToZeroEnabled" . | trim) "true" }}
 
 {{/* Collect models from global.models */}}
 {{- $models := list }}
@@ -9,7 +10,7 @@
 
 {{- range $idx, $model := $models }}
 {{- $engine := include "kube-llmops.resolveEngine" (dict "model" $model "global" $.Values.global) | trim }}
-{{- if or (eq $engine "vllm") (eq $engine "sglang") (eq $engine "chitu") (eq $engine "llamacpp") }}
+{{- if eq (include "kube-llmops.supportsHttpScaleToZero" $engine | trim) "true" }}
 
 {{/* Per-engine config */}}
 {{- $engineCfg := index $.Values.engines $engine | default dict }}
@@ -26,12 +27,19 @@
 {{- $maxReplicas := $override.maxReplicas | default $.Values.defaults.maxReplicas }}
 {{- $threshold    = $override.threshold   | default $threshold }}
 
-{{/* Scale-to-zero config */}}
-{{- $s2z := default dict $override.scaleToZero }}
+{{/* Scale-to-zero config. enabled must live on global.models[] so LiteLLM can route through the interceptor. */}}
+{{- $modelS2z := default dict $model.scaleToZero }}
+{{- $overrideS2z := default dict $override.scaleToZero }}
+{{- if and ($overrideS2z.enabled | default false) (not ($modelS2z.enabled | default false)) }}
+{{- fail (printf "keda.models.%s.scaleToZero.enabled is not sufficient for true scale-to-zero; set global.models[].scaleToZero.enabled=true on model %q so LiteLLM routes through the KEDA HTTP add-on interceptor" $model.name $model.name) }}
+{{- end }}
+{{- $s2z := mergeOverwrite (dict) ($.Values.defaults.scaleToZero | default dict) $modelS2z $overrideS2z }}
 {{- $s2zEnabled := $s2z.enabled | default false }}
 {{- $idleTimeout := $s2z.idleTimeout | default 900 }}
+{{- $cooldownPeriod := $.Values.defaults.cooldownPeriod }}
 {{- if $s2zEnabled }}
 {{-   $minReplicas = 0 }}
+{{-   $cooldownPeriod = $idleTimeout }}
 {{- end }}
 
 {{/* Per-model trigger overrides */}}
@@ -66,7 +74,7 @@ spec:
     name: {{ $engine }}-{{ $model.name }}
   minReplicaCount: {{ $minReplicas }}
   maxReplicaCount: {{ $maxReplicas }}
-  cooldownPeriod:  {{ $.Values.defaults.cooldownPeriod }}
+  cooldownPeriod:  {{ $cooldownPeriod }}
   pollingInterval: {{ $.Values.defaults.pollingInterval }}
   {{- if $s2zEnabled }}
   idleReplicaCount: 0
@@ -77,7 +85,14 @@ spec:
           stabilizationWindowSeconds: {{ $idleTimeout }}
   {{- end }}
   triggers:
-    {{/* Trigger 1: Queue depth (always enabled unless explicitly disabled) */}}
+    {{/* Trigger 0: KEDA HTTP add-on, required for true scale-from-zero. */}}
+    {{- if and $s2zEnabled $httpS2zEnabled }}
+    - type: external-push
+      metadata:
+        scalerAddress: {{ include "kube-llmops.httpAddOnExternalScalerAddress" $ | quote }}
+        interceptorRoute: {{ include "kube-llmops.httpScaleAliasName" (dict "root" $ "engine" $engine "model" $model) | quote }}
+    {{- end }}
+    {{/* Trigger 1: Queue depth (kept for scaling while serving pods exist). */}}
     {{- if (($globalTriggers.requestsWaiting).enabled | default true) }}
     - type: prometheus
       metadata:
@@ -85,9 +100,6 @@ spec:
         query: sum({{ $metric }}{{"{"}}{{ $labelName }}="{{ $model.name }}"{{"}"}} ) or vector(0)
         threshold: {{ $threshold | quote }}
         metricName: pending_requests_{{ $model.name }}
-      {{- if $s2zEnabled }}
-        activationThreshold: "1"
-      {{- end }}
     {{- end }}
     {{/* Trigger 2: TTFT P95 (vLLM and SGLang) */}}
     {{- if and (or (eq $engine "vllm") (eq $engine "sglang")) (($globalTriggers.ttftP95).enabled | default false) }}

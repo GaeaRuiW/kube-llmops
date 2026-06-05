@@ -1,0 +1,79 @@
+{{- if .Values.enabled }}
+{{- $httpS2zEnabled := eq (include "kube-llmops.httpScaleToZeroEnabled" . | trim) "true" }}
+{{- $models := list }}
+{{- if and .Values.global .Values.global.models }}
+  {{- $models = .Values.global.models }}
+{{- end }}
+{{- if $httpS2zEnabled }}
+{{- range $idx, $model := $models }}
+{{- $engine := include "kube-llmops.resolveEngine" (dict "model" $model "global" $.Values.global) | trim }}
+{{- if eq (include "kube-llmops.supportsHttpScaleToZero" $engine | trim) "true" }}
+{{- $modelS2z := default dict $model.scaleToZero }}
+{{- $override := dict }}
+{{- if $.Values.models }}
+{{-   $override = index $.Values.models $model.name | default dict }}
+{{- end }}
+{{- $overrideS2z := default dict $override.scaleToZero }}
+{{- $s2z := mergeOverwrite (dict) ($.Values.defaults.scaleToZero | default dict) $modelS2z $overrideS2z }}
+{{- if ($s2z.enabled | default false) }}
+{{- $alias := include "kube-llmops.httpScaleAliasName" (dict "root" $ "engine" $engine "model" $model) }}
+{{- $interceptorNs := include "kube-llmops.httpAddOnNamespace" $ }}
+{{- $interceptorSvc := include "kube-llmops.httpAddOnInterceptorService" $ }}
+{{- $interceptorPort := include "kube-llmops.httpAddOnInterceptorPort" $ }}
+{{- $targetPort := include "kube-llmops.modelServingPort" $engine }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $alias }}
+  labels:
+    app.kubernetes.io/name: keda-http-interceptor-alias
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+    kube-llmops/model: {{ $model.name }}
+    kube-llmops/engine: {{ $engine }}
+spec:
+  type: ExternalName
+  externalName: {{ $interceptorSvc }}.{{ $interceptorNs }}.svc.cluster.local
+  ports:
+    - name: http
+      port: {{ $interceptorPort }}
+      targetPort: {{ $interceptorPort }}
+      protocol: TCP
+---
+apiVersion: http.keda.sh/v1beta1
+kind: InterceptorRoute
+metadata:
+  name: {{ $alias }}
+  labels:
+    app.kubernetes.io/name: keda-http-interceptor-route
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/part-of: kube-llmops
+    kube-llmops/model: {{ $model.name }}
+    kube-llmops/engine: {{ $engine }}
+spec:
+  target:
+    service: {{ $engine }}-{{ $model.name }}
+    port: {{ $targetPort }}
+  rules:
+    - hosts:
+        - {{ $alias | quote }}
+        - {{ printf "%s.%s" $alias $.Release.Namespace | quote }}
+        - {{ printf "%s.%s.svc" $alias $.Release.Namespace | quote }}
+        - {{ printf "%s.%s.svc.cluster.local" $alias $.Release.Namespace | quote }}
+  scalingMetric:
+    concurrency:
+      targetValue: {{ $s2z.targetPendingRequests | default 1 }}
+  timeouts:
+    readiness: {{ $s2z.readinessTimeout | default "0s" | quote }}
+    {{- if $s2z.requestTimeout }}
+    request: {{ $s2z.requestTimeout | quote }}
+    {{- end }}
+    {{- if $s2z.responseHeaderTimeout }}
+    responseHeader: {{ $s2z.responseHeaderTimeout | quote }}
+    {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

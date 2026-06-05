@@ -456,15 +456,21 @@ kubectl create secret generic hf-token \
 
 ## Autoscaling with KEDA
 
-kube-llmops supports automatic scaling of vLLM pods based on request queue depth using [KEDA](https://keda.sh/).
+kube-llmops supports automatic model-serving autoscaling with [KEDA](https://keda.sh/). For 1->N scaling, Prometheus triggers can use serving metrics such as queue depth and latency. For true scale-to-zero, install the KEDA HTTP add-on so an always-on interceptor can hold incoming requests and wake the backend from 0 replicas.
 
 ### Prerequisites
 
-Install the KEDA operator first:
+Install KEDA core first:
 
 ```bash
 helm repo add kedacore https://kedacore.github.io/charts
 helm install keda kedacore/keda --namespace keda-system --create-namespace
+```
+
+If any model uses `scaleToZero.enabled: true`, install the HTTP add-on in the same namespace:
+
+```bash
+helm install http-add-on kedacore/keda-add-ons-http --namespace keda-system
 ```
 
 ### Enable Autoscaling
@@ -472,29 +478,41 @@ helm install keda kedacore/keda --namespace keda-system --create-namespace
 In your values file or via `--set`:
 
 ```yaml
+global:
+  models:
+    - name: qwen2-5-0-5b
+      source: Qwen/Qwen2.5-0.5B-Instruct
+      engine: vllm
+      scaleToZero:
+        enabled: true          # LiteLLM routes this model through the HTTP interceptor
+
 keda:
   enabled: true
-  vllmModels:
-    - name: qwen2-5-0-5b   # Must match your vllm.models[].name
   defaults:
     minReplicas: 1
     maxReplicas: 4
-    triggers:
-      requestsWaiting:
-        enabled: true
-        threshold: "2"      # Scale up when > 2 requests waiting
+  models:
+    qwen2-5-0-5b:
+      scaleToZero:
+        idleTimeout: 900    # 15 min idle before scale-down
+  triggers:
+    requestsWaiting:
+      enabled: true         # Scale >1 while serving pod metrics exist
+    ttftP95:
+      enabled: true         # Optional latency trigger
 ```
 
 ### Verify
 
 ```bash
-# Check ScaledObject and HPA created
+# Check ScaledObject, HTTP route, and HPA created
 kubectl get scaledobject
+kubectl get interceptorroute
 kubectl get hpa
 
 # Expected output:
 # NAME                       READY   ACTIVE   TRIGGERS
-# vllm-qwen2-5-0-5b-scaler  True    False    prometheus
+# vllm-qwen2-5-0-5b-scaler  True    False    external-push,prometheus
 ```
 
 > **Note:** With a single GPU, KEDA will create the HPA but cannot actually add replicas unless more GPU nodes are available.

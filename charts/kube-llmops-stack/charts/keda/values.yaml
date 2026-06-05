@@ -3,6 +3,19 @@ enabled: false
 # Prerequisite: KEDA operator must be installed separately
 #   helm repo add kedacore https://kedacore.github.io/charts
 #   helm install keda kedacore/keda -n keda-system --create-namespace
+# For true scale-to-zero, install the KEDA HTTP add-on in the same namespace:
+#   helm install http-add-on kedacore/keda-add-ons-http -n keda-system
+
+global:
+  scaleToZero:
+    httpAddOn:
+      enabled: true
+      namespace: keda-system
+      interceptorService: keda-add-ons-http-interceptor-proxy
+      interceptorPort: 8080
+      externalScalerService: keda-add-ons-http-external-scaler
+      externalScalerPort: 9090
+      aliasServicePrefix: keda-http
 
 # Default autoscaling settings for all models
 defaults:
@@ -17,7 +30,8 @@ defaults:
   # Scale-to-zero defaults (applied when per-model scaleToZero.enabled=true)
   scaleToZero:
     idleTimeout: 900          # 15 min idle before scaling to zero
-    activationThreshold: "1"  # 1 request to wake up from zero
+    targetPendingRequests: 1  # HTTP add-on concurrency target per replica
+    readinessTimeout: "0s"    # Let model cold starts use the full request budget
 
 # Per-engine pending-requests trigger configuration
 # Models are auto-detected from global.models via resolveEngine helper
@@ -62,6 +76,6 @@ triggers:
 #       ttftP95:
 #         threshold: "1.5"
 #     scaleToZero:
-#       enabled: true
+#       # Set enabled under global.models[].scaleToZero so LiteLLM can route
+#       # through the KEDA HTTP add-on interceptor.
 #       idleTimeout: 900
-#       fallbackModel: "other-model"

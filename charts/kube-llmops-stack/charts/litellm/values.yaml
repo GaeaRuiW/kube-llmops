@@ -29,7 +29,7 @@ routerSettings:
   # fallbacks:            # Model fallback chain, e.g.:
   #   - model-a: [model-b]
   # Note: Scale-to-zero fallback is auto-configured per model via
-  # keda.models.<name>.scaleToZero.fallbackModel — no manual fallback needed.
+  # global.models[].scaleToZero.fallbackModel — no manual fallback needed.
 
 # Session affinity: Envoy sidecar with consistent hashing on a request header.
 # Routes requests with the same header value to the same vLLM Pod, improving

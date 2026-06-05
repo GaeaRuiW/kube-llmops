@@ -456,15 +456,21 @@ kubectl create secret generic hf-token \
 
 ## KEDA 自动扩缩
 
-kube-llmops 支持基于请求队列深度，使用 [KEDA](https://keda.sh/) 对 vLLM pod 进行自动扩缩。
+kube-llmops 支持使用 [KEDA](https://keda.sh/) 对模型服务进行自动扩缩。1->N 扩容可以继续使用服务端的 queue depth、latency 等 Prometheus 指标；真正的 scale-to-zero 必须安装 KEDA HTTP add-on，由常驻 interceptor 持有请求并把后端从 0 副本唤醒。
 
 ### 前置条件
 
-首先安装 KEDA operator：
+首先安装 KEDA core：
 
 ```bash
 helm repo add kedacore https://kedacore.github.io/charts
 helm install keda kedacore/keda --namespace keda-system --create-namespace
+```
+
+如果有模型启用了 `scaleToZero.enabled: true`，还需要在同一个 namespace 安装 HTTP add-on：
+
+```bash
+helm install http-add-on kedacore/keda-add-ons-http --namespace keda-system
 ```
 
 ### 启用自动扩缩
@@ -472,29 +478,41 @@ helm install keda kedacore/keda --namespace keda-system --create-namespace
 在 values 文件中或通过 `--set` 配置：
 
 ```yaml
+global:
+  models:
+    - name: qwen2-5-0-5b
+      source: Qwen/Qwen2.5-0.5B-Instruct
+      engine: vllm
+      scaleToZero:
+        enabled: true          # LiteLLM 会把该模型路由到 HTTP interceptor
+
 keda:
   enabled: true
-  vllmModels:
-    - name: qwen2-5-0-5b   # Must match your vllm.models[].name
   defaults:
     minReplicas: 1
     maxReplicas: 4
-    triggers:
-      requestsWaiting:
-        enabled: true
-        threshold: "2"      # Scale up when > 2 requests waiting
+  models:
+    qwen2-5-0-5b:
+      scaleToZero:
+        idleTimeout: 900    # 空闲 15 分钟后缩到 0
+  triggers:
+    requestsWaiting:
+      enabled: true         # 当服务端 pod 存在时用于继续扩到 >1
+    ttftP95:
+      enabled: true         # 可选：延迟触发器
 ```
 
 ### 验证
 
 ```bash
-# Check ScaledObject and HPA created
+# Check ScaledObject, HTTP route, and HPA created
 kubectl get scaledobject
+kubectl get interceptorroute
 kubectl get hpa
 
 # Expected output:
 # NAME                       READY   ACTIVE   TRIGGERS
-# vllm-qwen2-5-0-5b-scaler  True    False    prometheus
+# vllm-qwen2-5-0-5b-scaler  True    False    external-push,prometheus
 ```
 
 > **注意：** 在单 GPU 环境下，KEDA 会创建 HPA，但除非有更多 GPU 节点可用，否则无法实际增加副本数。
