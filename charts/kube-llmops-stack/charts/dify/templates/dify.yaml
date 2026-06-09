@@ -193,9 +193,15 @@ spec:
             - name: PLUGIN_DAEMON_URL
               value: "http://{{ .Release.Name }}-dify-plugin-daemon:5002"
             - name: PLUGIN_DAEMON_KEY
-              value: {{ .Values.pluginDaemon.key | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "dify.pluginDaemonSecretName" . }}
+                  key: {{ include "dify.pluginDaemonKeySecretKey" . }}
             - name: PLUGIN_DIFY_INNER_API_KEY
-              value: {{ .Values.pluginDaemon.innerApiKey | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "dify.pluginDaemonSecretName" . }}
+                  key: {{ include "dify.pluginDaemonInnerApiKeySecretKey" . }}
             - name: MARKETPLACE_ENABLED
               value: "true"
             - name: FORCE_VERIFYING_SIGNATURE
@@ -339,9 +345,15 @@ spec:
             - name: PLUGIN_DAEMON_URL
               value: "http://{{ .Release.Name }}-dify-plugin-daemon:5002"
             - name: PLUGIN_DAEMON_KEY
-              value: {{ .Values.pluginDaemon.key | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "dify.pluginDaemonSecretName" . }}
+                  key: {{ include "dify.pluginDaemonKeySecretKey" . }}
             - name: PLUGIN_DIFY_INNER_API_KEY
-              value: {{ .Values.pluginDaemon.innerApiKey | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "dify.pluginDaemonSecretName" . }}
+                  key: {{ include "dify.pluginDaemonInnerApiKeySecretKey" . }}
             - name: MARKETPLACE_ENABLED
               value: "true"
             - name: FORCE_VERIFYING_SIGNATURE
@@ -428,11 +440,17 @@ spec:
             - name: SERVER_PORT
               value: "5002"
             - name: SERVER_KEY
-              value: {{ .Values.pluginDaemon.key | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "dify.pluginDaemonSecretName" . }}
+                  key: {{ include "dify.pluginDaemonKeySecretKey" . }}
             - name: DIFY_INNER_API_URL
               value: "http://{{ .Release.Name }}-dify-api:5001"
             - name: DIFY_INNER_API_KEY
-              value: {{ .Values.pluginDaemon.innerApiKey | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "dify.pluginDaemonSecretName" . }}
+                  key: {{ include "dify.pluginDaemonInnerApiKeySecretKey" . }}
             - name: PLUGIN_REMOTE_INSTALLING_HOST
               value: "0.0.0.0"
             - name: PLUGIN_REMOTE_INSTALLING_PORT

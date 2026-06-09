@@ -14,8 +14,15 @@ image:
 
 # Plugin Daemon settings
 pluginDaemon:
-  key: "REMOVED_DIFY_PLUGIN_DAEMON_KEY"
-  innerApiKey: "REMOVED_DIFY_PLUGIN_DAEMON_INNER_API_KEY"
+  # Leave empty to let the chart generate and persist random credentials in a
+  # Kubernetes Secret. Set only through private values, or reference an
+  # externally managed Secret with existingSecret.
+  key: ""
+  innerApiKey: ""
+  existingSecret: ""
+  secretKeys:
+    key: plugin-daemon-key
+    innerApiKey: plugin-daemon-inner-api-key
 
 # Redis for Dify (deployed alongside)
 redis:

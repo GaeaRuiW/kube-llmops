@@ -66,7 +66,7 @@ data:
     #       dify-plugin-daemon decode/from_identifier endpoint.
     echo "[4/5] Installing plugins..."
     DAEMON="http://{{ .Release.Name }}-dify-plugin-daemon:5002"
-    DAEMON_KEY="{{ .Values.pluginDaemon.key }}"
+    : "${DAEMON_KEY:?DAEMON_KEY is required}"
 
     # Get tenant ID from current workspace
     TENANT_ID=$(P "/console/api/workspaces/current" "{}" | \
@@ -215,6 +215,12 @@ spec:
         - name: setup
           image: python:3.12-slim
           command: ["bash", "-c", "apt-get update -qq && apt-get install -qq -y curl > /dev/null 2>&1 && pip install -q uv && bash /scripts/setup.sh"]
+          env:
+            - name: DAEMON_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "dify.pluginDaemonSecretName" . }}
+                  key: {{ include "dify.pluginDaemonKeySecretKey" . }}
           volumeMounts:
             - name: scripts
               mountPath: /scripts

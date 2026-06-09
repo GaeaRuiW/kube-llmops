@@ -13,13 +13,9 @@ def helm_template(set_values=None, show_only=None):
     if r.returncode != 0:
         raise RuntimeError(f"helm template failed: {r.stderr}")
     docs = []
-    for raw in r.stdout.split("---"):
-        raw = raw.strip()
-        if raw:
-            try:
-                docs.append(yaml.safe_load(raw))
-            except yaml.YAMLError:
-                pass
+    for doc in yaml.safe_load_all(r.stdout):
+        if doc:
+            docs.append(doc)
     return docs
 
 def find_by_kind(docs, kind):
@@ -86,6 +82,42 @@ class TestRAGModuleSwitch:
         name_str = " ".join(names)
         assert "dify" in name_str, "dify should be on via explicit override"
         assert "milvus" not in name_str, "milvus should be off (module off, no override)"
+
+    def test_dify_plugin_daemon_credentials_use_secret_refs(self):
+        """Dify Plugin Daemon credentials must not be committed as default values."""
+        vals = {**BASE, "dify.enabled": "true"}
+        docs = helm_template(set_values=vals)
+
+        secret = [d for d in find_by_name(docs, "test-dify-plugin-daemon") if d["kind"] == "Secret"]
+        assert len(secret) == 1
+        assert secret[0]["kind"] == "Secret"
+        assert "plugin-daemon-key" in secret[0]["data"]
+        assert "plugin-daemon-inner-api-key" in secret[0]["data"]
+
+        api = [d for d in find_by_name(docs, "test-dify-api") if d["kind"] == "Deployment"][0]
+        api_container = [c for c in api["spec"]["template"]["spec"]["containers"] if c["name"] == "dify-api"][0]
+        api_env = api_container["env"]
+        daemon_key = [e for e in api_env if e["name"] == "PLUGIN_DAEMON_KEY"][0]
+        assert daemon_key["valueFrom"]["secretKeyRef"]["name"] == "test-dify-plugin-daemon"
+        assert daemon_key["valueFrom"]["secretKeyRef"]["key"] == "plugin-daemon-key"
+
+        plugin_daemon = [d for d in find_by_name(docs, "test-dify-plugin-daemon") if d["kind"] == "Deployment"][0]
+        plugin_container = [
+            c for c in plugin_daemon["spec"]["template"]["spec"]["containers"]
+            if c["name"] == "plugin-daemon"
+        ][0]
+        plugin_env = plugin_container["env"]
+        server_key = [e for e in plugin_env if e["name"] == "SERVER_KEY"][0]
+        inner_key = [e for e in plugin_env if e["name"] == "DIFY_INNER_API_KEY"][0]
+        assert server_key["valueFrom"]["secretKeyRef"]["key"] == "plugin-daemon-key"
+        assert inner_key["valueFrom"]["secretKeyRef"]["key"] == "plugin-daemon-inner-api-key"
+
+        setup = find_by_name(docs, "test-dify-setup")
+        setup_configmap = [d for d in setup if d["kind"] == "ConfigMap"][0]
+        setup_job = [d for d in setup if d["kind"] == "Job"][0]
+        assert 'DAEMON_KEY="' not in setup_configmap["data"]["setup.sh"]
+        setup_env = setup_job["spec"]["template"]["spec"]["containers"][0]["env"]
+        assert setup_env[0]["valueFrom"]["secretKeyRef"]["key"] == "plugin-daemon-key"
 
 
 class TestFinetuneModuleSwitch:
