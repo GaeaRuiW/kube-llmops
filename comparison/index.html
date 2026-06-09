@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>kube-llmops vs KAITO vs KServe: The 2026 Comparison Guide</title>
+  <meta name="description" content="Comprehensive comparison of Kubernetes-native LLM platforms: kube-llmops vs Microsoft KAITO vs KServe. Features, pricing, cloud support, and more.">
+  <meta name="keywords" content="kube-llmops, KAITO, KServe, Kubernetes LLM, LLMOps, vLLM, K8s AI deployment">
+  <meta property="og:title" content="kube-llmops vs KAITO vs KServe: 2026 Comparison">
+  <meta property="og:description" content="Which Kubernetes LLM platform should you choose? Find out in this no-BS comparison.">
+  <style>
+    :root { --primary: #326ce5; --accent: #10b981; --dark: #0f172a; --gray: #64748b; --light: #f8fafc; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: var(--dark); line-height: 1.6; background: var(--light); }
+    .header { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: white; padding: 60px 20px; text-align: center; }
+    .header h1 { font-size: 2.5rem; margin-bottom: 16px; }
+    .header h1 span { color: var(--accent); }
+    .header p { color: #94a3b8; max-width: 600px; margin: 0 auto; font-size: 1.1rem; }
+    .container { max-width: 1000px; margin: 0 auto; padding: 40px 20px; }
+    .winner { background: var(--accent); color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; margin: 30px 0; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    th, td { padding: 14px 16px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+    th { background: #f1f5f9; font-weight: 600; color: var(--dark); }
+    td:first-child { font-weight: 600; }
+    .yes { color: var(--accent); font-weight: 600; }
+    .no { color: #ef4444; }
+    .partial { color: #f59e0b; }
+    .cta { text-align: center; padding: 40px; background: white; border-radius: 12px; margin: 40px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .cta h2 { margin-bottom: 16px; }
+    .btn { display: inline-block; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; transition: all 0.2s; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: #2554b8; }
+    .btn-star { background: var(--accent); color: white; }
+    .btn-star:hover { background: #059669; }
+    .stars { display: inline-block; background: #f1f5f9; padding: 4px 12px; border-radius: 20px; font-size: 0.9rem; margin-top: 10px; }
+    @media (max-width: 600px) { .header h1 { font-size: 1.8rem; } th, td { padding: 10px 8px; font-size: 0.9rem; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>kube-llmops <span>vs</span> KAITO <span>vs</span> KServe</h1>
+    <p>The definitive comparison of Kubernetes-native LLM deployment platforms in 2026</p>
+    <div class="stars">⭐ kube-llmops: <span id="star-count">83</span> stars</div>
+  </div>
+
+  <div class="container">
+    <h2>TL;DR</h2>
+    <p style="margin-bottom: 20px;">Three platforms, three philosophies. Here's the quick verdict:</p>
+    <ul style="margin-left: 20px; margin-bottom: 30px;">
+      <li><strong>kube-llmops</strong> — Batteries-included, cloud-agnostic, one-command install. Best if you want everything out of the box.</li>
+      <li><strong>KAITO</strong> — Solid Microsoft project, but <strong>Azure-only</strong>. Good for Azure shops.</li>
+      <li><strong>KServe</strong> — Standardized, mature, but requires significant setup (Knative, ISTIO, etc.).</li>
+    </ul>
+
+    <h2>Feature Comparison</h2>
+    <table>
+      <thead>
+        <tr><th>Feature</th><th>kube-llmops</th><th>KAITO</th><th>KServe</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Cloud Support</td><td class="yes">AWS, GCP, Azure, On-prem</td><td class="no">Azure only</td><td class="yes">Any</td></tr>
+        <tr><td>Install Time</td><td class="yes">2 commands</td><td class="yes">2 commands</td><td class="no">5+ commands</td></tr>
+        <tr><td>AI Gateway</td><td class="yes">LiteLLM</td><td class="no">No</td><td class="no">No</td></tr>
+        <tr><td>LLM Tracing</td><td class="yes">Langfuse v3</td><td class="no">No</td><td class="no">No</td></tr>
+        <tr><td>Grafana Dashboards</td><td class="yes">11 pre-built</td><td class="no">0</td><td class="no">0</td></tr>
+        <tr><td>KEDA Autoscaling</td><td class="yes">Queue + TTFT + TPOT</td><td class="no">No</td><td class="partial">Partial</td></tr>
+        <tr><td>SSO Integration</td><td class="yes">Keycloak</td><td class="no">No</td><td class="no">No</td></tr>
+        <tr><td>RAG Infrastructure</td><td class="yes">Dify + pgvector + TEI</td><td class="no">No</td><td class="no">No</td></tr>
+        <tr><td>Fine-tuning</td><td class="yes">LLaMA-Factory + Argo</td><td class="partial">Basic</td><td class="no">No</td></tr>
+        <tr><td>Engine Auto-Selection</td><td class="yes">Yes</td><td class="no">No</td><td class="no">No</td></tr>
+        <tr><td>Log Aggregation</td><td class="yes">Fluent Bit + Loki</td><td class="no">No</td><td class="no">No</td></tr>
+        <tr><td>S3 Model Storage</td><td class="yes">MinIO</td><td class="no">No</td><td class="no">No</td></tr>
+        <tr><td>Open Source License</td><td>Apache 2.0</td><td>Apache 2.0</td><td>Apache 2.0</td></tr>
+        <tr><td>CNCF Status</td><td>—</td><td>Sandbox</td><td>Incubating</td></tr>
+      </tbody>
+    </table>
+
+    <h2>When to Choose Each</h2>
+
+    <h3 style="color: var(--accent); margin-top: 20px;">Choose kube-llmops if...</h3>
+    <ul style="margin-left: 20px; margin-bottom: 20px;">
+      <li>You want a <strong>one-command, batteries-included</strong> LLM platform</li>
+      <li>You need <strong>multi-team</strong> support with key management, rate limiting, budget tracking</li>
+      <li>You want <strong>observability out of the box</strong></li>
+      <li>You are deploying <strong>RAG</strong> or <strong>fine-tuning</strong> pipelines</li>
+      <li>You are <strong>not on Azure</strong> (or want multi-cloud flexibility)</li>
+    </ul>
+
+    <h3 style="color: #6366f1;">Choose KAITO if...</h3>
+    <ul style="margin-left: 20px; margin-bottom: 20px;">
+      <li>You are on <strong>Azure</strong> and want deep integration</li>
+      <li>You want a <strong>CNCF Sandbox</strong> project backed by Microsoft</li>
+    </ul>
+
+    <h3 style="color: #f59e0b;">Choose KServe if...</h3>
+    <ul style="margin-left: 20px; margin-bottom: 20px;">
+      <li>You need a <strong>standardized, production-grade</strong> inference platform</li>
+      <li>You are already in the <strong>Knative / ISTIO</strong> ecosystem</li>
+      <li>You prefer a <strong>modular, bring-your-own-components</strong> approach</li>
+    </ul>
+
+    <div class="cta">
+      <h2>🚀 Try kube-llmops Today</h2>
+      <p style="color: var(--gray); margin-bottom: 20px;">Deploy complete LLM infrastructure on any Kubernetes cluster — no Azure lock-in.</p>
+      <a href="https://github.com/GaeaRuiW/kube-llmops" class="btn btn-primary">View on GitHub →</a>
+      <a href="https://github.com/GaeaRuiW/kube-llmops/stargazers" class="btn btn-star" style="margin-left: 10px;">⭐ Give a Star</a>
+    </div>
+
+    <h2>Quick Start</h2>
+    <pre style="background: #1e293b; color: #e2e8f0; padding: 20px; border-radius: 8px; overflow-x: auto; margin: 20px 0;"><code># One command to install the entire LLM stack
+helm install kube-llmops charts/kube-llmops-stack   -f charts/kube-llmops-stack/values-minimal.yaml   --set ingress.enabled=true
+
+# Chat with your model immediately
+curl http://litellm.llmops.local/v1/chat/completions   -H "Authorization: Bearer sk-kube-llmops-dev"   -d '{"model":"qwen2-5-0-5b","messages":[{"role":"user","content":"Hello!"}]}'</code></pre>
+  </div>
+
+  <footer style="text-align: center; padding: 40px; color: var(--gray); border-top: 1px solid #e2e8f0;">
+    <p>kube-llmops — Apache 2.0 Licensed</p>
+    <p style="margin-top: 8px;">
+      <a href="https://github.com/GaeaRuiW/kube-llmops">GitHub</a> ·
+      <a href="https://github.com/GaeaRuiW/kube-llmops/discussions">Discussions</a> ·
+      <a href="https://dev.to/gaearuiw">Dev.to</a>
+    </p>
+  </footer>
+  <script>
+    fetch('https://api.github.com/repos/GaeaRuiW/kube-llmops')
+      .then(r => r.json())
+      .then(d => document.getElementById('star-count').textContent = d.stargazers_count)
+      .catch(() => {});
+  </script>
+</body>
+</html>
