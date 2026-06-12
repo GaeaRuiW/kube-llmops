@@ -29,6 +29,22 @@ Chart.lock
 dist/
 build/
 
+# Terraform local state/cache and per-user inputs
+**/.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+terraform/**/.terraform.lock.hcl
+
 # Secrets -- NEVER commit
 **/secrets/
 *.key
